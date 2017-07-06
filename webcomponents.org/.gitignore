@@ -1,0 +1,9 @@
+**/lib
+**/bower_components
+**/node_modules
+secrets.yaml
+*.pyc
+*~
+client/build
+*.sublime-*
+client/src/iron-doc-*.html

@@ -1,0 +1,324 @@
+<!--
+Copyright (c) 2015 The Polymer Project Authors. All rights reserved.
+This code may only be used under the BSD style license found at http://polymer.github.io/LICENSE.txt
+The complete set of authors may be found at http://polymer.github.io/AUTHORS.txt
+The complete set of contributors may be found at http://polymer.github.io/CONTRIBUTORS.txt
+Code distributed by Google as part of the polymer project is also
+subject to an additional IP rights grant found at http://polymer.github.io/PATENTS.txt
+-->
+
+<link rel="import" href="../../../iron-icon/iron-icon.html">
+<link rel="import" href="../../../paper-button/paper-button.html">
+<link rel="import" href="../../../paper-dropdown-menu/paper-dropdown-menu.html">
+<link rel="import" href="../../../paper-item/paper-item.html">
+<link rel="import" href="../../../paper-listbox/paper-listbox.html">
+<link rel="import" href="../../../paper-tooltip/paper-tooltip.html">
+<link rel="import" href="../../../polymer/polymer.html">
+<link rel="import" href="../../src/commands/commands.html">
+<link rel="import" href="../../src/css/css.html">
+<link rel="import" href="../../src/dom-utils/dom-utils.html">
+<link rel="import" href="../../src/rework-utils/rework-utils.html">
+<link rel="import" href="designer-inspector-behavior.html">
+<link rel="import" href="designer-css-prop-tooltip.html">
+
+<!--
+Displays the style rules that currently apply to `element`, and provides an
+editing interface for them.
+-->
+<dom-module id="designer-style-inspector">
+
+  <template>
+    <style>
+      :host {
+        @apply --paper-font-body1;
+        display: block;
+        padding: 16px;
+      }
+      h2 {
+        @apply --designer-inspector-title;
+      }
+      paper-input.value {
+        @apply --designer-inspector-row-value;
+      }
+      paper-input.property {
+        @apply --designer-inspector-row-label;
+        --paper-input-container-underline: {
+          display: none;
+        };
+      }
+      .inspector-row {
+        @apply --designer-inspector-row;
+      }
+      #add-container {
+        text-align: center;
+      }
+    </style>
+    <h2>Styles</h2>
+
+    <paper-dropdown-menu
+        label="Style"
+        always-float-label>
+      <paper-listbox
+          class="dropdown-content"
+          selected="{{_currentSelector}}"
+          attr-for-selected="value">
+        <template is="dom-repeat" items="[[_selectors]]">
+          <paper-item value="[[item]]">[[item]]</paper-item>
+        </template>
+      </paper-listbox>
+    </paper-dropdown-menu>
+
+    <template
+        is="dom-repeat"
+        items="[[_declarations]]"
+        as="declaration">
+      <div class="inspector-row">
+        <paper-input
+            id$="[[_id(index)]]"
+            class="property"
+            value="[[declaration.property]]"
+            no-label-float
+            on-change="_onPropertyChange">
+        </paper-input>
+        <paper-tooltip for="[[_id(index)]]">
+          <designer-css-prop-tooltip property="[[declaration.property]]">
+          </designer-css-prop-tooltip>
+        </paper-tooltip>
+        <paper-input
+            class="value"
+            value="[[declaration.value]]"
+            no-label-float
+            on-change="_onValueChange">
+        </paper-input>
+      </div>
+    </template>
+
+    <div id="add-container">
+      <paper-button on-click="_addDeclaration">
+        <iron-icon icon="add"></iron-icon>
+        Add Property
+      </paper-button>
+    </div>
+
+  </template>
+
+</dom-module>
+
+<script>
+define([
+    'css',
+    'polymer-designer/dom-utils',
+    'polymer-designer/rework-utils',
+    'polymer-designer/commands',
+    'polymer-designer/css'],
+    (rework, domUtils, reworkUtils, commands, cssLib) => {
+
+  'use strict';
+
+  Polymer({
+
+    is: 'designer-style-inspector',
+
+    behaviors: [Polymer.DesignerInspectorBehavior],
+
+    properties: {
+
+      claimedProperties: {
+        value() { return ['attribute.style']; },
+      },
+
+      /**
+       * Metadata published by the stage about the currently selected element.
+       */
+      selection: {
+        type: Object,
+        observer: '_selectionChanged',
+      },
+
+      /** The document where edits should be made */
+      documentInfo: {
+        type: Object,
+        observer: '_documentInfoChanged',
+      },
+
+      /**
+       * Map of selector -> rule object
+       */
+      _rules: {
+        type: Map,
+      },
+
+      _selectors: {
+        type: Array,
+        computed: '_computeSelectors(_rules)',
+      },
+
+      _currentSelector: {
+        type: String,
+        observer: '_currentSelectorChanged',
+      },
+
+      _currentRule: {
+        type: Object,
+        // computed: '_computeCurrentRule(_rules, _currentSelector)',
+      },
+
+      _declarations: {
+        type: Array,
+      },
+
+    },
+
+    observers: [
+      '_stylesChanged(documentInfo.styles)',
+    ],
+
+    _id(i) {
+      return `id-${i}`;
+    },
+
+    _documentInfoChanged() {
+      this._rules = null;
+      this._currentSelector = null;
+    },
+
+    _stylesChanged(styles) {
+      // TODO: ask for matching styles again, incase there's a new one
+      if (this.selection) {
+        this._selectionChanged();
+      }
+    },
+
+    _selectionChanged() {
+      // TODO: selection is changing twice, what's up w/ that?
+      // styles that match the current element in the live document
+      let liveStyles = (this.selection &&
+          this.selection.elementInfo &&
+          this.selection.elementInfo.styles) || [];
+
+      // source rules that match the current element, keyed by selector
+      let rules = new Map();
+
+      for (let liveStyle of liveStyles) {
+        let styleSourceId = liveStyle.ownerSourceId;
+        let matchedRules = liveStyle.rules;
+
+        for (let matchedRule of matchedRules) {
+          let selector = cssLib.normalizeSelector(matchedRule.selector);
+          let rule = this.documentInfo.styles.rules.get(selector);
+          rule._styleSourceId = styleSourceId;
+          rules.set(selector, rule);
+        }
+      }
+
+      this._rules = rules;
+
+      if (rules.size === 0) {
+        this._currentSelector = null;
+      } else {
+        // TODO: choose the highest specificy selector?
+        if (!rules.has(this._currentSelector)) {
+          this._currentSelector = rules.keys().next().value;
+        } else {
+          // force an update
+          this._currentSelectorChanged();
+        }
+      }
+    },
+
+    _computeSelectors(rules) {
+      // TODO: remove Array.from() when
+      // https://github.com/Polymer/polymer/issues/800 is fixed
+      return rules ? Array.from(rules.keys()) : null;
+    },
+
+    _currentSelectorChanged() {
+      this._currentRule = this._rules ? this._rules.get(this._currentSelector) : null;
+      this._declarations = this._currentRule
+          ? Array.from(this._currentRule.declarations)
+          : [];
+    },
+
+    _onValueChange(event) {
+      let rule = this._currentRule;
+      let declaration = event.model.declaration;
+      let property = declaration.property;
+      let oldValue = declaration.value;
+      let newValue = event.currentTarget.value;
+
+      if (declaration._new) {
+        declaration.value = newValue;
+        if (!property) {
+          return;
+        }
+        this._saveDeclaration(declaration);
+        return;
+      }
+
+      let styleSourceId = rule._styleSourceId;
+      let stylesheet = this.documentInfo.styles.stylesheets.get(styleSourceId);
+      let styleSource = stylesheet.source;
+      console.assert(styleSource);
+
+      let newSource = reworkUtils.replaceProperty(styleSource, rule, property,
+          newValue);
+
+      this.fire('designer-command',
+          commands.setTextContent(styleSourceId, styleSource, newSource));
+    },
+
+    _onPropertyChange(event) {
+      let rule = this._currentRule;
+      let declaration = event.model.declaration;
+      let oldPropertyName = declaration.property;
+      let newPropertyName = event.currentTarget.value;
+
+      if (declaration._new) {
+        declaration.property = newPropertyName;
+        if (!declaration.value) {
+          return;
+        }
+        this._saveDeclaration(declaration);
+        return;
+      }
+
+      let styleSourceId = rule._styleSourceId;
+      let stylesheet = this.documentInfo.styles.stylesheets.get(styleSourceId);
+      let styleSource = stylesheet.source;
+      console.assert(styleSource);
+
+      let newSource = reworkUtils.renameProperty(styleSource, rule,
+          oldPropertyName, newPropertyName);
+
+      this.fire('designer-command',
+          commands.setTextContent(styleSourceId, styleSource, newSource));
+    },
+
+    _addDeclaration() {
+      this.push('_declarations', {_new: true, property:'', value:''});
+    },
+
+    _saveDeclaration(declaration) {
+      let index = this._declarations.indexOf(declaration);
+      this.splice('_declarations', index, 1);
+
+      let rule = this._currentRule;
+      let property = declaration.property;
+      let value = declaration.value;
+
+      let styleSourceId = rule._styleSourceId;
+      let stylesheet = this.documentInfo.styles.stylesheets.get(styleSourceId);
+      let styleSource = stylesheet.source;
+      console.assert(styleSource);
+
+      let newSource = reworkUtils.setProperty(styleSource, rule,
+          property, value);
+
+      this.fire('designer-command',
+          commands.setTextContent(styleSourceId, styleSource, newSource));
+    },
+
+  });
+
+});
+</script>

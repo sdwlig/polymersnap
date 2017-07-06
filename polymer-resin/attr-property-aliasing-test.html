@@ -1,0 +1,73 @@
+<!--
+@license
+Copyright (c) 2017 The Polymer Project Authors. All rights reserved.
+This code may only be used under the BSD style license found at
+http://polymer.github.io/LICENSE.txt
+The complete set of authors may be found at
+http://polymer.github.io/AUTHORS.txt
+The complete set of contributors may be found at
+http://polymer.github.io/CONTRIBUTORS.txt
+Code distributed by Google as part of the polymer project is also
+subject to an additional IP rights grant found at
+http://polymer.github.io/PATENTS.txt
+-->
+
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <script src="/components/webcomponentsjs/webcomponents-lite.js"></script>
+  <script src="/components/web-component-tester/browser.js"></script>
+  <link rel="import" href="/components/polymer/polymer.html" />
+  <script src="polymer-resin.js"></script>
+  <script>security.polymer_resin.install();</script>
+  <script src="attr-property-aliasing-test.js"></script>
+  <title>Attr Property Aliasing Tests</title>
+</head>
+<body>
+  <dom-module id="alias-test-button">
+    <template>
+      <!-- We bind both formaction and form-action so that we're
+           sure that the IDL attribute formAction is affected. -->
+      <button formaction="{{action}}"
+              form-action="{{action}}">{{action}}</button>
+    </template>
+    <script>
+      Polymer({
+        is: 'alias-test-button',
+        properties: {
+          action: String
+        }
+      });
+    </script>
+  </dom-module>
+
+  <dom-module id="alias-attr-buttons">
+    <template>
+      <button class="property-button"
+              formaction="{{action}}"
+              form-action="{{action}}"
+              >&#9786;</button>
+      <button class="attribute-button"
+              formaction$="{{action}}"
+              >&#9786;</button>
+      <alias-test-button class="custom-button" action="{{action}}">
+      </alias-test-button>
+    </template>
+    <script>
+      Polymer({
+        is: 'alias-attr-buttons',
+        properties: {
+          action: String
+        }
+      });
+    </script>
+  </dom-module>
+
+  <test-fixture id="attr-property-aliasing-fixture">
+    <template>
+      <alias-attr-buttons />
+    </template>
+  </test-fixture>
+</body>
+</html>

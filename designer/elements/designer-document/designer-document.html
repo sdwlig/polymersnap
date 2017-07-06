@@ -1,0 +1,305 @@
+<!--
+Copyright (c) 2015 The Polymer Project Authors. All rights reserved.
+This code may only be used under the BSD style license found at http://polymer.github.io/LICENSE.txt
+The complete set of authors may be found at http://polymer.github.io/AUTHORS.txt
+The complete set of contributors may be found at http://polymer.github.io/CONTRIBUTORS.txt
+Code distributed by Google as part of the polymer project is also
+subject to an additional IP rights grant found at http://polymer.github.io/PATENTS.txt
+-->
+
+<link rel="import" href="../../../polymer/polymer.html">
+<link rel="import" href="../../src/commands/commands.html">
+<link rel="import" href="../../src/css/css.html">
+<link rel="import" href="../../src/editors/editors.html">
+<link rel="import" href="../../src/protocol/document-client.html">
+<link rel="import" href="../../src/rework-utils/rework-utils.html">
+<link rel="import" href="../../src/uri/uri.html">
+<link rel="import" href="../../vendor/parse5.html">
+
+<dom-module id="designer-document">
+
+  <template>
+    <style>
+      :host {
+        display: none;
+      }
+      #frame {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        border: none;
+        box-sizing: border-box;
+      }
+    </style>
+  </template>
+
+</dom-module>
+
+<script>
+  define([
+        'polymer-designer/protocol/DocumentClient',
+        // 'polymer-designer/protocol/ClientConnection',
+        'polymer-designer/commands/ParsedHtmlCommandApplier',
+        'polymer-designer/editors/ElementEditor',
+        'polymer-designer/dom-utils',
+        'dom5',
+        'css',
+        'polymer-designer/rework-utils',
+        'polymer-designer/css',
+        'uri',
+        'parse5',
+      ],
+      (
+        DocumentClient,
+        // ClientConnection,
+        ParsedHtmlCommandApplier,
+        ElementEditor,
+        domUtils,
+        dom5,
+        rework,
+        reworkUtils,
+        cssLib,
+        URI,
+        parse5) => {
+
+    'use strict';
+
+    const sourceIdAttribute = domUtils.sourceIdAttribute;
+
+    Polymer({
+      is: 'designer-document',
+
+      properties: {
+
+        analyzer: {
+          type: Object,
+        },
+
+        client: {
+          type: DocumentClient,
+          notify: true,
+        },
+
+        // clientConnection: {
+        //   type: ClientConnection,
+        //   notify: true,
+        //   observer: '_clientConnectionChanged',
+        // },
+
+        selection: {
+          type: Object,
+          notify: true,
+        },
+
+        documentInfo: {
+          type: Object,
+          notify: true,
+        },
+
+        _nextSourceId: {
+          type: Number,
+          value: 1,
+        },
+
+        url: {
+          type: String,
+          observer: '_onUrlChanged',
+        },
+
+        filename: {
+          type: String,
+          computed: '_computeFilename(documentInfo)',
+          notify: true,
+        },
+
+      },
+
+      detached() {
+        this.frame.getConnection().then((c) => c.disconnect());
+      },
+
+      _onUrlChanged(url) {
+        this.setDocument(this.url);
+        const event = new CustomEvent('designer-request-document-frame', {
+          detail: {},
+        });
+        this.dispatchEvent(event);
+        this.frame = event.detail.frame;
+        console.assert(this.frame != null);
+        this.frame.getConnection().then((conn) => {
+          this._setConnection(conn);
+        });
+      },
+
+      /**
+       * Sets the current document.
+       *
+       * @param {string} content The document source.
+       * @param {string} url The document location.
+       * @returns {Promise<DocumentInfo>}
+       */
+      setDocument(url, useAnalyzer) {
+        return this.analyzer.load(url)
+          .then((analyzedDocument) => Promise.all([
+              analyzedDocument.htmlLoaded,
+              analyzedDocument.metadataLoaded,
+            ]))
+          .then((results) => {
+            let _url = new URI(url);
+            let parsedDocument = results[0];
+            let metadata = results[1];
+
+            let astDocument = parsedDocument.ast;
+            let astDocumentElement = domUtils.getDocumentElement(astDocument);
+            let filename = _url.filename();
+            let elements = metadata.elements;
+            let styles = this._parseStyles(astDocument);
+
+            let textContent = parse5.serialize(astDocument);
+            this._parsedCommandApplier =
+                new ParsedHtmlCommandApplier(astDocument);
+
+            this.documentInfo = {
+              source: textContent,
+              url,
+              filename,
+              styles,
+              astDocument,
+              astDocumentElement,
+              elements,
+              textContent,
+            };
+            return this.documentInfo;
+          });
+      },
+
+      /**
+       * Sets the current source ID which we use to set the current selection.
+       *
+       * @param {string} sourceId The source ID of the element to select.
+       * @returns {Promise<>} A promise that completes with the operation.
+       */
+      setSourceId(sourceId) {
+        if (sourceId == null || this.client == null) {
+          this.selection = null;
+          return Promise.resolve();
+        } else {
+          return this.client.selectElementForSourceId(sourceId)
+            .then((response) => {
+              this._updateSelection(response.elementInfo, response.bounds);
+            });
+        }
+      },
+
+      getNodeBySourceId(sourceId) {
+        return dom5.query(this.documentInfo.astDocument,
+            dom5.predicates.hasAttrValue(sourceIdAttribute, sourceId));
+      },
+
+      _parseStyles(doc) {
+        let stylesheets = new Map();
+        let rules = new Map();
+
+        // TODO: <link rel="stylesheet">
+        let styleElements = dom5.queryAll(doc, dom5.predicates.hasTagName('style'));
+        for (let styleElement of styleElements) {
+          let styleSourceId = dom5.getAttribute(styleElement, sourceIdAttribute);
+          let styleSource = dom5.getTextContent(styleElement);
+          let parsedSheet = rework.parse(styleSource);
+
+          stylesheets.set(styleSourceId, {
+            sourceId: styleSourceId,
+            source: styleSource,
+            parsedSheet,
+          });
+
+          for (let rule of parsedSheet.stylesheet.rules) {
+            let selectors = rule.selectors;
+            let selector = cssLib.normalizeSelector(selectors.join(','));
+            if (rules.has(selector)) {
+              console.warn('selector collision', selector);
+            }
+            rules.set(selector, rule);
+          }
+        }
+
+        return {
+          stylesheets,
+          rules,
+        };
+      },
+
+      _updateSelection(elementInfo, bounds) {
+        if (elementInfo == null) {
+          this.selection = null;
+          return;
+        }
+        let tagName = elementInfo.tagName;
+        // TODO(justinfagnani): create class for selection object
+        this.selection = {
+          elementInfo: elementInfo,
+          bounds: bounds,
+          node: this.getNodeBySourceId(elementInfo.sourceId),
+          analysisInfo: this._getAnalysisInfo(tagName),
+          editor: ElementEditor.getEditor(tagName),
+        };
+      },
+
+      _getAnalysisInfo(tagName) {
+        if (this.analyzer) {
+          return this.analyzer.elementsByTagName[tagName];
+        }
+      },
+
+      _setConnection(connection) {
+        if (connection) {
+          this.client = new DocumentClient(connection);
+          this.client.getDocument().then((response) => {
+            // TODO: remember node protocol IDs to track node instances when
+            // there is no source ID, or a non-unique source ID due to cloning
+          });
+        } else {
+          this.client = null;
+        }
+      },
+
+      executeCommand(command) {
+        // commands with a null (not undefined) sourceId are creating a new
+        // element and need to be assigned a fresh sourceId.
+        if (command.sourceId === null) {
+          command.sourceId = `${this._nextSourceId++}`;
+        }
+        this._parsedCommandApplier.apply(command);
+        this.set('documentInfo.textContent',
+            parse5.serialize(this.documentInfo.astDocument));
+        this.client.sendCommand(command).then((response) => {
+          this._updateSelection(response.elementInfo, response.bounds);
+          this.fire('designer-document-update', response);
+
+          if (command.sourceId) {
+            let node = this.getNodeBySourceId(command.sourceId);
+            console.assert(node);
+
+            // TODO: this is a haaaack!
+            // if we edited a style node, refresh the document styles
+            if (node.nodeName.toLowerCase() === 'style') {
+              let newStyles = this._parseStyles(this.documentInfo.astDocument);
+              this.set('documentInfo.styles', newStyles);
+            }
+          }
+
+        });
+      },
+
+      _computeFilename(documentInfo) {
+        return (documentInfo && documentInfo.filename)
+          ? documentInfo.filename
+          : "Untitled Document";
+      },
+
+    });
+
+  });
+</script>

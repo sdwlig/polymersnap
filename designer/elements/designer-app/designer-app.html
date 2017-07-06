@@ -1,0 +1,428 @@
+<!--
+Copyright (c) 2015 The Polymer Project Authors. All rights reserved.
+This code may only be used under the BSD style license found at http://polymer.github.io/LICENSE.txt
+The complete set of authors may be found at http://polymer.github.io/AUTHORS.txt
+The complete set of contributors may be found at http://polymer.github.io/CONTRIBUTORS.txt
+Code distributed by Google as part of the polymer project is also
+subject to an additional IP rights grant found at http://polymer.github.io/PATENTS.txt
+-->
+
+<link rel="import" href="../../../iron-pages/iron-pages.html">
+<link rel="import" href="../../../paper-styles/paper-styles.html">
+<link rel="import" href="../../../paper-toolbar/paper-toolbar.html">
+<link rel="import" href="../../../paper-icon-button/paper-icon-button.html">
+<link rel="import" href="../../../polymer/polymer.html">
+<link rel="import" href="../designer-document/designer-document.html">
+<link rel="import" href="../designer-iframe/designer-iframe.html">
+<link rel="import" href="../designer-document-outline/designer-document-outline.html">
+<link rel="import" href="../designer-element-palette/designer-element-palette.html">
+<link rel="import" href="../designer-inspector/designer-inspector.html">
+<link rel="import" href="../designer-logic-editor/designer-logic-editor.html">
+<link rel="import" href="../designer-mini-nav/designer-mini-nav.html">
+<link rel="import" href="../designer-project-nav/designer-project-nav.html">
+<link rel="import" href="../designer-tree/designer-tree.html">
+<link rel="import" href="../designer-ui-editor/designer-ui-editor.html">
+<link rel="import" href="../paper-tabs-vertical/paper-tabs-vertical.html">
+<link rel="import" href="../paper-tabs-vertical/paper-tab-vertical.html">
+<link rel="import" href="../../src/uri/uri.html">
+
+<dom-module id="designer-app">
+
+  <template>
+    <style>
+        :root {
+          --paper-grey-850: #303030;
+
+          /* primary */
+          --dark-primary-color: var(--paper-grey-900);
+          --default-primary-color: var(--paper-grey-800);
+          --light-primary-color: var(--paper-grey-700);
+          --text-primary-color: #ffffff;
+
+          --accent-color: var(--paper-blue-500);
+          --primary-background-color: var(--paper-grey-100);
+          --primary-text-color: rgba(0, 0, 0, var(--light-primary-opacity));
+          --secondary-text-color: rgba(0, 0, 0, var(--light-secondary-opacity));
+
+          --disabled-text-color: rgba(255, 255, 255, var(--dark-disabled-opacity));
+          --divider-color: rgba(0, 0, 0, var(--dark-divider-opacity));
+          color: var(--primary-text-color);
+
+          --paper-tooltip: {
+            background: black;
+            opacity: var(--dark-primary-opacity);
+          };
+
+          --shadow-elevation-2dp-inset: {
+            box-shadow: inset 0 2px 2px 0 rgba(0, 0, 0, 0.14),
+                        inset 0 1px 5px 0 rgba(0, 0, 0, 0.12),
+                        inset 0 3px 1px -2px rgba(0, 0, 0, 0.2);
+          };
+
+          --shadow-elevation-4dp-inset: {
+            box-shadow: inset 0 4px 5px 0 rgba(0, 0, 0, 0.14),
+                        inset 0 1px 10px 0 rgba(0, 0, 0, 0.12),
+                        inset 0 2px 4px -1px rgba(0, 0, 0, 0.4);
+          };
+
+          --divider: solid 1px var(--divider-color);
+
+          --paper-tabs-selection-bar-color: var(--accent-color);
+
+          --paper-tabs: {
+            border-bottom: var(--divider);
+          };
+
+          --designer-stage: {
+            @apply --shadow-elevation-4dp-inset;
+          };
+
+          --designer-iframe: {
+            @apply --shadow-elevation-4dp;
+          };
+
+        }
+
+        :host {
+          background: #eee;
+          box-sizing: border-box;
+          display: flex;
+          flex-direction: column;
+        }
+        #main {
+          display: flex;
+          flex: 1 1 0;
+          flex-direction: row;
+          height: 100%;
+        }
+        #editor {
+          display: flex;
+          flex-direction: row;
+          flex: 1 1 0;
+        }
+        designer-logic-editor {
+          display: flex;
+          flex-direction: column;
+          flex: 1;
+        }
+        paper-toolbar#header {
+          @apply --shadow-elevation-2dp;
+          background: var(--default-primary-color);
+          flex: 0 0 auto;
+        }
+        #filename {
+
+        }
+        #toolbar {
+          background: var(--primary-background-color);
+          color: var(--secondary-text-color);
+          flex: 0 0 auto;
+          border-bottom: var(--divider);
+        }
+        #logo {
+          width: 64px;
+          height: 64px;
+          padding: 6px;
+          box-sizing: border-box;
+        }
+        img.d-logo {
+          width: 48px;
+          height: 48px;
+        }
+        nav {
+          color: var(--secondary-text-color);
+          display: flex;
+          flex: 0 0 240px;
+          flex-direction: column;
+          font-size: 13px;
+          letter-spacing: .2px;
+          line-height: 24px;
+        }
+        nav#left-nav {
+          background: var(--primary-background-color);
+          border-right: var(--divider);
+          overflow: hidden;
+        }
+        nav#left-nav {
+          flex-basis: 0;
+          transition: flex-basis ease-in-out 0.38s;
+        }
+        nav#left-nav.open {
+          flex: 0 0 240px;
+        }
+        nav#left-nav .window {
+          width: 240px;
+        }
+        nav#left-nav iron-pages {
+          padding: 8px;
+        }
+        nav > #files > a {
+          display: block;
+          color: currentColor;
+          text-decoration: none;
+          padding: 8px;
+        }
+        nav > #files > a:hover {
+          text-decoration: underline;
+          cursor: pointer;
+        }
+        #doc-view {
+          display: flex;
+          flex: 1;
+          flex-direction: column;
+        }
+        .flex {
+          display: flex;
+          flex: 1;
+        }
+        designer-inspector {
+          flex: 0 0 280px;
+          overflow-y: auto;
+        }
+        /*designer-iframe {
+          position: absolute;
+          top: 0;
+          left: 0;
+          width: 100%;
+          height: 100%;
+          border: none;
+          box-sizing: border-box;
+        }*/
+        designer-file-tree {
+          padding: 4px 16px;
+        }
+        #files {
+          text-align: center;
+        }
+        #files paper-button {
+          background: var(--paper-grey-800);
+          color: var(--paper-grey-500);
+        }
+        #documents {
+          display: none;
+        }
+        #editor-panel {
+          display: flex;
+          flex: 1;
+        }
+        #editor-panel > * {
+          flex: 1;
+        }
+      </style>
+    <!-- elements projected here should hide themselves -->
+    <slot></slot>
+    <div id="documents"></div>
+    <paper-toolbar id="header">
+      <span id="filename">[[editorName]]</span>
+    </paper-toolbar>
+    <div id="toolbar" class$="_computeLeftNavClass(_leftNavOpen)">
+      <paper-icon-button icon="more-vert" on-click="_toggleLeftNav"></paper-icon-button>
+      <paper-icon-button icon="folder" on-click="_chooseProject"></paper-icon-button>
+      <paper-icon-button icon="undo"></paper-icon-button>
+      <paper-icon-button icon="redo"></paper-icon-button>
+    </div>
+    <div id="main">
+      <nav id="left-nav" class="open">
+        <div class="window">
+          <paper-tabs selected="{{_selectedNavTab}}" noink noslide nobar>
+            <paper-tab>
+              <iron-icon icon="icons:folder-open"></iron-icon>
+            </paper-tab>
+            <paper-tab>
+              <iron-icon icon="editor:format-list-bulleted"></iron-icon>
+            </paper-tab>
+            <paper-tab>
+              <iron-icon icon="icons:polymer"></iron-icon>
+            </paper-tab>
+          </paper-tabs>
+          <iron-pages selected="{{_selectedNavTab}}">
+            <div id="files">
+              <div id="projects"></div>
+            </div>
+            <div id="navigators"></div>
+            <designer-element-palette></designer-element-palette>
+          </iron-pages>
+        </div>
+      </nav>
+      <div id="editor-panel"></div>
+      <designer-inspector id="inspectors"></designer-inspector>
+    </div>
+  </template>
+
+</dom-module>
+
+<script>
+  define(['polymer-designer/dom-utils', 'uri'], (domUtils, URI) => {
+    'use strict';
+
+    Polymer({
+      is: 'designer-app',
+
+      properties: {
+
+        editorName: {
+          type: String,
+          // value: 'Polymer Designer',
+        },
+
+        _showInspectorPanel: {
+          type: Boolean,
+          value: true,
+        },
+
+        _selectedNavTab: {
+          type: Number,
+          value: 0,
+        },
+
+        _leftNavOpen: {
+          type: Boolean,
+          value: true,
+          observer: '_leftNavOpenChanged',
+        },
+
+      },
+
+      listeners: {
+        'designer-command': '_onDesignerCommand',
+        'designer-open-file': '_onDesignerOpenFile',
+        'designer-project-service-ready': '_onDesignerProjectServiceReady',
+        'designer-select-element': '_onDesignerSelectElement',
+        'hydrolysis-analyzer-ready': '_onHydrolysisAnalyzerReady',
+      },
+
+      created() {
+        Polymer.IronOverlayManager.ensureMinimumZ(1000);
+      },
+
+      showInspectorPanel() {
+        this._showInspectorPanel = true;
+      },
+
+      setInspectors(inspectors) {
+        domUtils.clearChildren(this.$.inspectors.root);
+        for (let inspector of inspectors) {
+          Polymer.dom(this.$.inspectors.root).appendChild(inspector);
+        }
+      },
+
+      setNavigators(navigators) {
+        domUtils.clearChildren(this.$.navigators);
+        for (let navigator of navigators) {
+          Polymer.dom(this.$.navigators).appendChild(navigator);
+        }
+      },
+
+      _leftNavOpenChanged(_leftNavOpen) {
+        this.$['left-nav'].classList.toggle('open', _leftNavOpen);
+      },
+
+      _toggleLeftNav() {
+        this._leftNavOpen = !this._leftNavOpen;
+      },
+
+      _onDesignerProjectServiceReady(event) {
+        this._projectService = event.target;
+        var locationUri = new URI(window.location);
+        let queryParams = locationUri.query(true);
+        let projectPath = queryParams['project'];
+        let filePath = queryParams['file'];
+        let selectedSourceId = queryParams['selection'];
+
+        if (projectPath) {
+          this._openProject(projectPath).then((project) => {
+            if (filePath) {
+              project.openFile(filePath).then((doc) => {
+                if (selectedSourceId) {
+                  // need to wait for iframe to load
+                  // TODO: thread promises all the way back to here
+                  setTimeout(() => {
+                    this._currentDocument.setSourceId(selectedSourceId);
+                  }, 500);
+                }
+              });
+            }
+          });
+        }
+      },
+
+      _chooseProject() {
+        return this._projectService.chooseProject()
+            .then((path) => this._openProject(path));
+      },
+
+      _openProject(path) {
+        return this._projectService.openProject(path)
+          .then((project) => {
+            this._addProject(project);
+            return project;
+          })
+          .catch((reason) => {
+            console.warn('open project failed', reason);
+          });
+      },
+
+      _addProject(project) {
+        let projectNav = document.createElement('designer-project-nav');
+        projectNav.project = project;
+        this.$.projects.appendChild(projectNav);
+      },
+
+      /**
+       * Handle the designer-open-file event, fired by the project service.
+       *
+       * event.detail.promise must be set to a Promise<>
+       */
+      _onDesignerOpenFile(e) {
+        // close current document and editor (for now)
+        domUtils.clearChildren(this.$.documents);
+        domUtils.clearChildren(this.$['editor-panel']);
+
+        // create new document element
+        let doc = document.createElement('designer-document');
+        doc.analyzer = this.analyzer;
+        this._currentDocument = doc;
+        Polymer.dom(this.$.documents).appendChild(doc);
+
+        // create new editor
+        let editor = document.createElement('designer-ui-editor');
+        editor.app = this;
+        editor.document = doc;
+        this._currentEditor = editor;
+        Polymer.dom(this.$['editor-panel']).appendChild(editor);
+
+        // set the url to fire off desiger-iframe creation
+        doc.url = e.detail.href;
+
+        editor.addEventListener('name-changed', (event) => {
+          this.editorName = event.detail.value;
+        });
+      },
+
+      _onDesignerCommand(e) {
+        if (this._currentEditor) {
+          let e2 = new CustomEvent('designer-command', {
+            detail: e.detail,
+          });
+          this._currentEditor.dispatchEvent(e2);
+        }
+      },
+
+      _onDesignerSelectElement(e) {
+        if (this._currentEditor) {
+          let e2 = new CustomEvent('designer-select-element', {
+            detail: e.detail,
+          });
+          this._currentEditor.dispatchEvent(e2);
+        }
+      },
+
+      _onHydrolysisAnalyzerReady(e) {
+        this.analyzer = e.target.instance;
+      },
+
+    });
+
+  });
+
+</script>

@@ -1,0 +1,13 @@
+#Bower
+src/files/vendor
+
+# DocPad
+out
+.docpad.db
+
+# Node
+node_modules
+npm-debug.log
+
+# OS X
+.DS_Store

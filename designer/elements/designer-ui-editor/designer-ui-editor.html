@@ -1,0 +1,251 @@
+<!--
+Copyright (c) 2015 The Polymer Project Authors. All rights reserved.
+This code may only be used under the BSD style license found at http://polymer.github.io/LICENSE.txt
+The complete set of authors may be found at http://polymer.github.io/AUTHORS.txt
+The complete set of contributors may be found at http://polymer.github.io/CONTRIBUTORS.txt
+Code distributed by Google as part of the polymer project is also
+subject to an additional IP rights grant found at http://polymer.github.io/PATENTS.txt
+-->
+
+<link rel="import" href="../../../polymer/polymer.html">
+<link rel="import" href="../../src/dom-utils/dom-utils.html">
+<link rel="import" href="../designer-breadcrumb/designer-breadcrumb.html">
+<link rel="import" href="../designer-breakpoint-selector/designer-breakpoint-selector.html">
+<link rel="import" href="../designer-stage/designer-stage.html">
+
+<link rel="import" href="designer-document-navigator.html">
+<link rel="import" href="designer-elements-navigator.html">
+
+<dom-module id="designer-ui-editor">
+  <template>
+    <style>
+      :host {
+        box-sizing: border-box;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+      }
+      designer-breakpoint-selector {
+        flex: 0 0 24px;
+        width: 100%
+      }
+      designer-breadcrumb {
+        border-style: solid;
+        border-color: var(--divider-color);
+        border-width: 1px 0 1px 0;
+        color: var(--primary-text-color);
+        font-weight: normal;
+        width: 100%
+      }
+      designer-iframe {
+        flex: 1;
+      }
+      designer-stage {
+        display: flex;
+        flex: 1;
+        position: relative;
+        width: 100%;
+      }
+    </style>
+  <designer-breakpoint-selector breakpoint="{{breakpoint}}">
+    </designer-breakpoint-selector>
+    <designer-stage
+        id="stage"
+        document-info="[[documentInfo]]"
+        client="[[client]]"
+        selection="[[selection]]"
+        size="{{breakpoint.size}}">
+    </designer-stage>
+    <designer-breadcrumb node="[[selection.node]]"></designer-breadcrumb>
+  </template>
+</dom-module>
+<script>
+  define(['polymer-designer/dom-utils'], (domUtils) => {
+    'use strict';
+
+    Polymer({
+      is: 'designer-ui-editor',
+
+      properties: {
+
+        name: {
+          type: String,
+          notify: true,
+        },
+
+        app: {
+          type: Object,
+          observer: '_appChanged',
+        },
+
+        document: {
+          type: Object,
+          observer: '_documentChanged',
+        },
+
+        selection: {
+          type: Object,
+          observer: '_selectionChanged',
+        },
+
+        client: {
+          type: Object,
+        },
+
+        _hideBreadcrumb: {
+          type: Boolean,
+          value: true,
+        },
+
+        breakpoint: {
+          type: Object,
+        },
+
+      },
+
+      listeners: {
+        'designer-command': '_onDesignerCommand',
+        'designer-edit-template': '_onDesignerEditTemplate',
+        'designer-select-element': '_onDesignerSelectElement',
+      },
+
+      _appChanged() {
+        this._reset();
+        this.app.showInspectorPanel();
+      },
+
+      _documentChanged(doc) {
+        this._reset();
+
+        doc.addEventListener('designer-request-document-frame', (e) => {
+          const frame = document.createElement('designer-iframe');
+          this._setFrame(frame);
+          frame.setSource(doc.url);
+
+          // Pass the frame back to the document, so it can create a connection
+          // to it
+          e.detail.frame = frame;
+        });
+
+        // TODO: move to ui-editor
+        doc.addEventListener('client-changed', (event) => {
+          this.client = event.detail.value;
+        });
+
+        doc.addEventListener('selection-changed', (event) => {
+          this.selection = event.detail.value;
+        });
+
+        doc.addEventListener('filename-changed', (event) => {
+          this.name = event.detail.value;
+        });
+        this.name = doc.filename;
+
+        doc.addEventListener('document-info-changed', (event) => {
+          this.app.setNavigators(this._getNavigators());
+        });
+      },
+
+      _selectionChanged(newValue, oldValue) {
+        this._hideBreadcrumb = this.selection == null;
+        if (newValue) {
+          if (oldValue &&
+              newValue.elementInfo.sourceId === oldValue.elementInfo.sourceId) {
+            return;
+          }
+          this.app.setInspectors(this._getInspectors());
+        }
+      },
+
+      _setFrame(frame) {
+        domUtils.clearChildren(this.$.stage);
+        if (frame) {
+          Polymer.dom(this.$.stage).appendChild(frame);
+        }
+      },
+
+      _onDesignerSelectElement(event, detail) {
+        detail.complete = this.document.setSourceId(detail.sourceId);
+      },
+
+      _onDesignerCommand(event, command) {
+        console.log('_onDesignerCommand', command);
+        this.document.executeCommand(command);
+        event.stopPropagation();
+      },
+
+      _onDesignerEditTemplate(e) {
+        // get the element editor
+        let editor = this.selection.editor;
+        console.assert(editor.__proto__.constructor.name === 'TemplateEditor');
+        let templateUri = editor.getTemplateDocumentUri(this.documentInfo.url,
+            e.detail.sourceId);
+        this._auxFrame = this._createDocumentFrame(templateUri);
+      },
+
+      _reset() {
+        this._hideBreadcrumb = true;
+      },
+
+      _getNavigators() {
+        let outline = document.createElement('designer-document-navigator')
+        outline.rootNode = this.document.documentInfo.astDocumentElement;
+
+        let elements = document.createElement('designer-elements-navigator')
+        elements.elements = this.document.documentInfo.elements;
+        return [outline, elements];
+      },
+
+      _getInspectors() {
+        if (this.selection == null) {
+          return [];
+        }
+
+        let inspectorNames = this.selection.editor.inspectors;
+        let inspectors = inspectorNames.map((n) => document.createElement(n));
+
+        let claimedProperties = new Map();
+        for (let inspector of inspectors) {
+          if (inspector.claimedProperties) {
+            claimedProperties.set(inspector, inspector.claimedProperties);
+          }
+        }
+
+        let getExcludedProperties = (inspector) => {
+          let excludedProperties = new Set();
+          for (let claimed of claimedProperties) {
+            if (claimed[0] !== inspector) {
+              for (let property of claimed[1]) {
+                excludedProperties.add(property);
+              }
+            }
+          }
+          return excludedProperties;
+        };
+
+        for (let inspector of inspectors) {
+          // make sure documentInfo is always set first: synchronous
+          // data-binding! :(
+          inspector.documentInfo = this.document.documentInfo;
+          inspector.selection = this.selection;
+          inspector.excludedProperties = getExcludedProperties(inspector);
+        }
+        return inspectors;
+      },
+
+      // vestigal bower integration...
+      _installPackageClick(e) {
+        var request = document.createElement('iron-request');
+        request.send({
+          url: '/api/bowerInstall',
+          method: "POST",
+          headers: {},
+          async: true,
+        });
+      },
+
+
+    });
+
+  });
+</script>

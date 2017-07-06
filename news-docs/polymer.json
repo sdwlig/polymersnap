@@ -1,0 +1,17 @@
+{
+  "entrypoint": "/",
+  "shell": "src/docs-app.html",
+  "sourceGlobs": [
+   "docs/**/*",
+   "images/**/*",
+   "src/**/*",
+   "stylesheets/**/*",
+   "bower.json",
+   "index.html",
+   "app.yaml"
+  ],
+  "includeDependencies": [
+    "manifest.json",
+    "bower_components/webcomponentsjs/webcomponents-lite.min.js"
+  ]
+}

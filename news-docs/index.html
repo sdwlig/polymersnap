@@ -1,0 +1,130 @@
+<!--
+@license
+Copyright (c) 2016 The Polymer Project Authors. All rights reserved.
+This code may only be used under the BSD style license found at http://polymer.github.io/LICENSE.txt
+The complete set of authors may be found at http://polymer.github.io/AUTHORS.txt
+The complete set of contributors may be found at http://polymer.github.io/CONTRIBUTORS.txt
+Code distributed by Google as part of the polymer project is also
+subject to an additional IP rights grant found at http://polymer.github.io/PATENTS.txt
+-->
+
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, minimum-scale=1.0, initial-scale=1.0, user-scalable=yes">
+
+  <title>NEWS Docs</title>
+
+  <link rel="shortcut icon" sizes="32x32" href="/images/polymer-icon-32.png">
+  <meta name="theme-color" content="#000">
+  <link rel="manifest" href="/manifest.json">
+
+  <link rel="stylesheet" href="/stylesheets/main.css">
+
+  <link rel="import" href="/src/docs-app.html" async>
+
+</head>
+<body>
+
+  <docs-app>
+    <section class="hero">
+      <h1>Polymer News</h1>
+      <p>Progressive Web App Template</p>
+      <div class="devices"></div>
+      <p>A high-quality starting point for cutting-edge Progressive Web Apps.</p>
+      <p>Built on modern web technology. Use out-of-the-box, or customize and extend.</p>
+      <div class="hero-buttons">
+        <a class="docs-button" href="https://news.polymer-project.org" target="_blank">Demo</a>
+        <a class="docs-button" href="/docs/using.html">Get Started</a>
+        <a class="docs-button" href="https://github.com/Polymer/news" target="_blank">View on GitHub</a>
+      </div>
+    </section>
+
+    <section class="features">
+      <div class="feature">
+        <iron-icon icon="icons:mood"></iron-icon>
+        <p>Complete Progressive Web App</p>
+      </div>
+      <div class="feature">
+        <iron-icon icon="icons:view-module"></iron-icon>
+        <p>Built out of modular, re-usable Web Components</p>
+      </div>
+      <div class="feature">
+        <iron-icon icon="icons:phonelink"></iron-icon>
+        <p>Responsive application shell architecture</p>
+      </div>
+      <div class="feature">
+        <iron-icon icon="icons:flash-on"></iron-icon>
+        <p>Lightning fast to load</p>
+      </div>
+      <div class="feature">
+        <iron-icon icon="icons:color-lens"></iron-icon>
+        <p>Easy to customize and extend</p>
+      </div>
+    </section>
+
+    <section class="main">
+      <div class="main-item">
+        <img src="/images/pwa-logo.png" alt="PWA logo">
+        <div>
+          <h2>From 0 to Progressive Web App in Minutes</h2>
+          <p>Offline support, lazy loading and Service Worker caching out-of-the-box. Designed to be lightweight and flexible, based on web standards. Get started right away using just HTML, CSS and Javascript.</p>
+        </div>
+      </div>
+      <div class="main-item">
+        <img src="/images/polymer-logo.png" alt="Polymer logo">
+        <div>
+          <h2>Built with Polymer and Web Components</h2>
+          <p>Polymer News is built out of Web Components, created using the Polymer library. This allows them to be lightweight, modular, re-usable, and interoperable with other web technologies and frameworks.</p>
+        </div>
+      </div>
+      <div class="main-item">
+        <img src="/images/amp-logo.png" alt="AMP logo">
+        <div>
+          <h2>Supports AMP documents as articles</h2>
+          <p>The app template supports using a simple JSON feed for your article content. If you publish AMP docs, you can use those directly inside of the News shell instead.</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="compatibility">
+      <h2>Browser Compatibility</h2>
+      <p>Polymer News is based on the Polymer library and App Toolbox, which <a href="https://www.polymer-project.org/1.0/docs/browsers">work in all major browsers</a> (Chrome, Firefox, IE, Edge, Safari, and Opera). </p>
+      <div class="browsers">
+        <img src="/images/browsers/chrome_128x128.png" alt="chrome logo">
+        <img src="/images/browsers/firefox_128x128.png" alt="firefox logo">
+        <img src="/images/browsers/internet-explorer_128x128.png" alt="internet explorer logo">
+        <img src="/images/browsers/edge_128x128.png" alt="edge logo">
+        <img src="/images/browsers/safari_128x128.png" alt="safari logo">
+        <img src="/images/browsers/opera_128x128.png" alt="opera logo">
+      </div>
+    </section>
+  </docs-app>
+
+  <script>
+    window.Polymer = window.Polymer || {lazyRegister: true, dom: 'shadow'};
+
+    (function() {
+      if ('registerElement' in document
+          && 'import' in document.createElement('link')
+          && 'content' in document.createElement('template')) {
+        // platform is good!
+      } else {
+        // polyfill the platform!
+        var e = document.createElement('script');
+        e.src = '/bower_components/webcomponentsjs/webcomponents-lite.min.js';
+        document.body.appendChild(e);
+      }
+
+      // Load pre-caching Service Worker
+      if ('serviceWorker' in navigator) {
+        window.addEventListener('load', function() {
+          navigator.serviceWorker.register('/service-worker.js');
+        });
+      }
+    })();
+  </script>
+
+</body>
+</html>

@@ -1,0 +1,5 @@
+out
+server
+node_modules
+bower_components
+*.vsix

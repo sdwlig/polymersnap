@@ -1,0 +1,17 @@
+{
+    "name": "my-repo",
+    "version": "0.0.0",
+    "description": "My awesome Custom Element",
+    "license": "MIT",
+    "main": "my-element.html",
+    "keywords": [
+        "web-components"
+    ],
+    "ignore": [
+        "**/.*",
+        "bower_components"
+    ],
+    "dependencies": {
+        "webcomponentsjs": "^0.7.2"
+    }
+}

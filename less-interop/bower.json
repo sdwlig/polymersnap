@@ -1,0 +1,7 @@
+{
+  "private": true,
+  "name": "less-interop",
+  "dependencies": {
+    "polymer": "Polymer/polymer#^1.0.0"
+  }
+}

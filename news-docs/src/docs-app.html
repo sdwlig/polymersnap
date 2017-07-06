@@ -1,0 +1,312 @@
+<!--
+@license
+Copyright (c) 2016 The Polymer Project Authors. All rights reserved.
+This code may only be used under the BSD style license found at http://polymer.github.io/LICENSE.txt
+The complete set of authors may be found at http://polymer.github.io/AUTHORS.txt
+The complete set of contributors may be found at http://polymer.github.io/CONTRIBUTORS.txt
+Code distributed by Google as part of the polymer project is also
+subject to an additional IP rights grant found at http://polymer.github.io/PATENTS.txt
+-->
+
+<link rel="import" href="../bower_components/polymer/polymer.html">
+<link rel="import" href="../bower_components/app-layout/app-drawer/app-drawer.html">
+<link rel="import" href="../bower_components/app-layout/app-header/app-header.html">
+<link rel="import" href="../bower_components/app-layout/app-scroll-effects/effects/waterfall.html">
+<link rel="import" href="../bower_components/app-layout/app-toolbar/app-toolbar.html">
+<link rel="import" href="../bower_components/iron-icon/iron-icon.html">
+<link rel="import" href="../bower_components/iron-location/iron-location.html">
+<link rel="import" href="../bower_components/iron-selector/iron-selector.html">
+<link rel="import" href="docs-icons.html">
+
+<dom-module id="docs-app">
+
+  <template>
+
+    <style>
+
+      :host {
+        display: block;
+      }
+
+      app-header {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        z-index: 1;
+        background-color: #FFF;
+      }
+
+      app-header[threshold-triggered]::before {
+        opacity: 1;
+      }
+
+      app-toolbar {
+        padding: 0 28px 0 16px;
+        box-sizing: border-box;
+      }
+
+      .menu-button {
+        padding: 8px;
+        border: none;
+        background-color: transparent;
+      }
+
+      a {
+        text-decoration: none;
+        color: inherit;
+      }
+
+      .logo {
+        flex: 1;
+        padding: 0 8px;
+        font-size: 18px;
+        letter-spacing: 1px;
+        font-weight: normal;
+      }
+
+      app-drawer {
+        z-index: 2;
+        --app-drawer-content-container: {
+          background-color: #222;
+          margin: 24px 0;
+        }
+      }
+
+      .tab {
+        display: none;
+      }
+
+      .menu-item {
+        display: block;
+        padding: 16px 24px;
+        color: #AAA;
+      }
+
+      .menu-item.iron-selected {
+        color: #FFF;
+      }
+
+      footer,
+      .polymer-logo {
+        display: flex;
+        align-items: center;
+      }
+
+      footer {
+        padding: 16px 24px;
+        font-size: 14px;
+      }
+
+      footer img {
+        width: 40px;
+        height: auto;
+        padding-right: 8px;
+      }
+
+      .flex {
+        flex: 1;
+      }
+
+      /* desktop screen */
+      @media (min-width: 768px) {
+        app-drawer,
+        .menu-button {
+          display: none;
+        }
+
+        .logo {
+          padding: 0 24px;
+        }
+
+        .tab {
+          position: relative;
+          display: inline-block;
+          padding: 8px 0;
+          margin: 36px 12px;
+          font-size: 18px;
+          font-weight: normal;
+          letter-spacing: 1px;
+          text-decoration: none;
+        }
+
+        .tab::after {
+          content: '';
+          position: absolute;
+          top: 0;
+          bottom: 0;
+          left: 0;
+          right: 2px;
+        }
+
+        .tab:hover {
+          text-decoration: none;
+        }
+
+        .tab:hover::after {
+          border-bottom: 1px solid;
+        }
+
+        .tab.iron-selected::after {
+          border-bottom: 1px solid;
+        }
+
+        footer {
+          padding: 16px 40px;
+        }
+      }
+
+    </style>
+
+    <iron-location path="{{path}}"></iron-location>
+
+    <app-header reveals threshold="1" effects="waterfall">
+      <app-toolbar>
+        <button class="menu-button" on-click="_toggleDrawer"><iron-icon icon="menu"></iron-icon></button>
+        <h3 class="logo"><a href="/">Polymer News</a></h3>
+        <iron-selector selected="[[path]]" attr-for-selected="path">
+          <a class="tab" href="/docs/case-study.html" path="/docs/case-study.html">Case study</a>
+          <a class="tab" href="/docs/using.html" path="/docs/using.html">Using the News app</a>
+          <a class="tab" href="/docs/theming.html" path="/docs/theming.html">Theming</a>
+        </iron-selector>
+        <!-- <a class="tab" href="https://beta.webcomponents.org/element/PolymerElements/app-layout" target="_blank">Reference</a> -->
+      </app-toolbar>
+    </app-header>
+
+    <div>
+      <content></content>
+    </div>
+
+    <footer>
+      <a class="polymer-logo" href="https://www.polymer-project.org"><img src="/images/polymer-logo.png" alt="Polymer Logo">Polymer</a>
+      <div class="flex"></div>
+      <a target="_blank" href="http://polymer.github.io/LICENSE.txt" data-outbound="license-txt">© 2016 Polymer Authors</a>
+    </footer>
+
+    <app-drawer id="drawer" tabindex="0" swipe-open>
+      <iron-selector selected="[[path]]" attr-for-selected="path" on-click="_toggleDrawer">
+        <a class="menu-item" href="/" path="/">Home</a>
+        <a class="menu-item" href="/docs/case-study.html" path="/docs/case-study.html">Case study</a>
+        <a class="menu-item" href="/docs/using.html" path="/docs/using.html">Using the News app</a>
+        <a class="menu-item" href="/docs/theming.html" path="/docs/theming.html">Theming</a>
+      </iron-selector>
+      <!-- <a class="menu-item" href="https://beta.webcomponents.org/element/PolymerElements/app-layout" target="_blank">Reference</a> -->
+    </app-drawer>
+
+  </template>
+
+  <script>
+
+    Polymer({
+
+      is: 'docs-app',
+
+      properties: {
+        path: String
+      },
+
+      observers: [
+        '_pathChanged(path)'
+      ],
+
+      listeners: {
+        down: '_down'
+      },
+
+      created: function() {
+        this._createAnalytics();
+      },
+
+      attached: function() {
+        window.addEventListener('hashchange', this._scrollToAnchor.bind(this));
+        window.addEventListener('location-changed', this._scrollToAnchor.bind(this));
+      },
+
+      _pathChanged: function(path) {
+        this._fetchDoc(path);
+      },
+
+      _fetchDoc: function(path) {
+        var xhr = new XMLHttpRequest();
+        xhr.addEventListener('load', this._handleResponse.bind(this));
+        xhr.addEventListener('error', this._handleNetworkError.bind(this));
+        xhr.open('GET', path);
+        xhr.responseType = 'document';
+        xhr.send();
+      },
+
+      _handleResponse: function(event) {
+        var doc = event.target.response;
+        document.title = doc.title;
+        var shell = doc ? doc.querySelector('docs-app') : null;
+        this._importShellContent(shell ? this._getContentFrag(shell) : this._createFragFromText('Page Format Error'));
+        // Analytics
+        this._recordPageview();
+      },
+
+      _handleNetworkError: function(event) {
+        this._importShellContent(this._createFragFromText('Network Error'));
+      },
+
+      _getContentFrag: function(shell) {
+        var frag = document.createDocumentFragment();
+        for (var i = 0; i < shell.childNodes.length; ++i) {
+          frag.appendChild(document.importNode(shell.childNodes[i], true));
+        }
+        return frag;
+      },
+
+      _createFragFromText: function(text) {
+        var frag = document.createDocumentFragment();
+        frag.appendChild(document.createTextNode(text));
+        return frag;
+      },
+
+      _importShellContent: function(frag) {
+        var shell = Polymer.dom(this);
+        shell.innerHTML = '';
+        shell.appendChild(frag);
+        if (window.location.hash) {
+          this._scrollToAnchor();
+        } else {
+          Polymer.AppLayout.scroll({ top: 0 });
+        }
+      },
+
+      _toggleDrawer: function() {
+        this.$.drawer.toggle();
+      },
+
+      _down: function() {
+        // See Polymer/polymer#4128.
+      },
+
+      _scrollToAnchor: function() {
+        var hash = window.location.hash;
+        if (hash) {
+          var el = Polymer.dom(this).querySelector(hash);
+          if (el) {
+            el.scrollIntoView();
+          }
+        }
+      },
+
+      _createAnalytics: function() {
+        // track metrics with google analytics...
+        (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+        (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+        m=s.getElementsByTagName('body')[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+        })(window,document,'script','//www.google-analytics.com/analytics.js','ga');
+        ga('create', 'UA-39334307-19', 'auto');
+      },
+
+      _recordPageview: function() {
+        var url = location.pathname + location.hash;
+        ga('send', 'pageview', url)
+      }
+
+    });
+
+  </script>
+
+</dom-module>

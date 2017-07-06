@@ -1,0 +1,19 @@
+{
+    "name": "<%= githubRepository %>",
+    "version": "0.0.0",
+    "description": "<%= elementDescription %>",
+    "license": "MIT",
+    "main": "dist/<%= elementName %>.html",
+    "keywords": [
+        "polymer",
+        "web-components"
+    ],
+    "ignore": [
+        "**/.*",
+        "node_modules",
+        "bower_components"
+    ],
+    "dependencies": {
+        "polymer": "Polymer/polymer#^1.0.0"
+    }
+}

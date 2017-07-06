@@ -1,0 +1,20 @@
+{
+    "name": "<%= githubRepository %>",
+    "version": "0.0.0",
+    "description": "<%= elementDescription %>",
+    "license": "MIT",
+    "main": "dist/<%= elementName %>.html",
+    "keywords": [
+        "x-tag",
+        "web-components"
+    ],
+    "ignore": [
+        "**/.*",
+        "node_modules",
+        "bower_components"
+    ],
+    "dependencies": {
+        "x-tag-core": "^1.1.6",
+        "webcomponentsjs": "^0.7.3"
+    }
+}

@@ -1,0 +1,166 @@
+<!--
+Copyright (c) 2015 The Polymer Project Authors. All rights reserved.
+This code may only be used under the BSD style license found at http://polymer.github.io/LICENSE.txt
+The complete set of authors may be found at http://polymer.github.io/AUTHORS.txt
+The complete set of contributors may be found at http://polymer.github.io/CONTRIBUTORS.txt
+Code distributed by Google as part of the polymer project is also
+subject to an additional IP rights grant found at http://polymer.github.io/PATENTS.txt
+-->
+
+<link rel="import" href="../../../polymer/polymer.html">
+<link rel="import" href="../../src/dragging/dragging.html">
+
+<dom-module id="designer-element-palette">
+
+
+
+  <template>
+    <style>
+      :host {
+        display: block;
+        box-sizing: border-box;
+        font-size: 13px;
+      }
+      #elements {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        justify-content: center;
+      }
+      .element {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 78px;
+        height: 32px;
+        /*background: #424242;*/
+        box-sizing: border-box;
+        margin: 1px;
+        cursor: default;
+      }
+      #proxy {
+        position: fixed;
+        /* z-index must be > 100 because iframes are z-index 100 o_O */
+        z-index: 101;
+        display: none;
+        opacity: 0.75;
+        background: #f88;
+        box-sizing: border-box;
+        padding: 0;
+        margin: 0;
+        display: flex;
+        cursor: copy;
+      }
+      #proxy > * {
+        width: 100% !important;
+        height: 100% !important;
+        margin: 0;
+      }
+    </style>
+    <h1>Elements</h1>
+    <div id="elements">
+      <template is="dom-repeat" items="{{builtIns}}">
+        <div class="element" on-mousedown="_onMouseDown" item="{{item}}">
+          &lt;<span>{{item.tagName}}</span>&gt;
+        </div>
+      </template>
+    </div>
+    <div id="proxy"
+        on-mouseover="_onProxyMouseOver"
+        on-mouseout="_onProxyMouseOut"
+        on-mouseup="_onProxyMouseUp">
+    </div>
+  </template>
+
+</dom-module>
+
+<script>
+
+define([
+      'polymer-designer/dragging',
+      'polymer-designer/editors/ElementEditor'],
+    (dragging, ElementEditor) => {
+  'use strict';
+
+  Polymer({
+    is: 'designer-element-palette',
+
+    properties: {
+      builtIns: {
+        type: Array,
+        value() { return ElementEditor.getEditors(); },
+      },
+    },
+
+    _onMouseDown: function(e) {
+      // the palette item has a class of 'element'
+      let el = e.target.closest('.element');
+      let proxy = dragging.createDragProxy(el, true);
+      this.$.proxy.innerHTML = proxy.outerHTML;
+      let bounds = el.getBoundingClientRect();
+      this._updateDragProxy({
+        left: bounds.left,
+        top: bounds.top,
+        width: el.offsetWidth,
+        height: el.offsetHeight,
+      });
+      this.fire('designer-mini-nav-collapse');
+      let editor = el.item;
+      dragging.startDrag(
+        bounds.left,
+        bounds.top,
+        e.clientX,
+        e.clientY,
+        {
+          fireDragEvents: true,
+          dragType: 'element-palette',
+          data: {
+            editor: editor,
+          },
+          onDragMove: (x, y) => {
+            this._updateDragProxy({
+              left: x,
+              top: y,
+              width: el.offsetWidth,
+              height: el.offsetHeight,
+            });
+          },
+          onDragEnd: () => {
+            this._hideDragProxy();
+          },
+        }
+      );
+    },
+
+    _onProxyMouseOver(e) {
+      e.stopPropagation();
+    },
+
+    _onProxyMouseOut(e) {
+      e.stopPropagation();
+    },
+
+    _onProxyMouseUp() {
+      // this is a hack to keep the mini-nav from expanding when the proxy
+      // is released
+      this.fire('designer-mini-nav-collapse');
+    },
+
+    _updateDragProxy(bounds) {
+      var style = this.$.proxy.style;
+      style.display = 'block';
+      style.top = bounds.top + 'px';
+      style.left = bounds.left + 'px';
+      style.width = bounds.width + 'px';
+      style.height = bounds.height + 'px';
+    },
+
+    _hideDragProxy() {
+      var style = this.$.proxy.style;
+      style.display = 'none';
+    }
+
+  });
+
+});
+</script>

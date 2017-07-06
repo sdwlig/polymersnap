@@ -1,0 +1,138 @@
+<!--
+@license
+Copyright (c) 2017 The Polymer Project Authors. All rights reserved.
+This code may only be used under the BSD style license found at http://polymer.github.io/LICENSE.txt
+The complete set of authors may be found at http://polymer.github.io/AUTHORS.txt
+The complete set of contributors may be found at http://polymer.github.io/CONTRIBUTORS.txt
+Code distributed by Google as part of the polymer project is also
+subject to an additional IP rights grant found at http://polymer.github.io/PATENTS.txt
+-->
+
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="generator" content="Polymer Starter Kit">
+    <meta name="viewport" content="width=device-width, minimum-scale=1, initial-scale=1, user-scalable=yes">
+
+    <title>Polymer Hacker News</title>
+    <meta name="description" content="Polymer Hacker News">
+
+    <link rel="icon" href="/images/favicon.ico">
+
+    <!-- See https://goo.gl/OOhYW5 -->
+    <link rel="manifest" href="/manifest.json">
+
+    <!-- See https://goo.gl/qRE0vM -->
+    <meta name="theme-color" content="#283593">
+
+    <!-- Add to homescreen for Chrome on Android. Fallback for manifest.json -->
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="application-name" content="Polymer Hacker News">
+
+    <!-- Add to homescreen for Safari on iOS -->
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="My App">
+
+    <!-- Homescreen icons -->
+    <link rel="apple-touch-icon" href="/images/manifest/icon-48x48.png">
+    <link rel="apple-touch-icon" sizes="72x72" href="/images/manifest/icon-72x72.png">
+    <link rel="apple-touch-icon" sizes="96x96" href="/images/manifest/icon-96x96.png">
+    <link rel="apple-touch-icon" sizes="144x144" href="/images/manifest/icon-144x144.png">
+    <link rel="apple-touch-icon" sizes="192x192" href="/images/manifest/icon-192x192.png">
+
+    <!-- Tile icon for Windows 8 (144x144 + tile color) -->
+    <meta name="msapplication-TileImage" content="/images/manifest/icon-144x144.png">
+    <meta name="msapplication-TileColor" content="#3f51b5">
+    <meta name="msapplication-tap-highlight" content="no">
+    <style>
+      body {
+        font-family: -apple-system, BlinkMacSystemFont, "Roboto", "Noto", sans-serif;
+        min-height: 100vh;
+        max-width: 1280px;
+        margin: 0 auto;
+        padding: 0;
+      }
+
+      nav {
+        background-color: #283593;
+        height: 54px;
+        padding: 16px 0 16px 1em;
+        box-sizing: border-box;
+        white-space: nowrap;
+      }
+
+      nav > a {
+        color: white;
+        display: inline-block;
+        vertical-align: middle;
+        font-weight: 300;
+        letter-spacing: .075em;
+        margin-right: 0.5em;
+        text-decoration: none;
+      }
+
+      .logo {
+        height: 24px;
+        width: 24px;
+        vertical-align: middle;
+        fill: white;
+      }
+
+      @keyframes pulse {
+        0% { transform: scale(1); opacity: 0; }
+        50% { transform: scale(1.2); opacity: 1; }
+      }
+
+      .loading {
+        text-align: center;
+      }
+
+      .loading > * {
+        animation: pulse 1s infinite ease-in-out;
+        will-change: opacity, transform;
+        display: inline-block;
+        padding: 64px;
+      }
+
+      .hn-top .top, .hn-new .new, .hn-ask .ask, .hn-show .show, .hn-jobs .jobs {
+        color: #f5d328;
+      }
+    </style>
+  </head>
+  <body>
+    <nav>
+      <a href="https://www.polymer-project.org" target="_blank" rel="noopener" title="Polymer Logo">
+        <svg class="logo" viewBox="0 0 24 24">
+          <path d="M19 4h-4L7.11 16.63 4.5 12 9 4H5L.5 12 5 20h4l7.89-12.63L19.5 12 15 20h4l4.5-8z"/>
+        </svg>
+      </a>
+      <a class="top" href="/top/1">Top</a>
+      <a class="new" href="/new/1">New</a>
+      <a class="ask" href="/ask/1">Ask</a>
+      <a class="show" href="/show/1">Show</a>
+      <a class="jobs" href="/jobs/1">Jobs</a>
+    </nav>
+    <hn-app role="main">
+      <div slot="load" class="loading">
+        <div>• • •</div>
+      </div>
+    </hn-app>
+
+    <!-- Load webcomponents-loader.js to check and load any polyfills your browser needs -->
+    <script src="/node_modules/@webcomponents/webcomponentsjs/webcomponents-loader.js"></script>
+
+    <!-- Load your application shell -->
+    <link rel="import" href="/src/hn-app.html">
+
+    <!-- Load and register pre-caching Service Worker -->
+    <script>
+      if ('serviceWorker' in navigator) {
+        window.addEventListener('load', function() {
+          navigator.serviceWorker.register('/service-worker.js');
+        });
+      }
+    </script>
+  </body>
+</html>

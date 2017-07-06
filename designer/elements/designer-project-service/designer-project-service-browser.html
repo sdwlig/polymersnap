@@ -1,0 +1,286 @@
+<!--
+Copyright (c) 2015 The Polymer Project Authors. All rights reserved.
+This code may only be used under the BSD style license found at http://polymer.github.io/LICENSE.txt
+The complete set of authors may be found at http://polymer.github.io/AUTHORS.txt
+The complete set of contributors may be found at http://polymer.github.io/CONTRIBUTORS.txt
+Code distributed by Google as part of the polymer project is also
+subject to an additional IP rights grant found at http://polymer.github.io/PATENTS.txt
+-->
+
+<link rel="import" href="../../../polymer/polymer.html">
+<link rel="import" href="../../../paper-dialog/paper-dialog.html">
+<link rel="import" href="../../../paper-dialog-scrollable/paper-dialog-scrollable.html">
+<link rel="import" href="../../src/uri/uri.html">
+
+<dom-module id="designer-project-service-browser">
+
+  <template>
+    <style>
+      #files {
+        overflow: auto;
+        width: 480px;
+        height: 480px;
+      }
+    </style>
+    <paper-dialog id="dialog" on-iron-overlay-closed="_onDialogClosed">
+      <h2>Open Project</h2>
+      <div id="files">
+        <designer-tree controller="[[_controller]]">
+        </designer-tree>
+      </div>
+      <div class="buttons">
+        <paper-button dialog-dismiss>Cancel</paper-button>
+      </div>
+    </paper-dialog>
+  </template>
+
+  <script>
+  define(['polymer-designer/async', 'uri'], (async, URI) => {
+    'use strict';
+
+    const _openProjectUri = new URI('http://localhost:8080/api/openProject');
+    const _fileListingUri = 'http://localhost:8080/api/files/';
+
+    Polymer({
+      is: 'designer-project-service-browser',
+
+      properties: {
+        _controller: Object,
+      },
+
+      attached() {
+        this.fire('designer-project-service-ready');
+      },
+
+      /**
+       * @returns {Promise<string>}
+       */
+      chooseProject() {
+        this._openProjectDeferred = new async.Deferred();
+        this._controller =
+            new OpenProjectTreeController(_fileListingUri);
+        this.$.dialog.open();
+
+        let cleanUp = () => {
+          this._openProjectDeferred = null;
+          this._controller = null;
+          // this.async(() => this.$.dialog.close());
+          this.$.dialog.close();
+        };
+
+        return Promise.race([
+          this._openProjectDeferred.promise,
+          this._controller.projectOpened,
+        ]).then((path) => {
+          cleanUp();
+          console.assert(path.startsWith('/'));
+          return path;
+        }).catch((e) => {
+          cleanUp();
+          throw e;
+        });
+      },
+
+      /**
+       * @returns {Promise<Project>}
+       */
+      openProject(projectPath) {
+        console.assert(projectPath != null);
+        console.assert(projectPath.startsWith('/'));
+
+        let uri = _openProjectUri.clone();
+        uri.setQuery('path', projectPath);
+
+        return fetch(uri.toString(), {method: 'PUT'})
+          .then((response) => response.json())
+          .then((projectData) => {
+            let port = projectData.port;
+            let directory = projectData.directory;
+            let project = new BrowserProject(
+                this,
+                _fileListingUri,
+                `http://localhost:${port}/files/__project__/`,
+                directory);
+            return project;
+          });
+      },
+
+      _onDialogClosed(e) {
+        if (this._openProjectDeferred) {
+          this._openProjectDeferred.reject();
+        }
+      },
+
+    }); // designer-project-service-browser
+
+    function getFilename(path) {
+      if (path === '/') {
+        return '';
+      }
+      let splitPath = path.split('/');
+      let name = splitPath[splitPath.length - 1];
+      if (name == '') {
+        name = splitPath[splitPath.length - 2];
+      }
+      return name;
+    }
+
+    class ServerFilesTreeController {
+
+      constructor(lsRoot) {
+        if (new.target === ServerFilesTreeController) {
+          throw new TypeError('Illegal constructor call: abstract class');
+        }
+        // this._api =
+        this._lsRoot = new URI(lsRoot);
+      }
+
+      getInfoPath(path) {
+        let infoPath = this._lsRoot.clone();
+        infoPath.segment(path);
+        infoPath.normalize();
+        return infoPath.toString();
+      }
+
+      getInfo(path) {
+        path = path || '/';
+        console.assert(path.startsWith('/'));
+        return fetch(this.getInfoPath(path))
+            .then((r) => r.json())
+            .then((info) => {
+              console.assert(info.path.startsWith('/'));
+              return info;
+            });
+      }
+
+      getIcon(node) {
+        return node.isFile ? 'editor:insert-drive-file' : 'icons:folder';
+      }
+
+      getName(node) {
+        return node.path == '/' ? "Demos" : getFilename(node.path);
+      }
+
+      getChildren(node) {
+        return (node.isFile)
+          ? Promise.resolve(null)
+          // : Promise.resolve(node.files);
+          : fetch(this.getInfoPath(node.path))
+              .then((response) => response.json())
+              .then((json) => json.files);
+      }
+
+      isLeaf(node) {
+        return node.isFile;
+      }
+
+      isLink(node) {
+        return true;
+      }
+
+    } // class ServerFilesTreeController
+
+    class OpenProjectTreeController extends ServerFilesTreeController {
+
+      constructor(lsRoot) {
+        super(lsRoot);
+        this._projectOpenedDeferred = new async.Deferred();
+        this.projectOpened = this._projectOpenedDeferred.promise;
+      }
+
+      isLink(node) {
+        return !node.isFile;
+      }
+
+      onClick(node, event) {
+        event.preventDefault();
+        event.stopPropagation();
+        event.stopImmediatePropagation();
+        console.assert(node.path.startsWith('/'));
+        this._projectOpenedDeferred.resolve(node.path);
+      }
+    } // class OpenProjectTreeController
+
+
+    class BrowserProject extends ServerFilesTreeController {
+
+      constructor(projectService, lsRoot, filesRoot, projectPath) {
+        super(lsRoot);
+        this._projectService = projectService;
+        this._filesRoot = new URI(filesRoot);
+        this.projectPath = projectPath;
+        console.assert(projectPath.endsWith('/'));
+      }
+
+      getInfoPath(path) {
+        let infoPath = this._lsRoot.clone();
+        infoPath.segment(this.projectPath);
+        infoPath.segment(path);
+        infoPath.normalize();
+        return infoPath.toString();
+      }
+
+      getFilePath(path, injectFrameScript) {
+        let relativePath = this.getRelativePath(path);
+        let filePath = this._filesRoot.clone();
+        filePath.segment(relativePath);
+        let s = filePath.toString();
+        if (injectFrameScript) {
+          filePath.addQuery('inject_frame_script', 'true');
+        }
+        filePath.normalize();
+        return filePath.toString();
+      }
+
+      getRelativePath(path) {
+        // make the path be relative to the project
+        return new URI(path).relativeTo(new URI(this.projectPath)).toString();
+      }
+
+      getName(node) {
+        return node.path
+          ? getFilename(node.path)
+          : getFilename(this.projectPath) || "Demos";
+      }
+
+      getInfo(path) {
+        return fetch(this.getInfoPath(path))
+            .then((r) => r.json())
+            .then((statJson) => {
+              // make the path be relative to the project
+              statJson.path = this.getRelativePath(statJson.path);
+              statJson.files = statJson.files.map((f) => {
+                f.path = this.getRelativePath(f.path);
+                return f;
+              });
+              return statJson;
+            });
+      }
+
+      /**
+       * @return {Promise<DocumentInfo>}
+       */
+      openFile(path) {
+        let filePath = this.getFilePath(path, true);
+        let event = new CustomEvent('designer-open-file', {
+          detail: {
+            href: filePath,
+          },
+          bubbles: true,
+        });
+        this._projectService.dispatchEvent(event);
+        return Promise.resolve(event.detail.promise);
+      }
+
+      isLink(node) {
+        return node.isFile;
+      }
+
+      onClick(node, event) {
+        this.openFile(node.path);
+      }
+    } // class BrowserProject
+
+  });
+  </script>
+</dom-module>

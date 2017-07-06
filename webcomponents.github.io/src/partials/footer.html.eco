@@ -1,0 +1,105 @@
+<div class="aux-nav">
+    <nav class="wrapper" role="navigation" itemscope itemtype="http://schema.org/SiteNavigationElement">
+        <ul>
+            <li>Learn</li>
+            <li>
+                <a href="<%= @site.url %>/articles/" title="Articles" itemprop="url">
+                    <span itemprop="name">Articles</span>
+                </a>
+            </li>
+            <li>
+                <a href="<%= @site.url %>/presentations/" title="Presentations" itemprop="url">
+                    <span itemprop="name">Presentations</span>
+                </a>
+            </li>
+            <li>
+                <a href="<%= @site.url %>/podcasts/" title="Podcasts" itemprop="url">
+                    <span itemprop="name">Podcasts</span>
+                </a>
+            </li>
+        </ul>
+        <ul>
+            <li>Code</li>
+            <li>
+                <a href="<%= @site.url %>/polyfills/" title="Polyfills" itemprop="url">
+                    <span itemprop="name">Polyfills</span>
+                </a>
+            </li>
+            <li>
+                <a href="<%= @site.url %>/resources/" title="Resources" itemprop="url">
+                    <span itemprop="name">Resources</span>
+                </a>
+            </li>
+        </ul>
+        <ul>
+            <li>Community</li>
+            <li>
+                <a href="<%= @site.url %>/about/" title="About" itemprop="url">
+                    <span itemprop="name">About</span>
+                </a>
+            </li>
+            <li>
+                <a href="<%= @site.url %>/assets/" title="Assets" itemprop="url">
+                    <span itemprop="name">Assets</span>
+                </a>
+            </li>
+            <li>
+                <a href="<%= @site.url %>/swags/" title="Swags" itemprop="url">
+                    <span itemprop="name">Swags</span>
+                </a>
+            </li>
+        </ul>
+    </nav>
+</div>
+
+<footer class="credits" role="contentinfo">
+    <div class="wrapper">
+        <p>Made with <span class="love">♥</span> by the <a target="_blank" class="credits-link" href="<%= @getGithubURL() %>/graphs/contributors" itemprop="publisher">WebComponents.org contributors.</a></p>
+        <!-- Social Button -->
+        <ul class="social-buttons">
+            <li class="tweet-btn">
+                <iframe src="http://platform.twitter.com/widgets/tweet_button.1359159993.html#_=1360010161235&amp;count=horizontal&amp;id=twitter-widget-0&amp;lang=en&amp;size=m&amp;url=<%= @site.url %>&amp;text=<%= @site.title %> ~ <%= @site.description %>" class="twitter-share-button twitter-count-horizontal" data-twttr-rendered="true" allowtransparency="true" frameborder="0" scrolling="no" width="100" height="20"></iframe>
+            </li>
+            <li class="fb-btn">
+                <iframe src="//www.facebook.com/plugins/like.php?href=<%= @site.url %>&amp;send=false&amp;layout=button_count&amp;width=100&amp;show_faces=false&amp;font&amp;colorscheme=light&amp;action=like&amp;height=20&amp;appId=176947299114210" allowTransparency="true" frameborder="0" scrolling="no" width="85" height="20"></iframe>
+            </li>
+            <li class="gplus-btn">
+                <iframe src="https://plusone.google.com/_/+1/fastbutton?bsv&amp;size=medium&amp;hl=en-US&amp;url=<%= @site.url %>&amp;parent=<%= @site.url %>" allowtransparency="true" frameborder="0" scrolling="no" width="70" height="20"></iframe>
+            </li>
+            <li class="github-btn">
+                <iframe src="http://ghbtns.com/github-btn.html?user=<%= @github.user %>&amp;repo=<%= @github.repo %>&amp;type=watch&amp;count=true&amp;size=small" allowtransparency="true" frameborder="0" scrolling="0" width="85" height="20"></iframe>
+            </li>
+        </ul>
+    </div>
+</footer>
+
+<script src="<%= @site.url %>/js/main.js"></script>
+
+<!-- Inspectlet -->
+<script>
+window.__insp = window.__insp || [];
+__insp.push(['wid', 1646634871]);
+(function() {
+    function __ldinsp(){var insp = document.createElement('script'); insp.type = 'text/javascript'; insp.async = true; insp.id = "inspsync"; insp.src = ('https:' == document.location.protocol ? 'https' : 'http') + '://cdn.inspectlet.com/inspectlet.js'; var x = document.getElementsByTagName('script')[0]; x.parentNode.insertBefore(insp, x); }
+    if (window.attachEvent){
+        window.attachEvent('onload', __ldinsp);
+    }else{
+        window.addEventListener('load', __ldinsp, false);
+    }
+})();
+</script>
+
+<!-- Google Analytics -->
+<script>
+var _gaq = _gaq || [];
+_gaq.push(['_setAccount', 'UA-47408119-2']);
+_gaq.push(['_trackPageview']);
+
+(function() {
+    var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+    ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+    var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,18 @@
+{
+    "name": "my-repo",
+    "version": "0.0.0",
+    "description": "My awesome Custom Element",
+    "license": "MIT",
+    "main": "my-element.html",
+    "keywords": [
+        "x-tag",
+        "web-components"
+    ],
+    "ignore": [
+        "**/.*",
+        "bower_components"
+    ],
+    "dependencies": {
+        "x-tag-core": "^1.1.6"
+    }
+}

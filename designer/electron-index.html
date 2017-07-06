@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+
+<html>
+  <head>
+    <title>Polymer designer</title>
+    <link rel="import" href="bower_components/imd/imd.html">
+    <!--
+      Note: run `gulp symlink` to make bower_components/polymer-designer/
+      work.
+    -->
+    <link rel="import" href="bower_components/polymer-designer/src/polyfills/polyfills.html">
+    <link rel="import" href="bower_components/polymer-designer/elements/designer-app-electron/designer-app-electron.html">
+
+    <style>
+      html, body {
+        margin: 0;
+        padding: 0;
+        height: 100%;
+        font-family: 'RobotoDraft', sans-serif;
+      }
+    </style>
+  </head>
+  <body>
+    <designer-app-electron></designer-app-electron>
+  </body>
+</html>

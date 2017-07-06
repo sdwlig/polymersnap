@@ -1,0 +1,641 @@
+<!--
+Copyright (c) 2015 The Polymer Project Authors. All rights reserved.
+This code may only be used under the BSD style license found at http://polymer.github.io/LICENSE.txt
+The complete set of authors may be found at http://polymer.github.io/AUTHORS.txt
+The complete set of contributors may be found at http://polymer.github.io/CONTRIBUTORS.txt
+Code distributed by Google as part of the polymer project is also
+subject to an additional IP rights grant found at http://polymer.github.io/PATENTS.txt
+-->
+
+<link rel="import" href="../../../polymer/polymer.html">
+<link rel="import" href="../../src/commands/commands.html">
+<link rel="import" href="../../src/css/css.html">
+<link rel="import" href="../../src/dom-utils/dom-utils.html">
+<link rel="import" href="../../src/dragging/dragging.html">
+<link rel="import" href="../../src/protocol/document-client.html">
+<link rel="import" href="../designer-element-highlight/designer-element-highlight.html">
+<link rel="import" href="../designer-selection/designer-selection.html">
+
+<dom-module id="designer-stage">
+
+  <template>
+    <style>
+      :host {
+        display: flex;
+        box-sizing: border-box;
+        position: relative;
+        justify-content: center;
+        outline: none;
+        overflow: auto;
+        @apply --designer-stage;
+      }
+      #content {
+        width: 100%;
+        display: flex;
+        position: relative;
+      }
+      #glass {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        z-index: 100;
+      }
+      designer-selection {
+        position: absolute;
+        z-index: 102;
+      }
+      #hover {
+        position: absolute;
+        /* z-index must be > 100 because iframes are z-index 100 o_O */
+        z-index: 101;
+      }
+      #text-edit-selection {
+        outline: solid 4px blue;
+        position: absolute;
+        display: none;
+        /* z-index must be > 100 because iframes are z-index 100 o_O */
+        z-index: 103;
+      }
+      #caret {
+        box-sizing: border-box;
+        position: absolute;
+        background: rgba(32, 32, 255, .4);
+        z-index: 104;
+        /* z-index must be > 100 because iframes are z-index 100 o_O */
+        min-width: 4px;
+      }
+      #proxy {
+        position: absolute;
+        /* z-index must be > 100 because iframes are z-index 100 o_O */
+        z-index: 101;
+        display: none;
+        opacity: 0.5;
+        background: #f88;
+        box-sizing: border-box;
+        padding: 0;
+        margin: 0;
+      }
+      #proxy > * {
+        width: 100% !important;
+        height: 100% !important;
+        display: block !important;
+        margin: 0;
+      }
+    </style>
+    <div id="content">
+      <designer-selection
+          id="selection"
+          on-click="_onSelectionClick"
+          on-designer-selection-mousedown="_onSelectionDown"
+          on-designer-selection-resize="_onSelectionResize"
+          on-designer-selection-move="_onSelectionMove">
+      </designer-selection>
+      <designer-element-highlight id="hover"></designer-element-highlight>
+      <div id="caret"></div>
+      <div
+          id="text-edit-selection"
+          on-click="_textOnClick"
+          tabindex="0">
+      </div>
+      <div id="proxy"></div>
+      <div id="glass" on-mousedown="_onMouseDown" on-dblclick="_onDoubleClick"></div>
+      <slot></slot>
+    </div>
+  </template>
+
+</dom-module>
+
+<script>
+  define([
+        'polymer-designer/commands',
+        'polymer-designer/designer-selection/ResizeDirection',
+        'polymer-designer/dom-utils',
+        'polymer-designer/dragging'],
+      (
+        commands,
+        ResizeDirection,
+        domUtils,
+        dragging) => {
+
+    'use strict';
+
+
+    let SELECTION_MOVE = 'selection-move';
+    let SELECTION_RESIZE = 'selection-resize';
+    let NEW_ELEMENT = 'new-element';
+
+    /**
+     * `<designer-stage>` hanldes user input for WYSIWYG editing.
+     */
+    Polymer({
+      is: 'designer-stage',
+
+      properties: {
+
+        selection: {
+          type: Object,
+          observer: '_selectionChanged',
+        },
+
+        /**
+         * @type {{x: number, y: number}}
+         */
+        currentMousePosition: {
+          type: Object,
+          value() { return {}; },
+        },
+
+        /**
+         * During a drag operation, describes where the dragged element will be
+         * inserted into: "before", "after" or "into".
+         */
+        insertPosition: {
+          type: String,
+          value: null,
+        },
+
+        // _isInsertOperation: {
+        //   type: Boolean,
+        //   value: false,
+        // },
+
+        hoverSourceId: {
+          type: String,
+          value: null,
+        },
+
+        /**
+         * The current editing mode: 'text' or 'layout'.
+         */
+        _mode: {
+          type: String,
+          value: 'layout',
+        },
+
+        _mouseDown: {
+          type: Boolean,
+          value: false,
+        },
+
+        documentInfo: {
+          type: Object,
+          observer: '_documentInfoChanged',
+        },
+
+        client: {
+          type: Object,
+        },
+
+        designerDropTarget: {
+          type: Boolean,
+          value: true,
+        },
+
+        size: {
+          type: Number,
+          observer: '_sizeChanged',
+        },
+
+        /**
+         * The current user operaiton: 'selection-move' or 'selection-resize'.
+         */
+        _operation: {
+          type: String,
+          value: null,
+        }
+
+      },
+
+      hostAttributes: {
+        tabindex: 0
+      },
+
+      listeners: {
+        'dblclick': '_onDoubleClick',
+        'keydown': '_onKeydown',
+        'keypress': '_onKeypress',
+        'designer-drag-move': '_onDragMove',
+        'designer-drag-enter': '_onDragEnter',
+        'designer-drag-leave': '_onDragLeave',
+        'designer-drag-drop': '_onDragDrop',
+      },
+
+      ready() {
+        window.addEventListener('mouseup', this._onMouseUp.bind(this));
+        this._reset();
+      },
+
+      _documentInfoChanged() {
+        this._reset();
+      },
+
+      _sizeChanged() {
+        if (typeof this.size == "number") {
+          this.$.content.style.width = `${this.size}px`;
+        } else {
+          this.$.content.style.width = '100%';
+        }
+      },
+
+      _reset() {
+        this.currentMousePosition = {};
+        this.insertPosition = null;
+        this.hoverSourceId = null;
+        this.mode = 'layout';
+        this._hideHover();
+        this.$.selection.hide();
+        domUtils.hide(this.$['text-edit-selection']);
+        domUtils.hide(this.$.caret);
+      },
+
+      _dispatchCommand(command) {
+        this.fire('designer-command', command, {bubbles: true});
+      },
+
+      _updateSelectionBounds(bounds) {
+        // this.currentElementInfo.bounds = bounds;
+        this.$.selection.setBounds(bounds);
+        this.$.selection.show();
+      },
+
+      /**
+       * @return {Promise}
+       */
+      _selectElement(elementInfo) {
+        let event = this.fire('designer-select-element', {
+          // TODO(justinfagnani): this is a waste of the elementInfo, which
+          // will be retreived again by designer-document, but it's a little
+          // simpler to reason about elementInfo always coming from one place
+          // at the moment.
+          sourceId: elementInfo.sourceId,
+        }, { bubbles: true, });
+        console.assert(event.detail.complete);
+        return event.detail.complete;
+      },
+
+      _selectionChanged() {
+        if (this.selection == null) {
+          this._reset();
+          return;
+        }
+        if (this.selection.bounds) {
+          this._updateSelectionBounds(this.selection.bounds);
+          // Set the valid resize handles
+          var position = this.selection.elementInfo.position;
+          var display = this.selection.elementInfo.display;
+
+          if (position === 'static' || position === 'relative') {
+            if (display === 'block') {
+              this.$.selection.directions = ResizeDirection.WIDTH_HEIGHT;
+            } else if (display === 'inline') {
+              this.$.selection.directions = [];
+            }
+            this.$.proxy.innerHTML = this.selection.elementInfo.proxy;
+          } else if (position === 'absolute') {
+            this.$.selection.directions = ResizeDirection.ALL_DIRECTIONS;
+          } else {
+            console.warn("can't handle position", position);
+            this.$.selection.directions = [];
+          }
+        } else {
+          this.$.selection.hide();
+        }
+
+      },
+
+      _updateHover(hoverInfo) {
+        if (hoverInfo == null) {
+          this._hideHover();
+          return;
+        }
+
+        let hover = this.$.hover;
+        hover.setElementInfoAndBounds(hoverInfo);
+        this.hoverSourceId = hoverInfo.elementInfo.sourceId;
+        hover.show();
+
+        this.insertPosition = hover.showInsertMarker(
+            this.currentMousePosition.x,
+            this.currentMousePosition.y);
+        this.hoverSourceId = hoverInfo.elementInfo.sourceId;
+      },
+
+      _hideHover() {
+        this.$.hover.hide();
+
+        // TODO(justinfagnani): move the next two lines to a better location,
+        // like where we know that we don't have a current valid move operation.
+        this.insertPosition = null;
+        this.hoverSourceId = null;
+      },
+
+      enterTextMode() {
+        this._mode = 'text';
+        this.$.selection.hide();
+        let textSelection = this.$['text-edit-selection'];
+        domUtils.setBounds(textSelection, this.selection.bounds);
+        domUtils.show(textSelection);
+
+        // TODO(justinfagnani): set up caret initial state (to first character?)
+        domUtils.show(this.$.caret);
+      },
+
+      exitTextMode() {
+        this._mode = 'layout';
+        this.$.selection.show();
+        domUtils.hide(this.$['text-edit-selection']);
+        domUtils.hide(this.$.caret);
+      },
+
+      _onSelectionDown(e) {
+        this._operation = SELECTION_MOVE;
+        this._mouseDown = true;
+      },
+
+      _onSelectionClick(e) {
+        // TODO: need to set this._mouseDown (or better name) = true when moving
+        // a selection so that we trigger the _onMouseUp action
+        let position = domUtils.toLocalPosition(this.$.content, e.clientX, e.clientY);
+        this.client.selectElementAtPoint(position.x, position.y)
+          .then((response) => {
+            this._selectElement(response.elementInfo);
+          });
+      },
+
+      _onSelectionResize(e) {
+        var bounds = e.detail.bounds;
+        this.client.selectionBoundsChanged(bounds)
+          .then((response) => {
+            // TODO(justinfagnani): fire event
+            this._updateSelectionBounds(response.bounds);
+          });
+      },
+
+      _onSelectionMove(e) {
+        // TODO: store mouse position in the designer-selection element?
+        // Rationale: we're alredy storing the bounds state there
+        var cursor = this.currentMousePosition = {
+          x: e.detail.cursor.x - this.offsetLeft,
+          y: e.detail.cursor.y - this.offsetTop,
+        };
+        var bounds = e.detail.bounds;
+        this._updateDragProxy(bounds);
+        this.client.selectionBoundsChanged(bounds, cursor)
+            .then((response) => {
+              if (response.commands) {
+                response.commands.forEach((command) => {
+                  this.fire('designer-command', command, {
+                    bubbles: true
+                  });
+                });
+              };
+              if (response.elementInfo) {
+                this._selectElement(response.elementInfo);
+              }
+              if (response.bounds) {
+                this._updateSelectionBounds(response.bounds);
+              }
+              // this._isInsertOperation = this.selection &&
+              //     this.selection.elementInfo.position == 'static';
+              this._updateHover(response.hover);
+            });
+      },
+
+      _updateDragProxy(bounds) {
+        var proxy = this.$.proxy;
+        if (this.selection.elementInfo.position === 'static') {
+          domUtils.setBounds(proxy, bounds);
+          domUtils.show(proxy);
+        } else {
+          domUtils.hide(proxy);
+        }
+      },
+
+      _onDragEnter(e) {
+        if (e.detail.dragType === 'element-palette') {
+          this._operation = NEW_ELEMENT;
+          // this._dragging = true;
+          // this.startOperation(new ElementPaletteOperation());
+        }
+      },
+
+      _onDragLeave(e) {
+        if (e.detail.dragType === 'element-palette') {
+          console.assert(this._operation === NEW_ELEMENT);
+          this._operation = null;
+          // this._dragging = false;
+          this._hideHover();
+          // this.endOperation();
+        }
+      },
+
+      _onDragDrop(e) {
+        if (e.detail.dragType === 'element-palette') {
+          console.assert(this._operation === NEW_ELEMENT);
+          let editor = e.detail.data.editor;
+
+          this._dispatchCommand(commands.newElement(
+              this.hoverSourceId,
+              editor.tagName,
+              editor.initialStyle,
+              editor.initialContent,
+              this.insertPosition));
+
+          // clear operation state
+          this.currentMousePosition = {};
+          this._hideHover();
+          domUtils.hide(this.$.proxy);
+          this._operation = null;
+        }
+      },
+
+      _onDragMove(e) {
+        if (!this.client) {
+          return;
+        }
+        let position = domUtils.toLocalPosition(this.$.content,
+            e.detail.clientX, e.detail.clientY);
+        this.currentMousePosition.x = position.x;
+        this.currentMousePosition.y = position.y;
+        this.client.getElementsAtPoint(position.x, position.y)
+          .then((response) => {
+            let hoverElement = (response.length > 1) ? response[0] : null;
+            if (hoverElement !== this._lastDragTarget) {
+              // this._isInsertOperation = true;
+              this._updateHover(hoverElement);
+              this._lastDragTarget = hoverElement;
+              // what was I trying to do here?
+              // draw the insert preview!!!
+              // client....
+            }
+          });
+      },
+
+      _onMouseDown(e) {
+        console.assert(this._operation == null);
+        this._mouseDown = true;
+
+        if (!this.client) {
+          return;
+        }
+
+        if (this._mode === 'text') {
+          this.exitTextMode();
+        }
+        // TODO(justinfagnani): we might want to wait until we know we don't
+        // have a double-click to initiate any action, but the redundant
+        // selection that happens here sometimes is ok for now
+        let position = domUtils.toLocalPosition(this.$.content, e.clientX, e.clientY);
+        this.client.selectElementAtPoint(position.x, position.y)
+            .then((response) => {
+              if (response.elementInfo && response.elementInfo.sourceId) {
+                return this._selectElement(response.elementInfo).then(() => {
+                  // Start a drag after selection if the mouse is still down.
+                  if (this._mouseDown) {
+                    this.$.selection._boundsDown(e);
+                    console.assert(this._operation === SELECTION_MOVE);
+                  }
+                })
+              } else {
+                console.warn('no sourceId');
+                // TODO: de-select element
+              }
+            });
+      },
+
+      _onMouseUp(e) {
+        if (!this._mouseDown) {
+          return;
+        }
+        this._mouseDown = false;
+
+        if (this._operation == SELECTION_MOVE) {
+
+          // if we're moving and are over an element, perform the move
+          if (this.hoverSourceId != null &&
+              this.insertPosition != null) {
+
+            this.fire('designer-command',
+              commands.moveElement(
+                this.selection.elementInfo.sourceId,
+                this.hoverSourceId,
+                this.insertPosition), {
+                  bubbles: true
+                });
+          }
+
+          // clear operation state
+          this.currentMousePosition = {};
+          this._hideHover();
+          domUtils.hide(this.$.proxy);
+          this._operation = null;
+        }
+      },
+
+      _onDoubleClick(e) {
+        let position = domUtils.toLocalPosition(this.$.content, e.clientX, e.clientY);
+        this.client.selectElementAtPoint(position.x, position.y)
+          .then((response) => {
+            this._selectElement(response.elementInfo);
+            // this.startOperation(new TextEditOperation());
+            this.enterTextMode();
+          });
+      },
+
+      _textOnClick(e) {
+        e.stopPropagation();
+        let position = domUtils.toLocalPosition(this.$.content, e.clientX, e.clientY);
+        this.client.getCaretPosition(position.x, position.y)
+          .then((response) => {
+            this._updateCaret(response.rect);
+          });
+      },
+
+      _onKeydown(event) {
+        let move;
+
+        switch(event.keyCode) {
+          // TODO(justinfagnani): consider using KeyboardEvent key names
+          case 8: // backspace
+            if (this._mode === 'text') {
+              move = 'backspace';
+            } else if (this._mode === 'layout') {
+              let sourceId = this.selection.elementInfo.sourceId;
+              this._dispatchCommand(commands.removeElement(sourceId));
+            }
+            event.preventDefault();
+            break;
+          case 37: // left
+            if (event.metaKey) {
+              event.preventDefault();
+              move = 'beginningOfLine';
+            } else {
+              move = 'left';
+            }
+            break;
+          case 38: // up
+            move = 'up';
+            break;
+          case 39: // right
+            if (event.metaKey) {
+              event.preventDefault();
+              move = 'endOfLine';
+            } else {
+              move = 'right';
+            }
+            break;
+          case 40: // down
+            move = 'down';
+            break;
+          default:
+            return;
+        }
+
+        if (this._mode === 'text' && move && this.client) {
+          let doMove;
+          if (move === 'backspace') {
+            doMove = this.client.backspaceText();
+          } else {
+            doMove = this.client.moveCursor(move);
+          }
+          doMove.then((response) => this._updateCaret(response.rect));
+        }
+      },
+
+      _onKeypress(event) {
+        if (this._mode === 'text' && this.client) {
+          var keyCode = event.keyCode;
+          var char = String.fromCharCode(keyCode);
+          this.client.insertText(char)
+            .then((response) => this._updateCaret(response.rect));
+        }
+      },
+
+      _updateCaret(bounds) {
+        domUtils.setBounds(this.$.caret, bounds);
+      },
+
+    });
+
+    class Operation {
+      start(stage) {}
+      end(stage) {}
+    }
+
+    class ElementPaletteOperation extends Operation {
+    }
+
+    class TextEditOperation extends Operation {
+      start(stage) {
+        stage.enterTextMode();
+      }
+
+      end(stage) {
+        stage.exitTextMode();
+      }
+    }
+
+  });
+</script>

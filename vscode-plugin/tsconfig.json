@@ -1,0 +1,14 @@
+{
+	"compilerOptions": {
+		"target": "ES5",
+		"module": "commonjs",
+		"moduleResolution": "node",
+		"outDir": "out",
+		"lib": ["es6"],
+		"sourceMap": true
+	},
+	"include": [
+		"src/**/*.ts",
+		"test/**/*.ts"
+	]
+}

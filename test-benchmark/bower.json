@@ -1,0 +1,16 @@
+{
+  "name": "performance-benchmark",
+  "version": "1.0.0",
+  "authors": [
+    "The Polymer Authors"
+  ],
+  "dependencies": {
+    "polymer": "polymer/polymer#^1.0.0",
+    "paper-styles": "polymerelements/paper-styles#^1.0.0",
+    "paper-material": "polymerelements/paper-material#^1.0.0",
+    "d3": "~3.5.5",
+    "webcomponentsjs": "webcomponents/webcomponentsjs#^0.7.0",
+    "iron-flex-layout": "polymerelements/iron-flex-layout#^1.0.0"
+  },
+  "ignore": []
+}

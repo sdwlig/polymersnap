@@ -1,0 +1,27 @@
+dist: trusty
+
+sudo: true
+
+language: node_js
+
+node_js: stable
+
+addons:
+  firefox: latest
+  apt:
+    sources:
+      - google-chrome
+    packages:
+      - google-chrome-stable
+
+cache:
+  yarn: true
+
+before_script:
+  - bower install
+
+script:
+  - xvfb-run npm test
+
+after_script:
+  - cat ./coverage/lcov.info | ./node_modules/coveralls/bin/coveralls.js

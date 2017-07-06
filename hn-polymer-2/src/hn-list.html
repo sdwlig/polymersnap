@@ -1,0 +1,151 @@
+<!--
+@license
+Copyright (c) 2017 The Polymer Project Authors. All rights reserved.
+This code may only be used under the BSD style license found at http://polymer.github.io/LICENSE.txt
+The complete set of authors may be found at http://polymer.github.io/AUTHORS.txt
+The complete set of contributors may be found at http://polymer.github.io/CONTRIBUTORS.txt
+Code distributed by Google as part of the polymer project is also
+subject to an additional IP rights grant found at http://polymer.github.io/PATENTS.txt
+-->
+
+<link rel="import" href="../node_modules/@polymer/polymer/polymer-element.html">
+<link rel="import" href="../node_modules/@polymer/polymer/lib/elements/dom-repeat.html">
+
+<dom-module id="hn-list">
+  <template strip-whitespace>
+    <style>
+      :host {
+        display: block;
+      }
+
+      a {
+        color: currentColor;
+      }
+
+      ul {
+        list-style-type: none;
+        padding: 0;
+        margin: 0;
+      }
+
+      li:first-of-type {
+        padding-top: 0;
+      }
+
+      li {
+        display: flex;
+        padding: 8px 0;
+        border-bottom: var(--separator-border);
+        overflow-wrap: break-word;
+      }
+
+      .title {
+        flex: 1;
+        padding-left: 1rem;
+      }
+
+      .title > a {
+        text-decoration: none;
+      }
+
+      .index {
+        font-weight: bold;
+        color: var(--detail-font-color);
+        align-self: center;
+        min-width: 1em;
+        text-align: right;
+      }
+
+      .info, .domain {
+        color: var(--detail-font-color);
+      }
+
+      .domain {
+        padding-left: 4px;
+        word-break: break-all;
+      }
+
+      .info {
+        font-size: var(--detail-font-size);
+        padding-top: 8px;
+      }
+
+      .info > a {
+        color: var(--detail-font-color);
+      }
+
+      .spacer {
+        padding-right: .5em;
+      }
+
+      .forwardback {
+        padding-top: 16px;
+        display: flex;
+      }
+
+      .forwardback > a {
+        text-decoration: none;
+      }
+
+      .forwardback > span {
+        flex: 1;
+        text-align: center;
+      }
+    </style>
+    <ul>
+      <template is="dom-repeat" items="[[list]]" initial-count="10">
+        <li>
+          <span class="index">[[_computeIndex(pageSize, page, index)]]</span>
+          <div class="title">
+            <a href="[[item.url]]">[[item.title]]</a>
+            <span class="domain">([[item.domain]])</span>
+            <div class="info">
+              [[item.points]] points by
+              <a href="/user/[[item.user]]">[[item.user]]</a>
+              [[item.time_ago]]
+              <span class="spacer">|</span>
+              <a href="/item/[[item.id]]">[[item.comments_count]] comments</a>
+            </div>
+          </div>
+        </li>
+      </template>
+    </ul>
+
+    <div class="forwardback">
+      <a class="prev" href="/[[type]]/[[_computePrevPage(page)]]" aria-label="Previous Page">◀ Previous</a>
+      <span>Page [[page]]</span>
+      <a class="next" href="/[[type]]/[[_computeNextPage(page)]]" aria-label="Next Page">Next ▶</a>
+    </div>
+
+  </template>
+  <script>
+  (function() {
+
+    class HnList extends Polymer.Element {
+
+      static get is() { return 'hn-list'; }
+
+      static get properties() {
+        return {
+          pageSize: Number,
+        };
+      }
+
+      _computeNextPage(page) {
+        return parseInt(page || 1) + 1;
+      }
+
+      _computePrevPage(page) {
+        return (parseInt(page || 2) - 1) || 1;
+      }
+
+      _computeIndex(pageSize, page, index) {
+        return pageSize * (page - 1) + index + 1;
+      }
+    }
+
+    window.customElements.define(HnList.is, HnList);
+
+  })();
+  </script>
+</dom-module>

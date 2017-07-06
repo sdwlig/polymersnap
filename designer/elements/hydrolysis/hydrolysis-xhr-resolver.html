@@ -1,0 +1,23 @@
+<link rel="import" href="../../vendor/hydrolysis.html">
+
+<script>
+define(['hydrolysis'], (hydrolysis) => {
+  'use strict';
+
+  Polymer({
+    is: 'hydrolysis-xhr-resolver',
+
+    properties: {
+      instance: {
+        type: Object,
+        value() { return new hydrolysis.XHRResolver(); },
+      },
+    },
+
+    attached() {
+      this.fire('hydrolysis-resolver-ready');
+    },
+
+  });
+});
+</script>

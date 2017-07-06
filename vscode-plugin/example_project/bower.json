@@ -1,0 +1,23 @@
+{
+  "name": "example_project",
+  "homepage": "https://github.com/Microsoft/vscode-languageserver-node-example",
+  "authors": [
+    "Peter Burns <rictic@google.com>"
+  ],
+  "description": "",
+  "main": "",
+  "license": "MIT",
+  "private": true,
+  "ignore": [
+    "**/.*",
+    "node_modules",
+    "bower_components",
+    "test",
+    "tests"
+  ],
+  "dependencies": {
+    "paper-elements": "PolymerElements/paper-elements#^1.0.7",
+    "app-elements": "PolymerElements/app-elements#^0.10.0",
+    "iron-elements": "PolymerElements/iron-elements#^1.0.10"
+  }
+}

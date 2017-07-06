@@ -1,0 +1,10 @@
+{
+  "index.html": {
+    "fragment.html": {
+      "type": "document"
+    },
+    "/es2015/serviceworker.js": {
+      "type": "script"
+    }
+  }
+}

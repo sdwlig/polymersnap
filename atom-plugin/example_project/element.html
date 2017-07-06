@@ -1,0 +1,33 @@
+<link rel="import" href="./behavior.html">
+
+<dom-module id="behavior-test-elem">
+  <template>
+    <!-- Good: -->
+    <div id="{{localProperty}}"></div>
+    <div id="{{inheritPlease}}"></div>
+
+    <!-- Bad: -->
+    <div id="{{unknown}}"></div>
+    <div id="{{bad syntax here}}"></div>
+    <div id="{{bad closing brackets}]"></div>
+    <div id="{{localProperty(localProperty)}}"></div>
+  </template>
+  <script>
+    /** An element to test out behavior inheritance. */
+    Polymer({
+      is: 'behavior-test-elem',
+      behaviors: [MyNamespace.SimpleBehavior],
+      properties: {
+        /** A *really cool* property defined directly on behavior-test-elem. */
+        localProperty: {
+          type: String,
+          value: true,
+          notify: true
+        },
+        nonNotifyingProperty: {
+          type: String
+        }
+      }
+    });
+  </script>
+</dom-module>

@@ -1,0 +1,9 @@
+{
+  "name": "polymer-designer-demos",
+  "version": "0.8.0",
+  "private": true,
+  "dependencies": {
+    "polymer": "Polymer/polymer#^1.0.0",
+    "webcomponentsjs": "webcomponents/webcomponentsjs"
+  }
+}

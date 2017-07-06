@@ -1,0 +1,32 @@
+{
+  "name": "test-all",
+  "version": "0.0.0",
+  "authors": [
+    "The Polymer Authors"
+  ],
+  "description": "Test all the things",
+  "license": "BSD-3-Clause",
+  "ignore": [
+    "**/.*",
+    "node_modules",
+    "bower_components",
+    "test",
+    "tests"
+  ],
+  "dependencies": {
+    "iron-elements": "PolymerElements/iron-elements#~1.0.3",
+    "paper-elements": "PolymerElements/paper-elements#^1.0.0",
+    "polymer": "Polymer/polymer#master"
+  },
+  "devDependencies": {
+    "firebase-element": "GoogleWebComponents/firebase-element#~1.0.4",
+    "gold-elements": "PolymerElements/gold-elements#~1.0.1",
+    "iron-test-helpers": "PolymerElements/iron-test-helpers#~1.0.3",
+    "platinum-elements": "PolymerElements/platinum-elements#~1.1.1",
+    "test-fixture": "PolymerElements/test-fixture#~1.0.0",
+    "web-component-tester": "~3.3.15"
+  },
+  "resolutions": {
+    "polymer": "master"
+  }
+}
