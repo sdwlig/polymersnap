@@ -109,6 +109,13 @@ const optionDefinitions = [
         `earliest ones have the highest priority.`
   },
   {
+    name: 'rewrite-urls-in-templates',
+    type: Boolean,
+    description: 'Fix URLs found inside certain element attributes ' +
+        '(`action`, `assetpath`, `href`, `src`, and`style`) inside ' +
+        '`<template>` tags.'
+  },
+  {
     name: 'sourcemaps',
     type: Boolean,
     description: 'Create and process sourcemaps for scripts.'
@@ -189,6 +196,7 @@ options.stripComments = options['strip-comments'];
 options.implicitStrip = !options['no-implicit-strip'];
 options.inlineScripts = Boolean(options['inline-scripts']);
 options.inlineCss = Boolean(options['inline-css']);
+options.rewriteUrlsInTemplates = Boolean(options['rewrite-urls-in-templates']);
 
 if (options.redirect) {
   type redirection = {prefix: string, path: string};
@@ -231,12 +239,17 @@ interface JsonManifest {
 
 function bundleManifestToJson(manifest: BundleManifest): JsonManifest {
   const json: JsonManifest = {};
+  const missingImports: Set<string> = new Set();
   for (const [url, bundle] of manifest.bundles) {
     json[url] = [
       ...bundle.inlinedHtmlImports,
       ...bundle.inlinedScripts,
       ...bundle.inlinedStyles
     ];
+
+    for (const missingImport of bundle.missingImports) {
+      missingImports.add(missingImport);
+    }
 
     if (bundle.entrypoints.size > 1) {
       continue;
@@ -252,6 +265,9 @@ function bundleManifestToJson(manifest: BundleManifest): JsonManifest {
         json[url].unshift(entrypoint);
       }
     }
+  }
+  if (missingImports.size > 0) {
+    json['_missing'] = [...missingImports];
   }
   return json;
 }

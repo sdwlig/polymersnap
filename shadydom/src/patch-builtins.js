@@ -54,8 +54,8 @@ let nodeMixin = {
    * @this {Node}
    */
   replaceChild(node, ref_node) {
-    this.insertBefore(node, ref_node);
-    this.removeChild(ref_node);
+    mutation.insertBefore(this, node, ref_node);
+    mutation.removeChild(this, ref_node);
     return node;
   },
 
@@ -100,7 +100,7 @@ let nodeMixin = {
 
 };
 
-// NOTE: For some reason `Text` redefines `assignedSlot`
+// NOTE: For some reason 'Text' redefines 'assignedSlot'
 let textMixin = {
   /**
    * @this {Text}
@@ -146,7 +146,7 @@ let slotMixin = {
     if (this.localName === 'slot') {
       mutation.renderRootNode(this);
       return this.__shady ?
-        ((options && options.flatten ? this.__shady.distributedNodes :
+        ((options && options.flatten ? this.__shady.flattenedNodes :
         this.__shady.assignedNodes) || []) :
         [];
     }
@@ -188,7 +188,7 @@ let elementMixin = utils.extendAll({
    * @this {HTMLElement}
    */
   set slot(value) {
-    this.setAttribute('slot', value);
+    mutation.setAttribute(this, 'slot', value);
   },
 
   /**
@@ -214,7 +214,12 @@ let documentMixin = utils.extendAll({
    * @this {Document}
    */
   getElementById(id) {
-    return this.querySelector(`#${id}`);
+    let result = mutation.query(this, function(n) {
+      return n.id == id;
+    }, function(n) {
+      return Boolean(n);
+    })[0];
+    return result || null;
   }
 
 }, fragmentMixin);
@@ -230,7 +235,7 @@ let htmlElementMixin = utils.extendAll({
    * @this {HTMLElement}
    */
   blur() {
-    let root = this.shadowRoot;
+    let root = this.__shady && this.__shady.root;
     let shadowActive = root && root.activeElement;
     if (shadowActive) {
       shadowActive.blur();

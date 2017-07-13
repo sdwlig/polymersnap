@@ -258,6 +258,7 @@
 
         .sidebar {
           margin: 0 16px;
+          padding-top: 4px;
           position: initial;
           flex: 1 0 auto;
           max-height: none;
@@ -371,7 +372,7 @@
     <div id="container" hidden$="[[_hideMainContent]]">
 
       <div class="title mobile-only">
-        <h1 class="page-title">[[repo]]</h1>
+        <h1 class="page-title">[[_packageTitle]]</h1>
         <div class="version-sha">[[data.version]]</div>
       </div>
       <h2 class="page-subtitle mobile-only">[[data.description]] <a title="Home page link" href="[[data.homepage]]" hidden$="[[_redundantLink(data.homepage)]]">[[data.homepage]]</a></h2>
@@ -549,11 +550,6 @@
       created: function() {
         this._versionRegex = /^v?\d+\.\d+\.\d+(-[^/]+)?$/;
         this._shaRegex = /^[0-9a-f]{20,}$/;
-      },
-
-      ready: function() {
-        if (this.queryParams && this.queryParams.code)
-          this._starRepo();
       },
 
       _shouldShowEditor: function(queryParams, prefix) {
@@ -795,6 +791,9 @@
         this.fire('meta-set', {key: 'name', value: 'twitter:card', content: 'summary'});
 
         this.async(this._updateActiveLinks);
+
+        if (this.queryParams && this.queryParams.code)
+          this._starRepo();
       },
 
       _pageTitle: function(pages, pagePath) {

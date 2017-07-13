@@ -220,7 +220,7 @@ If you want to save it in bower.json file, remember to add flag --save
         }
         if (tag != "" && this.tags.indexOf(tag) < 0) {
           // Remove the spaces in tag and split.
-          var args = tag.replace(/[\s]+/g, " ").split(" ");
+          var args = tag.replace(/[\s]+/g, " ").split(/[\s,]+/g);
 
           /** 
            * If input tag contains a command, then fire the corresponding 

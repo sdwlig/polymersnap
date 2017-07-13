@@ -1,7 +1,13 @@
 # Changelog
 
 ## Unreleased
+- Fix issue where negative `extraDependencies` globs were not working.
+- test: Add CLI option for custom wct sauce config.
 <!-- Add new, unreleased items here. -->
+
+## v1.3.1 [07-06-2017]
+- Fixed [issue #710](https://github.com/Polymer/polymer-cli/issues/710) where the es5 custom elements adapter would not be added when bundling.
+- Fixed [issue #767](https://github.com/Polymer/polymer-cli/issues/767) where hyphenated option names for `build` command were effectively ignored.
 
 ## v1.3.0 [06-30-2017]
 - Added support for optional polymer-project-config provision of bundler options instead of only boolean value for the `bundle` property of build definitions.  See the [Polymer Project Config 3.4.0 release notes](https://github.com/Polymer/polymer-project-config/pull/37) for details on new options available in polymer.json.

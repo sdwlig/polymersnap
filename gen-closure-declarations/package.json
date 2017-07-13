@@ -1,6 +1,6 @@
 {
   "name": "@polymer/gen-closure-declarations",
-  "version": "0.0.5",
+  "version": "0.1.0",
   "main": "lib/gen-closure.js",
   "bin": {
     "gen-closure-declarations": "bin/gen-closure-declarations.js"
@@ -13,10 +13,10 @@
   "license": "BSD-3-Clause",
   "dependencies": {
     "escodegen": "^1.8.1",
-    "polymer-analyzer": "^2.1.0"
+    "polymer-analyzer": "^2.2.1"
   },
   "devDependencies": {
-    "typescript": "^2.3.4"
+    "typescript": "^2.4.1"
   },
   "scripts": {
     "build": "tsc",

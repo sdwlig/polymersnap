@@ -457,6 +457,25 @@ suite('Bundler', () => {
       assert.equal(imports.length, 1);
     });
 
+    test('Excluded imports are not listed as missing', async () => {
+      const bundler = new Bundler({
+        analyzer: new Analyzer({urlLoader: new FSUrlLoader('test/html')}),
+        excludes: [
+          'this/does/not/exist.html',
+          'this/does/not/exist.js',
+          'this/does/not/exist.css'
+        ],
+      });
+      const manifest = await bundler.generateManifest([
+        'absolute-paths.html',
+      ]);
+      const result = await bundler.bundle(manifest);
+      assert.deepEqual(
+          [...result.manifest.bundles.get('absolute-paths.html')!
+               .missingImports],
+          []);
+    });
+
     test('Excluded CSS file urls is not inlined', async () => {
       const doc = await bundle(
           'test/html/external.html', {excludes: ['external/external.css']});
@@ -573,9 +592,14 @@ suite('Bundler', () => {
       const options = {excludes: ['absolute-paths/script.js']};
       const doc = await bundle(target, options);
       const scripts = dom5.queryAll(doc, matchers.externalJavascript);
-      assert.equal(scripts.length, 1);
+      assert.equal(scripts.length, 2);
       assert.deepEqual(
           dom5.getAttribute(scripts[0]!, 'src'), '/absolute-paths/script.js');
+
+      // A missing script will not be inlined and the script tag will not
+      // be removed.
+      assert.deepEqual(
+          dom5.getAttribute(scripts[1]!, 'src'), '/this/does/not/exist.js');
     });
 
     test('Escape inline <script>', async () => {
@@ -612,9 +636,11 @@ suite('Bundler', () => {
 
     test('URLs for inlined styles are recorded in Bundle', async () => {
       await bundle(inputPath);
-      assert.deepEqual(
-          [...documentBundle.inlinedStyles].sort(),
-          ['imports/regular-style.css', 'imports/simple-style.css']);
+      assert.deepEqual([...documentBundle.inlinedStyles].sort(), [
+        'imports/import-linked-style.css',
+        'imports/regular-style.css',
+        'imports/simple-style.css',
+      ]);
     });
 
     test('External links are replaced with inlined styles', async () => {
@@ -623,7 +649,15 @@ suite('Bundler', () => {
       const styles = dom5.queryAll(
           doc, matchers.styleMatcher, [], dom5.childNodesIncludeTemplate);
       assert.equal(links.length, 0);
-      assert.equal(styles.length, 2);
+      assert.equal(styles.length, 3);
+      assert.match(
+          dom5.getTextContent(styles[0]), /regular-style/, 'regular-style.css');
+      assert.match(
+          dom5.getTextContent(styles[1]), /simple-style/, 'simple-style.css');
+      assert.match(
+          dom5.getTextContent(styles[2]),
+          /import-linked-style/,
+          'import-linked-style.css');
     });
 
     test('Inlined styles have proper paths', async () => {
@@ -657,7 +691,13 @@ suite('Bundler', () => {
 
       const styles = dom5.queryAll(
           template, matchers.styleMatcher, [], dom5.childNodesIncludeTemplate);
-      assert.equal(styles.length, 1);
+      assert.equal(styles.length, 2);
+      assert.match(
+          dom5.getTextContent(styles[0]), /simple-style/, 'simple-style.css');
+      assert.match(
+          dom5.getTextContent(styles[1]),
+          /import-linked-style/,
+          'import-linked-style.css');
     });
 
     test(
