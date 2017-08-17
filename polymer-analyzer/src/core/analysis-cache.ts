@@ -23,8 +23,7 @@ export class AnalysisCache {
    * These are maps from resolved URLs to Promises of various stages of the
    * analysis pipeline.
    */
-  readonly parsedDocumentPromises:
-      AsyncWorkCache<string, ParsedDocument<any, any>>;
+  readonly parsedDocumentPromises: AsyncWorkCache<string, ParsedDocument>;
   readonly scannedDocumentPromises: AsyncWorkCache<string, ScannedDocument>;
   readonly dependenciesScannedPromises: AsyncWorkCache<string, ScannedDocument>;
   readonly analyzedDocumentPromises: AsyncWorkCache<string, Document>;
@@ -113,11 +112,9 @@ export class AnalysisCache {
   toString() {
     return `<AnalysisCache
         scannedDocuments:
-            ${Array.from(this.scannedDocuments.keys())
-        .join('\n            ')}
+            ${Array.from(this.scannedDocuments.keys()).join('\n            ')}
         analyzedDocuments:
-            ${Array.from(this.analyzedDocuments.keys())
-        .join('\n            ')}
+            ${Array.from(this.analyzedDocuments.keys()).join('\n            ')}
       >`;
   }
 }

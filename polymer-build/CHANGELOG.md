@@ -8,6 +8,9 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 ## Unreleased
 <!-- Add new, unreleased changes here. -->
 
+## [2.0.0] - 2017-07-18
+* [Breaking] Upgraded `polymer-bundler` to 3.x, which includes new default behavior around the `rewriteUrlsInTemplates` option in support of Polymer 2.x defaults.  Polymer 1.x project developers should set the option `rewriteUrlsInTemplates: true`.  See [using polymer-bundler programmatically](https://github.com/polymer/polymer-bundler#using-polymer-bundler-programmatically) for more information.
+
 ## [1.6.0] - 2017-06-29
 * Automatically recognize any lazy-imports encountered as fragments when generating push-manifest.
 * The `addPushManifest` feature now honors the laziness of html-imports and excludes them from the set of their importers' pushed assets.

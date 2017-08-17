@@ -1,5 +1,6 @@
 [![Travis Build Status](https://travis-ci.org/Polymer/prpl-server-node.svg?branch=master)](https://travis-ci.org/Polymer/prpl-server-node)
 [![AppVeyor Build Status](https://ci.appveyor.com/api/projects/status/3bfbf7fgdifebv7o/branch/master?svg=true)](https://ci.appveyor.com/project/aomarks/prpl-server-node/branch/master)
+[![NPM version](http://img.shields.io/npm/v/prpl-server.svg)](https://www.npmjs.com/package/prpl-server)
 
 # prpl-server-node
 
@@ -66,13 +67,14 @@ The `browserCapabilities` field defines the browser features required for that b
 
 You should always include a fallback build with no capability requirements. If you don't, prpl-server will warn at startup, and will return a 500 error on entrypoint requests to browsers for which no build can be served.
 
-The following keywords are supported. See also [capabilities.ts](https://github.com/Polymer/prpl-server-node/blob/master/src/capabilities.ts) for the latest browser support matrix.
+The following keywords are supported. See also the [browser-capabilities](https://github.com/Polymer/browser-capabilities) library which prpl-server uses.
 
 | Keyword       | Description
 | :----         | :----
 | es2015        | [ECMAScript 2015 (aka ES6)](https://developers.google.com/web/shows/ttt/series-2/es2015)
 | push          | [HTTP/2 Server Push](https://developers.google.com/web/fundamentals/performance/http2/#server-push)
 | serviceworker | [Service Worker API](https://developers.google.com/web/fundamentals/getting-started/primers/service-workers)
+| modules       | [JavaScript Modules](https://www.chromestatus.com/feature/5365692190687232)
 
 
 ## Entrypoint

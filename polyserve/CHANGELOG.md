@@ -5,11 +5,15 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/)
 and this project adheres to [Semantic Versioning](http://semver.org/).
 
-<!-- ## Unreleased -->
+## Unreleased
 
+* Auto-compile now includes transformation of ES modules to AMD modules with RequireJS for browsers that do not support ES modules. Includes special handling for WCT.
+
+## [0.20.0](https://github.com/PolymerLabs/polyserve/tree/v0.20.0) (2017-08-08)
+
+* Update Polymer Build to v2.0.0
 * Allow package names to include a '/'
-* Added --npm flag which sets component folder to node_modules and reads package 
-  name from package.json.
+* Added --npm flag which sets component folder to node_modules and reads package name from package.json.
 
 ## [0.19.1](https://github.com/PolymerLabs/polyserve/tree/v0.19.1) (2017-05-22)
 

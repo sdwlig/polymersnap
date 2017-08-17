@@ -40,13 +40,6 @@ export class ParsedHtmlDocument extends ParsedDocument<ASTNode, HtmlVisitor> {
     });
   }
 
-  forEachNode(callback: (node: ASTNode) => void) {
-    dom5.nodeWalk(this.ast, (node) => {
-      callback(node);
-      return false;
-    });
-  }
-
   // An element node with end tag information will produce a source range that
   // includes the closing tag.  It is assumed for offset calculation that the
   // closing tag is always of the expected `</${tagName}>` form.
@@ -210,7 +203,7 @@ export class ParsedHtmlDocument extends ParsedDocument<ASTNode, HtmlVisitor> {
 const injectedTagNames = new Set(['html', 'head', 'body']);
 function removeFakeNodes(ast: dom5.Node) {
   const children = (ast.childNodes || []).slice();
-  if (ast.parentNode && !ast.__location && injectedTagNames.has(ast.nodeName)) {
+  if (ast.parentNode && isFakeNode(ast)) {
     for (const child of children) {
       dom5.insertBefore(ast.parentNode, ast, child);
     }
@@ -219,6 +212,10 @@ function removeFakeNodes(ast: dom5.Node) {
   for (const child of children) {
     removeFakeNodes(child);
   }
+}
+
+export function isFakeNode(ast: dom5.Node) {
+  return !ast.__location && injectedTagNames.has(ast.nodeName);
 }
 
 function isElementLocationInfo(location: parse5.LocationInfo|

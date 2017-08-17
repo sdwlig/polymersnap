@@ -1,9 +1,16 @@
 # Changelog
 
 ## Unreleased
+<!-- Add new, unreleased items here. -->
+
+## v1.4.1 [08-10-2017]
+- Fixed the `polymer serve --npm` option.
+
+## v1.4.0 [08-08-2017]
+- Upgraded to Polymer Build ^2.0.0 which uses Polymer Bundler ^3.0.0.
+- When no specific option is set for Bundler's `rewriteUrlsInTemplates` the CLI attempts to get the version of Polymer for the project using `bower`.  When Polymer 2.x is discovered, `rewriteUrlsInTemplates` is defaulted to `false`.  In case of Polymer 1.x or where version can not be identified, it defaults to `true`.  Any user settings override these defaults.
 - Fix issue where negative `extraDependencies` globs were not working.
 - test: Add support for WCT `config-file` option.
-<!-- Add new, unreleased items here. -->
 
 ## v1.3.1 [07-06-2017]
 - Fixed [issue #710](https://github.com/Polymer/polymer-cli/issues/710) where the es5 custom elements adapter would not be added when bundling.
@@ -52,6 +59,8 @@
 - Produce much smaller output when compiling many JS files to ES5 by inserting babel helpers only once, at the toplevel entrypoint.
 
 - `init`: Propagate `description` from `init` to application templates in `index.html` meta tag.
+
+- **New Command Aliases**: Commands now support aliases. `polymer install` has been aliased under `polymer i`.
 
 ## v0.18.1 [04-25-2017]
 

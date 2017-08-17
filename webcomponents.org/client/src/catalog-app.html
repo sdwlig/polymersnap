@@ -5,6 +5,8 @@
 <link rel="import" href="../bower_components/app-route/app-location.html">
 <link rel="import" href="../bower_components/app-route/app-route.html">
 <link rel="import" href="../bower_components/iron-pages/iron-pages.html">
+<!-- promise polyfill required by iron-ajax 2.0 -->
+<link rel="import" href="../bower_components/promise-polyfill/promise-polyfill-lite.html">
 
 <link href="https://fonts.googleapis.com/css?family=Source+Code+Pro|Source+Sans+Pro:400,600" rel="stylesheet">
 
@@ -108,7 +110,6 @@
       app-header {
         @apply(--layout-fixed-top);
         z-index: 100;
-        height: calc(2 * 80px);
         position: fixed;
         top: 0;
         left: 0;

@@ -20,7 +20,7 @@ import {correctSourceRange, LocationOffset, SourcePosition, SourceRange, uncorre
  * @template AstNode The AST type of the document.
  * @template Visitor The type of the visitors that can walk the document.
  */
-export abstract class ParsedDocument<AstNode, Visitor> {
+export abstract class ParsedDocument<AstNode = any, Visitor = any> {
   abstract type: string;
   url: string;
   baseUrl: string;
@@ -69,14 +69,6 @@ export abstract class ParsedDocument<AstNode, Visitor> {
    * Runs a set of document-type specific visitors against the document.
    */
   abstract visit(visitors: Visitor[]): void;
-
-  /**
-   * Calls `callback` for each AST node in the document in document order.
-   *
-   * Implementations _must_ call the callback with every node, and must do so
-   * in document order.
-   */
-  abstract forEachNode(callback: (node: AstNode) => void): void;
 
   sourceRangeForNode(node: AstNode): SourceRange|undefined {
     const baseSource = this._sourceRangeForNode(node);
@@ -178,7 +170,7 @@ export interface StringifyOptions {
    * Parsed (and possibly modified) documents that exist inside this document
    * whose stringified contents should be used instead of what is in `ast`.
    */
-  inlineDocuments?: ParsedDocument<any, any>[];
+  inlineDocuments?: ParsedDocument[];
 }
 
 /**

@@ -19,55 +19,7 @@ import {Options, ParsedDocument, StringifyOptions} from '../parser/document';
 
 import cssbeautify = require('cssbeautify');
 
-export interface Visitor { visit(node: shady.Node, path: shady.Node[]): void; }
-
-class ShadyVisitor extends shady.NodeVisitor<void> {
-  private visitors: Visitor[];
-  constructor(visitors: Visitor[]) {
-    super();
-    this.visitors = visitors;
-  }
-  private allVisitors(node: shady.Node) {
-    for (const visitor of this.visitors) {
-      visitor.visit(node, this.path);
-    }
-  }
-  stylesheet(stylesheet: shady.Stylesheet) {
-    this.allVisitors(stylesheet);
-    for (const rule of stylesheet.rules) {
-      this.visit(rule);
-    }
-  }
-  atRule(atRule: shady.AtRule) {
-    this.allVisitors(atRule);
-    if (atRule.rulelist) {
-      this.visit(atRule.rulelist);
-    }
-  }
-  comment(comment: shady.Comment) {
-    this.allVisitors(comment);
-  }
-  rulelist(rulelist: shady.Rulelist) {
-    this.allVisitors(rulelist);
-    for (const rule of rulelist.rules) {
-      this.visit(rule);
-    }
-  }
-  ruleset(ruleset: shady.Ruleset) {
-    this.allVisitors(ruleset);
-    this.visit(ruleset.rulelist);
-  }
-  declaration(declaration: shady.Declaration) {
-    this.allVisitors(declaration);
-    this.visit(declaration.value);
-  }
-  expression(expression: shady.Expression) {
-    this.allVisitors(expression);
-  }
-  discarded(discarded: shady.Discarded) {
-    this.allVisitors(discarded);
-  }
-}
+export interface Visitor { visit(node: shady.Node): void; }
 
 export class ParsedCssDocument extends ParsedDocument<shady.Node, Visitor> {
   type = 'css';
@@ -77,20 +29,28 @@ export class ParsedCssDocument extends ParsedDocument<shady.Node, Visitor> {
   }
 
   visit(visitors: Visitor[]) {
-    const shadyVisitor = new ShadyVisitor(visitors);
-    shadyVisitor.visit(this.ast);
+    for (const node of this) {
+      for (const visitor of visitors) {
+        visitor.visit(node);
+      }
+    }
   }
 
-  forEachNode(_callback: (node: shady.Node) => void) {
-    throw new Error('Not implemented');
+  sourceRangeForNode(node: shady.Node): SourceRange {
+    return this.sourceRangeForShadyRange(node.range);
   }
 
-  protected _sourceRangeForNode(_node: shady.Node): SourceRange {
-    throw new Error('Not implemented');
+  sourceRangeForShadyRange(range: shady.Range): SourceRange {
+    return this.offsetsToSourceRange(range.start, range.end);
+  }
+
+  protected _sourceRangeForNode(node: shady.Node): SourceRange {
+    return this.sourceRangeForShadyRange(node.range);
   }
 
   stringify(options?: StringifyOptions) {
     options = options || {};
+    shadyStringifier.visit;
     const beautifulResults = cssbeautify(
         shadyStringifier.stringify(this.ast),
         {indent: '  ', autosemicolon: true, openbrace: 'end-of-line'});
@@ -101,6 +61,10 @@ export class ParsedCssDocument extends ParsedDocument<shady.Node, Visitor> {
                .map((line) => line === '' ? '' : indent + line)
                .join('\n') +
         '\n';
+  }
+
+  * [Symbol.iterator](): Iterator<shady.Node> {
+    yield* shady.iterateOverAst(this.ast);
   }
 }
 

@@ -25,6 +25,7 @@ const lazypipe = require('lazypipe');
 const closure = require('google-closure-compiler').gulp();
 const minimalDocument = require('./util/minimalDocument.js')
 const dom5 = require('dom5');
+const parse5 = require('parse5');
 
 const DIST_DIR = 'dist';
 const BUNDLED_DIR = path.join(DIST_DIR, 'bundled');
@@ -67,6 +68,17 @@ let CLOSURE_LINT_ONLY = false;
 
 let firstImportFinder = dom5.predicates.AND(dom5.predicates.hasTagName('link'), dom5.predicates.hasAttrValue('rel', 'import'));
 
+const licenseHeader =
+`/**
+ * @license
+ * Copyright (c) 2017 The Polymer Project Authors. All rights reserved.
+ * This code may only be used under the BSD style license found at http://polymer.github.io/LICENSE.txt
+ * The complete set of authors may be found at http://polymer.github.io/AUTHORS.txt
+ * The complete set of contributors may be found at http://polymer.github.io/CONTRIBUTORS.txt
+ * Code distributed by Google as part of the polymer project is also
+ * subject to an additional IP rights grant found at http://polymer.github.io/PATENTS.txt
+ */`;
+
 class AddClosureTypeImport extends Transform {
   constructor(entryFileName, typeFileName) {
     super({objectMode: true});
@@ -76,7 +88,7 @@ class AddClosureTypeImport extends Transform {
   _transform(file, enc, cb) {
     if (file.path === this.target) {
       let contents = file.contents.toString();
-      let html = dom5.parse(contents, {locationInfo: true});
+      let html = parse5.parse(contents, {locationInfo: true});
       let firstImport = dom5.query(html, firstImportFinder);
       if (firstImport) {
         let importPath = path.relative(path.dirname(this.target), this.importPath);
@@ -84,7 +96,8 @@ class AddClosureTypeImport extends Transform {
         dom5.setAttribute(importLink, 'rel', 'import');
         dom5.setAttribute(importLink, 'href', importPath);
         dom5.insertBefore(firstImport.parentNode, firstImport, importLink);
-        file.contents = Buffer(dom5.serialize(html));
+        dom5.removeFakeRootElements(html);
+        file.contents = Buffer(parse5.serialize(html));
       }
     }
     cb(null, file);
@@ -105,7 +118,6 @@ gulp.task('closure', ['clean'], () => {
   }
 
   config('polymer.html');
-  // config('lib/mixins/property-effects.html');
 
   const project = new PolymerProject({
     shell: `./${entry}`,
@@ -146,7 +158,6 @@ gulp.task('closure', ['clean'], () => {
     new_type_inf: true,
     checks_only: CLOSURE_LINT_ONLY,
     polymer_version: 2,
-    // tracer_mode: 'TIMING_ONLY',
     externs: [
       'bower_components/shadycss/externs/shadycss-externs.js',
       'externs/webcomponents-externs.js',
@@ -241,6 +252,6 @@ gulp.task('lint', function() {
 gulp.task('generate-closure-externs', ['clean'], () => {
   let genClosure = require('@polymer/gen-closure-declarations').generateDeclarations;
   return genClosure().then((declarations) => {
-    fs.writeFileSync('externs/closure-types.js', declarations);
+    fs.writeFileSync('externs/closure-types.js', `${licenseHeader}${declarations}`);
   });
 });

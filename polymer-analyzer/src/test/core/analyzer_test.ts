@@ -32,7 +32,7 @@ import {FSUrlLoader} from '../../url-loader/fs-url-loader';
 import {InMemoryOverlayUrlLoader} from '../../url-loader/overlay-loader';
 import {UrlLoader} from '../../url-loader/url-loader';
 
-import {CodeUnderliner} from '../test-utils';
+import {CodeUnderliner, invertPromise} from '../test-utils';
 
 import chaiAsPromised = require('chai-as-promised');
 import chaiSubset = require('chai-subset');
@@ -544,7 +544,7 @@ suite('Analyzer', () => {
 
     test('returns a Promise that rejects for non-existant files', async() => {
       const context = await getContext(analyzer);
-      await assert.isRejected(context['_parse']('static/not-found'));
+      await invertPromise(context['_parse']('static/not-found'));
     });
   });
 
@@ -663,6 +663,20 @@ suite('Analyzer', () => {
       // stringify the original and still get the original contents.
       assert.deepEqual(document.stringify(), modifiedContents);
       assert.deepEqual(origDocument.stringify(), contents);
+    });
+  });
+
+  suite('documentation extraction', () => {
+    test('we get the wrong description for paper-input', async() => {
+      const document = await analyzeDocument('static/paper-input.html');
+      const [element] =
+          document.getFeatures({kind: 'element', id: 'paper-input'});
+      assert(
+          !/fresh new hell/.test(element.description),
+          `Doesn't pick up on unexpected html comments.`);
+      assert(
+          element.description.startsWith('Material design: [Text fields]'),
+          `Does get the message right.`);
     });
   });
 
