@@ -55,9 +55,8 @@ const es2015Plugins = [
   'babel-plugin-transform-regenerator',
 ].map((name) => require(name));
 
-const modulesPlugins = [
-  'babel-plugin-transform-es2015-modules-amd',
-].map((name) => require(name));
+const modulesPlugins =
+    ['babel-plugin-transform-es2015-modules-amd'].map((name) => require(name));
 
 const javaScriptMimeTypes = [
   'application/javascript',
@@ -68,10 +67,7 @@ const javaScriptMimeTypes = [
 
 const htmlMimeType = 'text/html';
 
-const compileMimeTypes = [
-  htmlMimeType,
-  ...javaScriptMimeTypes,
-];
+const compileMimeTypes = [htmlMimeType, ...javaScriptMimeTypes];
 
 interface CompileOptions {
   transformES2015: boolean;
@@ -99,22 +95,30 @@ export function babelCompile(
     shouldTransform(request: Request, response: Response) {
       // We must never compile the Custom Elements ES5 Adapter or other
       // polyfills/shims.
-      return !isPolyfill.test(request.url) &&
-          compileMimeTypes.includes(getContentType(response)) &&
-          (forceCompile || browserNeedsCompilation(request.get('user-agent')));
+      if (isPolyfill.test(request.url)) {
+        return false;
+      }
+      if (!compileMimeTypes.includes(getContentType(response))) {
+        return false;
+      }
+      if (forceCompile) {
+        return true;
+      }
+      const capabilities = browserCapabilities(request.get('user-agent'));
+      return !capabilities.has('es2015') || !capabilities.has('modules');
     },
 
     transform(request: Request, response: Response, body: string): string {
-      const cached = babelCompileCache.get(body);
-      if (cached !== undefined) {
-        return cached;
-      }
-
       const capabilities = browserCapabilities(request.get('user-agent'));
       const options = {
         transformES2015: forceCompile || !capabilities.has('es2015'),
         transformModules: forceCompile || !capabilities.has('modules'),
       };
+      const optionsLeader = JSON.stringify(options);
+      const cached = babelCompileCache.get(optionsLeader + body);
+      if (cached !== undefined) {
+        return cached;
+      }
 
       let transformed;
       const contentType = getContentType(response);
@@ -125,7 +129,7 @@ export function babelCompile(
       } else {
         transformed = body;
       }
-      babelCompileCache.set(body, transformed);
+      babelCompileCache.set(optionsLeader + body, transformed);
       return transformed;
     },
   });
@@ -159,7 +163,9 @@ function compileHtml(
     const src = dom5.getAttribute(scriptTag, 'src');
     const isInline = !src;
 
-    if (src && src.includes('web-component-tester/browser.js')) {
+    if (src &&
+        (src.includes('web-component-tester/browser.js') ||
+         src.includes('wct-browser-legacy/browser.js'))) {
       wctScriptTag = scriptTag;
     }
 
@@ -257,9 +263,9 @@ function compileHtml(
     var moduleCount = 0;
     window.require = function(deps, factory) {
       moduleCount++;
-      originalRequire(deps, function(...args) {
+      originalRequire(deps, function() {
         if (factory) {
-          factory(...args);
+          factory.apply(undefined, arguments);
         }
         moduleCount--;
         if (moduleCount === 0) {
@@ -303,9 +309,4 @@ function hasImportOrExport(js: string): boolean {
     }
   }
   return false;
-}
-
-export function browserNeedsCompilation(userAgent: string): boolean {
-  const capabilities = browserCapabilities(userAgent);
-  return !capabilities.has('es2015') || !capabilities.has('modules');
 }

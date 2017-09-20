@@ -2,6 +2,16 @@
 
 ## [Unreleased]
 
+## [0.10.1] 2017-09-12
+- Check the original URL path against the push manifest in addition to the resolved filename. This allows mapping application route patterns to push resources.
+
+## [0.10.0] 2017-09-11
+- Push manifest keys are now regular expression patterns instead of exact paths.
+- The `Cache-Control` header is now set to 1 minute by default (except for the entrypoint). Added the `cacheControl` config property and `--cache-control` flag to override.
+
+## [0.9.0] 2017-08-23
+- Add `--bot-proxy` flag to proxy requests from bots through [Rendertron](https://github.com/GoogleChrome/rendertron).
+
 ## [0.8.0] 2017-08-09
 - Switch to https://github.com/Polymer/browser-capabilities library.
 - Add `modules` capability.

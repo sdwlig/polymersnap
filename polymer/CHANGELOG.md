@@ -1,5 +1,236 @@
 # Change Log
 
+## [v2.1.0](https://github.com/Polymer/polymer/tree/v2.1.0) (2017-09-19)
+- [ci skip] bump version to 2.1.0 ([commit](https://github.com/Polymer/polymer/commit/64788aad))
+
+- Port #3844 to 2.x ([commit](https://github.com/Polymer/polymer/commit/00bc76e4))
+
+- Provide a `Polymer.setPassiveTouchGestures()` function ([commit](https://github.com/Polymer/polymer/commit/3547fd37))
+
+- Make sure closure types have braces ([commit](https://github.com/Polymer/polymer/commit/fb8039e0))
+
+- a few more comments in return ([commit](https://github.com/Polymer/polymer/commit/f6f0a3b7))
+
+- Fix setting, add smoke test ([commit](https://github.com/Polymer/polymer/commit/6312da57))
+
+- Optional passive touch listeners for gestures ([commit](https://github.com/Polymer/polymer/commit/5f7597f7))
+
+- Don't have `return /** comment */` lines ([commit](https://github.com/Polymer/polymer/commit/c802b8b2))
+
+- [ci skip] disable closure lint for now (travis java errors) ([commit](https://github.com/Polymer/polymer/commit/e45e5bba))
+
+- try to avoid introducing spelling errors in changelogs ([commit](https://github.com/Polymer/polymer/commit/7616e3c9))
+
+- spelling: webcomponents ([commit](https://github.com/Polymer/polymer/commit/70504627))
+
+- spelling: veiling ([commit](https://github.com/Polymer/polymer/commit/43f6b971))
+
+- spelling: unnecessary ([commit](https://github.com/Polymer/polymer/commit/dc0573f8))
+
+- spelling: toolkit ([commit](https://github.com/Polymer/polymer/commit/42edf634))
+
+- spelling: together ([commit](https://github.com/Polymer/polymer/commit/7d6e4351))
+
+- spelling: there-when ([commit](https://github.com/Polymer/polymer/commit/240701ec))
+
+- spelling: theming ([commit](https://github.com/Polymer/polymer/commit/d991cce1))
+
+- spelling: supported ([commit](https://github.com/Polymer/polymer/commit/4a2e7750))
+
+- spelling: stylesheet ([commit](https://github.com/Polymer/polymer/commit/d138df3c))
+
+- spelling: static ([commit](https://github.com/Polymer/polymer/commit/4354e710))
+
+- spelling: sometimes ([commit](https://github.com/Polymer/polymer/commit/802817dc))
+
+- spelling: shuffling ([commit](https://github.com/Polymer/polymer/commit/93a18c58))
+
+- spelling: returns ([commit](https://github.com/Polymer/polymer/commit/3f744c3c))
+
+- spelling: restart ([commit](https://github.com/Polymer/polymer/commit/58111054))
+
+- spelling: responsive ([commit](https://github.com/Polymer/polymer/commit/d1da7314))
+
+- spelling: resilient ([commit](https://github.com/Polymer/polymer/commit/d45855d9))
+
+- spelling: resetting ([commit](https://github.com/Polymer/polymer/commit/8fb47431))
+
+- spelling: reentrancy ([commit](https://github.com/Polymer/polymer/commit/5ea03d60))
+
+- spelling: readonly ([commit](https://github.com/Polymer/polymer/commit/ff294a90))
+
+- spelling: prototype ([commit](https://github.com/Polymer/polymer/commit/bbe54cc2))
+
+- spelling: protocols ([commit](https://github.com/Polymer/polymer/commit/83df6dad))
+
+- spelling: properties ([commit](https://github.com/Polymer/polymer/commit/bb74d2da))
+
+- spelling: preferring ([commit](https://github.com/Polymer/polymer/commit/00e0567e))
+
+- spelling: polyfill ([commit](https://github.com/Polymer/polymer/commit/ce0ca630))
+
+- spelling: parameterize ([commit](https://github.com/Polymer/polymer/commit/141cefe3))
+
+- spelling: omit ([commit](https://github.com/Polymer/polymer/commit/e3b04e51))
+
+- spelling: offset ([commit](https://github.com/Polymer/polymer/commit/ea0acb0d))
+
+- spelling: notification ([commit](https://github.com/Polymer/polymer/commit/ee741143))
+
+- spelling: name ([commit](https://github.com/Polymer/polymer/commit/159803a7))
+
+- spelling: multiple ([commit](https://github.com/Polymer/polymer/commit/602ee780))
+
+- spelling: loaded ([commit](https://github.com/Polymer/polymer/commit/f4529864))
+
+- spelling: jquery ([commit](https://github.com/Polymer/polymer/commit/88ce972d))
+
+- spelling: javascript ([commit](https://github.com/Polymer/polymer/commit/f1f7f669))
+
+- spelling: instead ([commit](https://github.com/Polymer/polymer/commit/c4be7f60))
+
+- spelling: initial ([commit](https://github.com/Polymer/polymer/commit/3862ce0a))
+
+- spelling: increments ([commit](https://github.com/Polymer/polymer/commit/8bda7f93))
+
+- spelling: identify ([commit](https://github.com/Polymer/polymer/commit/17678e1a))
+
+- spelling: github ([commit](https://github.com/Polymer/polymer/commit/0781b322))
+
+- spelling: getting ([commit](https://github.com/Polymer/polymer/commit/c1d7c3e8))
+
+- spelling: function ([commit](https://github.com/Polymer/polymer/commit/b9b22854))
+
+- spelling: falsy ([commit](https://github.com/Polymer/polymer/commit/d472919a))
+
+- spelling: enqueuing ([commit](https://github.com/Polymer/polymer/commit/96c8ed81))
+
+- spelling: element ([commit](https://github.com/Polymer/polymer/commit/d4e54c72))
+
+- spelling: effective ([commit](https://github.com/Polymer/polymer/commit/139edd00))
+
+- spelling: doesn't ([commit](https://github.com/Polymer/polymer/commit/aa35d779))
+
+- spelling: does ([commit](https://github.com/Polymer/polymer/commit/01f943d9))
+
+- spelling: disappearing ([commit](https://github.com/Polymer/polymer/commit/508c005a))
+
+- spelling: deserialized ([commit](https://github.com/Polymer/polymer/commit/2acbf5df))
+
+- spelling: customize ([commit](https://github.com/Polymer/polymer/commit/0a0ac248))
+
+- spelling: containing ([commit](https://github.com/Polymer/polymer/commit/2b09e75c))
+
+- spelling: components ([commit](https://github.com/Polymer/polymer/commit/e11d4d6b))
+
+- spelling: collection ([commit](https://github.com/Polymer/polymer/commit/38645c08))
+
+- spelling: children ([commit](https://github.com/Polymer/polymer/commit/c30c5d03))
+
+- spelling: changed ([commit](https://github.com/Polymer/polymer/commit/1579bf36))
+
+- spelling: behavior ([commit](https://github.com/Polymer/polymer/commit/65f27655))
+
+- spelling: attribute ([commit](https://github.com/Polymer/polymer/commit/d8f3f57d))
+
+- spelling: attached ([commit](https://github.com/Polymer/polymer/commit/adc4f0e1))
+
+- spelling: asynchronous ([commit](https://github.com/Polymer/polymer/commit/6c59f53b))
+
+- Explicitly set display none on dom-* elements (#4821) ([commit](https://github.com/Polymer/polymer/commit/65859b1c))
+
+- Publish DomBind in Polymer. scope ([commit](https://github.com/Polymer/polymer/commit/60054350))
+
+- Fix missing semi-colons in test folder ([commit](https://github.com/Polymer/polymer/commit/72a59f77))
+
+- Enable ESLint 'semi' rule ([commit](https://github.com/Polymer/polymer/commit/75c6fff7))
+
+- [ci skip] update package-lock ([commit](https://github.com/Polymer/polymer/commit/ca1ce196))
+
+- [ci skip] Add license headers to externs ([commit](https://github.com/Polymer/polymer/commit/f4a9e06e))
+
+- Polymer.Path.get accepts both a string path or an Array path, so functions that call this should allow for either as well. Already changed for Polymer.prototype.push here: ([commit](https://github.com/Polymer/polymer/commit/42ce5a88))
+
+- lint with closure as well ([commit](https://github.com/Polymer/polymer/commit/cc649e97))
+
+- Update closure compiler to support polymer pass v2 ([commit](https://github.com/Polymer/polymer/commit/a4591abc))
+
+- Revert "Adds `restamp` mode to dom-repeat." ([commit](https://github.com/Polymer/polymer/commit/d439960a))
+
+- Add test to verify that importHref can be called twice ([commit](https://github.com/Polymer/polymer/commit/6ce904b3))
+
+- Fix compiling with Polymer({}) calls ([commit](https://github.com/Polymer/polymer/commit/d937d5fe))
+
+- Remove double space ([commit](https://github.com/Polymer/polymer/commit/bbf0e7c8))
+
+- Add development workflow-related files to gitignore (#4612) ([commit](https://github.com/Polymer/polymer/commit/d5c2629f))
+
+- Allow arbitrary whitespace in CSS imports ([commit](https://github.com/Polymer/polymer/commit/5c250d44))
+
+- Fix dom-module API docs with static `import` function ([commit](https://github.com/Polymer/polymer/commit/9f7df4cf))
+
+- [ci skip] update externs more from #4776 ([commit](https://github.com/Polymer/polymer/commit/c20b6574))
+
+- imported css modules should always be before element's styles ([commit](https://github.com/Polymer/polymer/commit/679a49e4))
+
+- Update closure annotation for Polymer.prototype.push ([commit](https://github.com/Polymer/polymer/commit/eb170cbb))
+
+- Fixed formatting. ([commit](https://github.com/Polymer/polymer/commit/48fac922))
+
+- Fix formatting of code in API docs (#4771) ([commit](https://github.com/Polymer/polymer/commit/eb406c71))
+
+- Lint clean. ([commit](https://github.com/Polymer/polymer/commit/4095e12d))
+
+- Separate scripts that modify configuration properties, as their ordering constraints are unusual. ([commit](https://github.com/Polymer/polymer/commit/49dbacb6))
+
+- test: convert XNestedRepeat to use an inlined string template. ([commit](https://github.com/Polymer/polymer/commit/c89155ba))
+
+- Don't rely on  implicitly creating a global,  does not. ([commit](https://github.com/Polymer/polymer/commit/28ed27e0))
+
+- Refer to Gestures.recognizers consistently. ([commit](https://github.com/Polymer/polymer/commit/3555b458))
+
+- Make test work in strict mode. ([commit](https://github.com/Polymer/polymer/commit/328ce594))
+
+- In tests, explicitly write to window when creating a new global for clarity. ([commit](https://github.com/Polymer/polymer/commit/674d4685))
+
+- [ci skip] remove duplicate definition for __dataHost in externs ([commit](https://github.com/Polymer/polymer/commit/5ab9032c))
+
+- [ci skip] update polymer-build and run-sequence ([commit](https://github.com/Polymer/polymer/commit/0c6aa882))
+
+- Fix tests in non-Chrome browsers ([commit](https://github.com/Polymer/polymer/commit/5a54c32b))
+
+- Better distinguish param name from namespaced name ([commit](https://github.com/Polymer/polymer/commit/a3d6e56b))
+
+- use wct 6 npm package ([commit](https://github.com/Polymer/polymer/commit/fbe8dcc4))
+
+- add mixin class instance properties to externs ([commit](https://github.com/Polymer/polymer/commit/34d22acd))
+
+- Add sanitizeDOMValue to settings.html ([commit](https://github.com/Polymer/polymer/commit/4d730e16))
+
+- Remove reference to Polymer._toOverride, it seems like an incomplete feature/part of the test. ([commit](https://github.com/Polymer/polymer/commit/981a7600))
+
+- Update custom-style API doc ([commit](https://github.com/Polymer/polymer/commit/52a7328e))
+
+- Use customElements.get rather than referring to the global for Polymer.DomModule ([commit](https://github.com/Polymer/polymer/commit/bb202378))
+
+- Add import of dom-module to file that uses it. ([commit](https://github.com/Polymer/polymer/commit/dbedcfc0))
+
+- Do not assign to a readonly property on window ([commit](https://github.com/Polymer/polymer/commit/b64e4862))
+
+- [ci skip] Fix documentation in PropertyAccessors ([commit](https://github.com/Polymer/polymer/commit/0f695d90))
+
+- [ci skip] fix closure warning ([commit](https://github.com/Polymer/polymer/commit/2e7dc00b))
+
+- Fix event path for tap event on touch ([commit](https://github.com/Polymer/polymer/commit/50bf45c3))
+
+- [ci skip] Update changelog ([commit](https://github.com/Polymer/polymer/commit/466624ae))
+
+- Update web-component-tester to stable version ([commit](https://github.com/Polymer/polymer/commit/ae78564c))
+
+- Disable closure linting until the count is driven down to a reasonable level ([commit](https://github.com/Polymer/polymer/commit/6335b24f))
+
+- Adds `restamp` mode to dom-repeat. ([commit](https://github.com/Polymer/polymer/commit/6cebeace))
+
 ## [v2.0.2](https://github.com/Polymer/polymer/tree/v2.0.2) (2017-07-14)
 - remove broken npm script ([commit](https://github.com/Polymer/polymer/commit/27c67125))
 
@@ -91,7 +322,7 @@
 
 - reduce closure warnings in TemplateStamp ([commit](https://github.com/Polymer/polymer/commit/c34ef0b2))
 
-- [ci skip] paramaterize entries for closure task ([commit](https://github.com/Polymer/polymer/commit/3a80ad8f))
+- [ci skip] parameterize entries for closure task ([commit](https://github.com/Polymer/polymer/commit/3a80ad8f))
 
 - [ci skip] generating externs should be explicit ([commit](https://github.com/Polymer/polymer/commit/a8a57bf5))
 
@@ -139,7 +370,7 @@
 
 - Fix more closure warnings. ([commit](https://github.com/Polymer/polymer/commit/2627e63a))
 
-- slighly better typing for mixin funcion ([commit](https://github.com/Polymer/polymer/commit/b3dfd38e))
+- slighly better typing for mixin function ([commit](https://github.com/Polymer/polymer/commit/b3dfd38e))
 
 - gesture fixes ([commit](https://github.com/Polymer/polymer/commit/346e2d57))
 
@@ -387,7 +618,7 @@
 
 - Doc fix (correct callback name) ([commit](https://github.com/Polymer/polymer/commit/57d22f4c))
 
-- Fixed tempaltize -> templatize typo ([commit](https://github.com/Polymer/polymer/commit/b6b43f36))
+- Fixed templatize typo ([commit](https://github.com/Polymer/polymer/commit/b6b43f36))
 
 - Work around IE/Edge bug with :not([attr]) selectors ([commit](https://github.com/Polymer/polymer/commit/c3036232))
 
@@ -445,7 +676,7 @@
 
 - fix behavior warn test. ([commit](https://github.com/Polymer/polymer/commit/4439436f))
 
-- update to latest webcompnents rc. ([commit](https://github.com/Polymer/polymer/commit/46219a39))
+- update to latest webcomponents rc. ([commit](https://github.com/Polymer/polymer/commit/46219a39))
 
 - move mutable data mixin to be loaded by polymer.html ([commit](https://github.com/Polymer/polymer/commit/7cebe120))
 
@@ -624,7 +855,7 @@ The following notable changes have been made since the 2.0 Preview announcement.
 - Close backtick in ISSUE_TEMPLATE.md ([commit](https://github.com/Polymer/polymer/commit/b0dea8bc))
 
 ## [v1.7.1-dev](https://github.com/Polymer/polymer/tree/v1.7.1-dev) (2016-12-14)
-- Remove dependency on WebComponets for IE detection ([commit](https://github.com/Polymer/polymer/commit/650c16a9))
+- Remove dependency on WebComponents for IE detection ([commit](https://github.com/Polymer/polymer/commit/650c16a9))
 
 - Make sure text nodes are distributed when translating slot to content ([commit](https://github.com/Polymer/polymer/commit/87e312f1))
 
@@ -748,7 +979,7 @@ The following notable changes have been made since the 2.0 Preview announcement.
 ## [v1.6.1](https://github.com/Polymer/polymer/tree/v1.6.1) (2016-08-01)
 - Property Shim needs to handle build output from apply shim ([commit](https://github.com/Polymer/polymer/commit/d726a51))
 
-- Do not resolve urls with leading slash and other prototcols ([commit](https://github.com/Polymer/polymer/commit/94f95ec))
+- Do not resolve urls with leading slash and other protocols ([commit](https://github.com/Polymer/polymer/commit/94f95ec))
 
 - Mark that non-inheritable properties being set to `inherit` is not supported ([commit](https://github.com/Polymer/polymer/commit/0a2b31e))
 
@@ -1178,7 +1409,7 @@ The following notable changes have been made since the 2.0 Preview announcement.
 
 - Simplify fix for fragment children management. ([commit](https://github.com/Polymer/polymer/commit/713377e))
 
-- Fix test under polypill. ([commit](https://github.com/Polymer/polymer/commit/25da63d))
+- Fix test under polyfill. ([commit](https://github.com/Polymer/polymer/commit/25da63d))
 
 - Ensure fragments added via Polymer.dom always have elements removed, even when distribution does not select those elements. ([commit](https://github.com/Polymer/polymer/commit/101eb3d))
 
@@ -1404,7 +1635,7 @@ The following notable changes have been made since the 2.0 Preview announcement.
 
 - Avoid stomping on property objects when mixing behaviors. ([commit](https://github.com/Polymer/polymer/commit/ec4d313))
 
-- Update test to avoid template polypill issues. ([commit](https://github.com/Polymer/polymer/commit/fa96ff3))
+- Update test to avoid template polyfill issues. ([commit](https://github.com/Polymer/polymer/commit/fa96ff3))
 
 - Ensure parent node exists when stamping. Fixes #2685. ([commit](https://github.com/Polymer/polymer/commit/62f2d2a))
 
@@ -1957,7 +2188,7 @@ The following notable changes have been made since the 2.0 Preview announcement.
 
 - update CHANGELOG for 1.0.6 ([commit](https://github.com/Polymer/polymer/commit/c46ec11))
 
-\* *This Change Log was automatically generated by [github_changelog_generator](https://github.com/skywinder/Github-Changelog-Generator) below*
+\* *This Change Log was automatically generated by [github_changelog_generator](https://github.com/skywinder/GitHub-Changelog-Generator) below*
 ## [v1.0.6](https://github.com/Polymer/polymer/tree/v1.0.6) (2015-07-09)
 
 **Fixed issues:**
@@ -1984,7 +2215,7 @@ The following notable changes have been made since the 2.0 Preview announcement.
 
 - Typo in Polymer.mixin API documentation [\#2001](https://github.com/Polymer/polymer/issues/2001)
 
-- Low-level changes for `iron-list` integration (`fire` & `modelForElemennt`) [\#2003](https://github.com/Polymer/polymer/issues/2003)
+- Low-level changes for `iron-list` integration (`fire` & `modelForElement`) [\#2003](https://github.com/Polymer/polymer/issues/2003)
 
 - Normalized event difference with ShadowDOM and Shady [\#1921](https://github.com/Polymer/polymer/issues/1921)
 
@@ -2626,7 +2857,7 @@ The following notable changes have been made since the 2.0 Preview announcement.
 
 - serializeValueToAttribute always provokes distribute if necessary [\#1580](https://github.com/Polymer/polymer/pull/1580) ([sorvell](https://github.com/sorvell))
 
-- Use more resiliant shadowroot checking [\#1579](https://github.com/Polymer/polymer/pull/1579) ([azakus](https://github.com/azakus))
+- Use more resilient shadowroot checking [\#1579](https://github.com/Polymer/polymer/pull/1579) ([azakus](https://github.com/azakus))
 
 - Literal args comma fix [\#1577](https://github.com/Polymer/polymer/pull/1577) ([sjmiles](https://github.com/sjmiles))
 
@@ -2664,7 +2895,7 @@ The following notable changes have been made since the 2.0 Preview announcement.
 
 - \[0.9\] auto-binding, x-repeat template not working [\#1502](https://github.com/Polymer/polymer/issues/1502)
 
-- \[0.9\] if="{{ 1 \< 2 }}" not supporded?! [\#1499](https://github.com/Polymer/polymer/issues/1499)
+- \[0.9\] if="{{ 1 \< 2 }}" not supported?! [\#1499](https://github.com/Polymer/polymer/issues/1499)
 
 - \[0.9\] touch track fails on iPhone, .touchIdentifier vs .identifier [\#1496](https://github.com/Polymer/polymer/issues/1496)
 
@@ -3318,7 +3549,7 @@ The following notable changes have been made since the 2.0 Preview announcement.
 
 - No release notes for 0.5.0 [\#908](https://github.com/Polymer/polymer/issues/908)
 
-- Back button navigation somtimes broken on polymer-project website [\#907](https://github.com/Polymer/polymer/issues/907)
+- Back button navigation sometimes broken on polymer-project website [\#907](https://github.com/Polymer/polymer/issues/907)
 
 - Designer Tool page appears blank [\#906](https://github.com/Polymer/polymer/issues/906)
 
@@ -3354,7 +3585,7 @@ The following notable changes have been made since the 2.0 Preview announcement.
 
 - paper-input documentation suggests html /deep/ selectors, inconsistent with other elements [\#886](https://github.com/Polymer/polymer/issues/886)
 
-- paper-input cursor doesn't seem to support themeing [\#885](https://github.com/Polymer/polymer/issues/885)
+- paper-input cursor doesn't seem to support theming [\#885](https://github.com/Polymer/polymer/issues/885)
 
 - paper-input styling instructions lack the ::shadow pseudo-element [\#884](https://github.com/Polymer/polymer/issues/884)
 
@@ -3422,7 +3653,7 @@ The following notable changes have been made since the 2.0 Preview announcement.
 
 - Google Drive Element Error in IE [\#771](https://github.com/Polymer/polymer/issues/771)
 
-- dosent work in a zip file [\#766](https://github.com/Polymer/polymer/issues/766)
+- doesn't work in a zip file [\#766](https://github.com/Polymer/polymer/issues/766)
 
 - Paper-Dialog on page load doesnt work in firefox. [\#761](https://github.com/Polymer/polymer/issues/761)
 
@@ -3512,7 +3743,7 @@ The following notable changes have been made since the 2.0 Preview announcement.
 
 - paper-input element doesn't show keyboard on Firefox OS 2.0 [\#727](https://github.com/Polymer/polymer/issues/727)
 
-- designerr on polymer page lacks demo'd functoniality from youtube quickstart. [\#726](https://github.com/Polymer/polymer/issues/726)
+- designerr on polymer page lacks demo'd functioniality from youtube quickstart. [\#726](https://github.com/Polymer/polymer/issues/726)
 
 - PhantomJS Support [\#724](https://github.com/Polymer/polymer/issues/724)
 
@@ -3520,7 +3751,7 @@ The following notable changes have been made since the 2.0 Preview announcement.
 
 - Polymer site appears broken on Safari 8 [\#719](https://github.com/Polymer/polymer/issues/719)
 
-- Non ASCII strings set in Javascript show up as ? in Firefox [\#717](https://github.com/Polymer/polymer/issues/717)
+- Non ASCII strings set in JavaScript show up as ? in Firefox [\#717](https://github.com/Polymer/polymer/issues/717)
 
 - Materials page in Polymer is not rendering correctly [\#716](https://github.com/Polymer/polymer/issues/716)
 
@@ -3542,7 +3773,7 @@ The following notable changes have been made since the 2.0 Preview announcement.
 
 - div with tool attribute does not allow flex for div within  [\#695](https://github.com/Polymer/polymer/issues/695)
 
-- it keeps reseting [\#694](https://github.com/Polymer/polymer/issues/694)
+- it keeps resetting [\#694](https://github.com/Polymer/polymer/issues/694)
 
 - Handlers disappearing when you hide the template [\#690](https://github.com/Polymer/polymer/issues/690)
 
@@ -3580,7 +3811,7 @@ The following notable changes have been made since the 2.0 Preview announcement.
 
 - Unable to extend iframe [\#580](https://github.com/Polymer/polymer/issues/580)
 
-- Custom element that performs dynamic HTML Import gets corrupted offesetWidth when used inside \<template\> [\#554](https://github.com/Polymer/polymer/issues/554)
+- Custom element that performs dynamic HTML Import gets corrupted offsetWidth when used inside \<template\> [\#554](https://github.com/Polymer/polymer/issues/554)
 
 - Wrap as UMD - Do not force window global [\#534](https://github.com/Polymer/polymer/issues/534)
 
@@ -3670,7 +3901,7 @@ The following notable changes have been made since the 2.0 Preview announcement.
 
 - Sorting an array can result in an \*Changed method firing [\#350](https://github.com/Polymer/polymer/issues/350)
 
-- Re-entrancy question: reflectPropertyToAttribute can trigger unwanted attributedChanged effects [\#349](https://github.com/Polymer/polymer/issues/349)
+- Reentrancy question: reflectPropertyToAttribute can trigger unwanted attributedChanged effects [\#349](https://github.com/Polymer/polymer/issues/349)
 
 - ShadowDOMPolyfill is way, way too intrusive!  [\#346](https://github.com/Polymer/polymer/issues/346)
 
@@ -3704,7 +3935,7 @@ The following notable changes have been made since the 2.0 Preview announcement.
 
 - Ensure {{}} are removed after binding [\#304](https://github.com/Polymer/polymer/issues/304)
 
-- Gettting started instructions incomplete: no polymer.min.js  [\#300](https://github.com/Polymer/polymer/issues/300)
+- Getting started instructions incomplete: no polymer.min.js  [\#300](https://github.com/Polymer/polymer/issues/300)
 
 - Site is not showing properly in IE11 [\#299](https://github.com/Polymer/polymer/issues/299)
 
@@ -3794,9 +4025,9 @@ The following notable changes have been made since the 2.0 Preview announcement.
 
 - TypeError and NetworkError when starting the designer tool from the url [\#665](https://github.com/Polymer/polymer/issues/665)
 
-- Scroll desappearing on Polymer Website [\#661](https://github.com/Polymer/polymer/issues/661)
+- Scroll disappearing on Polymer Website [\#661](https://github.com/Polymer/polymer/issues/661)
 
-- paper-menu-button is not responsivness [\#660](https://github.com/Polymer/polymer/issues/660)
+- paper-menu-button is not responsive [\#660](https://github.com/Polymer/polymer/issues/660)
 
 - Core-drawer-panel hardcoded drawer width [\#659](https://github.com/Polymer/polymer/issues/659)
 
@@ -3932,7 +4163,7 @@ The following notable changes have been made since the 2.0 Preview announcement.
 
 - Input examples do not work in iPad iOS 7.1.1 [\#558](https://github.com/Polymer/polymer/issues/558)
 
-- Demo & Edit on Github links not working on component page [\#557](https://github.com/Polymer/polymer/issues/557)
+- Demo & Edit on GitHub links not working on component page [\#557](https://github.com/Polymer/polymer/issues/557)
 
 - Download link for checkboxes is broken [\#556](https://github.com/Polymer/polymer/issues/556)
 
@@ -3958,7 +4189,7 @@ The following notable changes have been made since the 2.0 Preview announcement.
 
 - Sidebar menu elements are overlaid [\#541](https://github.com/Polymer/polymer/issues/541)
 
-- Edit on Github Link returning 404 error [\#540](https://github.com/Polymer/polymer/issues/540)
+- Edit on GitHub Link returning 404 error [\#540](https://github.com/Polymer/polymer/issues/540)
 
 - rendering problems with new website in FF on osx [\#539](https://github.com/Polymer/polymer/issues/539)
 
@@ -3988,7 +4219,7 @@ The following notable changes have been made since the 2.0 Preview announcement.
 
 **Closed issues:**
 
-- Since 0.3.0 binding array elements doesen't work [\#526](https://github.com/Polymer/polymer/issues/526)
+- Since 0.3.0 binding array elements doesn't work [\#526](https://github.com/Polymer/polymer/issues/526)
 
 - minor documentation content issue [\#522](https://github.com/Polymer/polymer/issues/522)
 
@@ -4272,13 +4503,13 @@ The following notable changes have been made since the 2.0 Preview announcement.
 
 **Closed issues:**
 
-- binding style attribute in IE doen't work [\#327](https://github.com/Polymer/polymer/issues/327)
+- binding style attribute in IE doesn't work [\#327](https://github.com/Polymer/polymer/issues/327)
 
 - CSS: only add \[is=..\] selector if element is type-extension [\#320](https://github.com/Polymer/polymer/issues/320)
 
 - Clarification on use of template repeat for \<tr\> & \<select\> [\#318](https://github.com/Polymer/polymer/issues/318)
 
-- Autofocus doesn't work with polymer-veilng. [\#317](https://github.com/Polymer/polymer/issues/317)
+- Autofocus doesn't work with polymer-veiling. [\#317](https://github.com/Polymer/polymer/issues/317)
 
 - Polyfill: @polyfill @host rules are broken in an extended element [\#315](https://github.com/Polymer/polymer/issues/315)
 
@@ -4344,7 +4575,7 @@ The following notable changes have been made since the 2.0 Preview announcement.
 
 - how to get inner element [\#280](https://github.com/Polymer/polymer/issues/280)
 
-- how to bind tap event on chilren node [\#278](https://github.com/Polymer/polymer/issues/278)
+- how to bind tap event on children node [\#278](https://github.com/Polymer/polymer/issues/278)
 
 - Provide finer control over unresolved element styling [\#276](https://github.com/Polymer/polymer/issues/276)
 
@@ -4386,7 +4617,7 @@ The following notable changes have been made since the 2.0 Preview announcement.
 
 **Merged pull requests:**
 
-- Removes unneccessary px declarations in coordinate attributes. [\#289](https://github.com/Polymer/polymer/pull/289) ([mrmrs](https://github.com/mrmrs))
+- Removes unnecessary px declarations in coordinate attributes. [\#289](https://github.com/Polymer/polymer/pull/289) ([mrmrs](https://github.com/mrmrs))
 
 - remove extra argument to unbindProperty that was ignored [\#286](https://github.com/Polymer/polymer/pull/286) ([jmesserly](https://github.com/jmesserly))
 
@@ -4442,7 +4673,7 @@ The following notable changes have been made since the 2.0 Preview announcement.
 
 - Changing a DOM attribute doesn't change the model [\#246](https://github.com/Polymer/polymer/issues/246)
 
-- Latest build broken w/ Jquery \(chrome 28\) [\#243](https://github.com/Polymer/polymer/issues/243)
+- Latest build broken w/ jQuery \(chrome 28\) [\#243](https://github.com/Polymer/polymer/issues/243)
 
 - window.Loader name colliding with ES6 window.Loader \(modules\) [\#237](https://github.com/Polymer/polymer/issues/237)
 
@@ -4618,7 +4849,7 @@ The following notable changes have been made since the 2.0 Preview announcement.
 
 - Attribute-based styles not always updated [\#132](https://github.com/Polymer/polymer/issues/132)
 
-- attrubuteChanged event on "sub-component" not fired in Canary but works in Chrome [\#131](https://github.com/Polymer/polymer/issues/131)
+- attributeChanged event on "sub-component" not fired in Canary but works in Chrome [\#131](https://github.com/Polymer/polymer/issues/131)
 
 - Stylesheets throw exception if toolkit-scope is defined and the element definition is inline [\#127](https://github.com/Polymer/polymer/issues/127)
 
@@ -4810,6 +5041,6 @@ The following notable changes have been made since the 2.0 Preview announcement.
 
 - fix path [\#3](https://github.com/Polymer/polymer/pull/3) ([sjmiles](https://github.com/sjmiles))
 
-- make workBench live with toollkit [\#2](https://github.com/Polymer/polymer/pull/2) ([sjmiles](https://github.com/sjmiles))
+- make workBench live with toolkit [\#2](https://github.com/Polymer/polymer/pull/2) ([sjmiles](https://github.com/sjmiles))
 
 - Initial Components [\#1](https://github.com/Polymer/polymer/pull/1) ([sjmiles](https://github.com/sjmiles))

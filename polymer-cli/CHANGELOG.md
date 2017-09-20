@@ -3,6 +3,22 @@
 ## Unreleased
 <!-- Add new, unreleased items here. -->
 
+## v1.5.4 [08-31-2017]
+- Upgraded web-component-tester to v6.1.5 to address IE11 issues.
+
+## v1.5.3 [08-31-2017]
+- Upgraded web-component-tester to v6.1.4 to address IE11 issues.
+
+## v1.5.2 [08-26-2017]
+- Upgraded web-component-tester to v6.1.3 to address yarn installation issues.
+
+## v1.5.1 [08-22-2017]
+- Upgraded web-component-tester to v6.1.2.
+
+## v1.5.0 [08-22-2017]
+- Fix issue where the `--fragment` flag was being ignored.
+- Added support for `polymer test --npm` option.
+
 ## v1.4.1 [08-10-2017]
 - Fixed the `polymer serve --npm` option.
 

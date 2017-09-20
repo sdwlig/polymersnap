@@ -7,7 +7,24 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## Unreleased
 
+## [0.22.1](https://github.com/PolymerLabs/polyserve/tree/v0.22.1) (2017-09-19)
+
+* Fixes issue with the babel compile cache where different compilation options were using the same namespace. ([#216](https://github.com/Polymer/polyserve/issues/216)).
+
+## [0.22.0](https://github.com/PolymerLabs/polyserve/tree/v0.22.0) (2017-09-18)
+
+* Identify wct-browser-legacy as a web-component-tester client package, to add a hook for deferring mocha execution in support of requirejs.
+* Change `x(...args)` syntax to `x.apply(undefined, arguments)` to support IE11.
+
+## [0.21.9](https://github.com/PolymerLabs/polyserve/tree/v0.21.9) (2017-09-15)
+
+* Fix issue where requirejs is installed somewhere other than in polyserve's own node_modules subfolder.
+* Fix issue with `.npmignore` file and npm pack logic change in recent npm release.
+
+## [0.21.0](https://github.com/PolymerLabs/polyserve/tree/v0.21.0) (2017-09-13)
+
 * Auto-compile now includes transformation of ES modules to AMD modules with RequireJS for browsers that do not support ES modules. Includes special handling for WCT.
+* Fix #48 where we would incorrectly inject the ES5 adapter for browsers that supported ES2015 but not modules.
 
 ## [0.20.0](https://github.com/PolymerLabs/polyserve/tree/v0.20.0) (2017-08-08)
 

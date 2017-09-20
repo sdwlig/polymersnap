@@ -26,7 +26,7 @@ You can specify either individual rules, or rule collections. See `polymer lint 
 polymer-lint is run on the command line through Polymer CLI:
 
 ```
-  npm install -g polymer-cli@next
+  npm install -g polymer-cli
   cd my-project
   polymer lint
 ```
@@ -45,6 +45,10 @@ my-elem.html(9,24) warning [set-unknown-attribute] - paper-button elements do no
 polymer-lint is also integrated into a number of editor plugins for instant as-you-type linting. See [the polymer editor service](https://github.com/Polymer/polymer-editor-service) for details.
 
 ![Animated gif of the VSCode with the linter running.](https://cloud.githubusercontent.com/assets/1659/23933285/ad63eb62-08fa-11e7-819b-641bf83cf9c6.gif)
+
+### Use with other tools
+
+The linter checks specifically for potential issues in custom elements and Polymer. It's best paired with other more general purpose linters such as [eslint](https://eslint.org/) and [htmlint](https://github.com/htmllint/htmllint).
 
 ## Extending and contributing
 

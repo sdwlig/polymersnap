@@ -42,9 +42,10 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
      */
     function mixinBehaviors(behaviors, klass) {
       if (!behaviors) {
-        return /** @type {HTMLElement} */(klass);
+        klass = /** @type {HTMLElement} */(klass); // eslint-disable-line no-self-assign
+        return klass;
       }
-      // NOTE: ensure the bahevior is extending a class with
+      // NOTE: ensure the behavior is extending a class with
       // legacy element api. This is necessary since behaviors expect to be able
       // to access 1.x legacy api.
       klass = Polymer.LegacyElementMixin(klass);
@@ -161,7 +162,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
             // next look for superclass template (note: use superclass symbol
             // to ensure correct `this.is`)
             Base.template ||
-            // finally fall back to `_template` in element's protoype.
+            // finally fall back to `_template` in element's prototype.
             this.prototype._template ||
             null;
         }

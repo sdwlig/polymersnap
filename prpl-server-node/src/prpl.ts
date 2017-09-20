@@ -21,10 +21,14 @@ import * as url from 'url';
 
 import * as push from './push';
 
-// The subset of the polymer.json specification that we care about for serving.
-// https://www.polymer-project.org/2.0/docs/tools/polymer-json
-// https://github.com/Polymer/polymer-project-config/blob/master/src/index.ts
-export interface ProjectConfig {
+export interface Config {
+  // The Cache-Control header to send for all requests except the entrypoint.
+  // Defaults to `max-age=60`.
+  cacheControl?: string;
+
+  // Below is the subset of the polymer.json specification that we care about
+  // for serving. https://www.polymer-project.org/2.0/docs/tools/polymer-json
+  // https://github.com/Polymer/polymer-project-config/blob/master/src/index.ts
   entrypoint?: string;
   builds?: {
     name?: string,
@@ -41,11 +45,12 @@ const isServiceWorker = /service-worker.js$/;
 /**
  * Return a new HTTP handler to serve a PRPL-style application.
  */
-export function makeHandler(root?: string, config?: ProjectConfig): (
+export function makeHandler(root?: string, config?: Config): (
     request: http.IncomingMessage, response: http.ServerResponse) => void {
   const absRoot = path.resolve(root || '.');
   console.info(`Serving files from "${absRoot}".`);
   const builds = loadBuilds(absRoot, config);
+  const cacheControl = (config && config.cacheControl) || 'max-age=60';
 
   return function prplHandler(request, response) {
     const urlPath = url.parse(request.url || '/').pathname || '/';
@@ -96,11 +101,31 @@ export function makeHandler(root?: string, config?: ProjectConfig): (
       response.setHeader('Service-Worker-Allowed', '/');
     }
 
-    if (build && build.pushManifest) {
-      build.pushManifest.setLinkHeaders(fileToSend, response);
+    // Don't set the Cache-Control header if it's already set. This way another
+    // middleware can control caching, and we won't touch it.
+    if (!response.getHeader('Cache-Control')) {
+      response.setHeader(
+          'Cache-Control', serveEntrypoint ? 'max-age=0' : cacheControl);
     }
 
-    send(request, fileToSend, {root: absRoot}).pipe(response);
+    if (build && build.pushManifest) {
+      const linkHeaders = build.pushManifest.linkHeaders(urlPath);
+      if (urlPath !== fileToSend) {
+        // Also check the filename against the push manifest. In the case of
+        // the entrypoint, these will be different (e.g. "/my/app/route" vs
+        // "/es2015/index.html"), and we want to support configuring pushes in
+        // terms of both.
+        linkHeaders.push(...build.pushManifest.linkHeaders(fileToSend));
+      }
+      response.setHeader('Link', linkHeaders);
+    }
+
+    const sendOpts = {
+      root: absRoot,
+      // We handle the caching header ourselves.
+      cacheControl: false,
+    };
+    send(request, fileToSend, sendOpts).pipe(response);
   };
 }
 
@@ -156,7 +181,7 @@ class Build {
   }
 }
 
-function loadBuilds(root: string, config: ProjectConfig|undefined): Build[] {
+function loadBuilds(root: string, config: Config|undefined): Build[] {
   const builds: Build[] = [];
   const entrypoint = (config ? config.entrypoint : null) || 'index.html';
 

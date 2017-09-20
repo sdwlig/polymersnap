@@ -345,6 +345,11 @@ var components = {
 			"title": "Monkey",
 			"owner": "Golmote"
 		},
+		"n4js":{
+			"title": "N4JS",
+			"require": "javascript",
+			"owner": "bsmith-n4"
+		},
 		"nasm": {
 			"title": "NASM",
 			"owner": "rbmj"
@@ -458,6 +463,10 @@ var components = {
 			"require": ["markup", "javascript"],
 			"owner": "vkbansal"
 		},
+		"renpy": {
+			"title": "Ren'py",
+			"owner": "HyuchiaDiego"
+        },
 		"reason": {
 			"title": "Reason",
 			"require": "clike",

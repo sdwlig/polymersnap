@@ -10,7 +10,7 @@ const Ana = require('./ana_log');
 // Don't retry ENORESTARGET ("Tag/branch x does not exist").
 // Don't retry ECMDERR ("Fatal: reference is not a tree:...")
 // Don't retry EMALFORMED ("Unexpected token } in JSON at position:...")
-const fatalErrorCodes = ['ECMDERR', 'ECONFLICT', 'ENORESTARGET', 'EMALFORMED'];
+const fatalErrorCodes = ['ECMDERR', 'ECONFLICT', 'ENORESTARGET', 'EMALFORMED', 'ENOTFOUND'];
 
 /**
  * Service for communicating with Bower on the local machine.
@@ -166,7 +166,7 @@ class Bower {
       var owner = parts[0];
       var repo = parts[1];
       repo = repo.replace(/\.git$/, '');
-      return {'owner': owner, 'repo': repo};
+      return {owner: owner, repo: repo};
     };
 
     return new Promise(resolve => {

@@ -35,8 +35,7 @@ export interface PolyserveApplication extends express.Express {
 // include RequireJS as an NPM dependency of Polyserve so that users don't need
 // to make it a dependency of their project. This is our local path to the
 // library.
-const localRequirePath =
-    path.join(__dirname, '..', 'node_modules', 'requirejs', 'require.js');
+const localRequirePath = require.resolve('requirejs/require.js');
 
 /**
  * Make a polyserve express app.
