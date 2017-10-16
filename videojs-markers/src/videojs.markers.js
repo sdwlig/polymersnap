@@ -9,9 +9,9 @@ import videojs from 'video.js';
 
 type Marker = {
   time: number,
-  text?: string,
-  class?: string,
-  overlayText?: string,
+  text ? : string,
+  class ? : string,
+  overlayText ? : string,
   // private property
   key: string,
 };
@@ -19,7 +19,7 @@ type Marker = {
 // default setting
 const defaultSetting = {
   markerStyle: {
-    'width':'7px',
+    'width': '7px',
     'border-radius': '30%',
     'background-color': 'red',
   },
@@ -32,14 +32,14 @@ const defaultSetting = {
       return marker.time;
     },
   },
-  breakOverlay:{
+  breakOverlay: {
     display: false,
     displayTime: 3,
     text: function(marker) {
       return "Break overlay: " + marker.overlayText;
     },
     style: {
-      'width':'100%',
+      'width': '100%',
       'height': '20%',
       'background-color': 'rgba(0,0,0,0.7)',
       'color': 'white',
@@ -55,9 +55,9 @@ const defaultSetting = {
 function generateUUID(): string {
   var d = new Date().getTime();
   var uuid = 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
-    var r = (d + Math.random()*16)%16 | 0;
-    d = Math.floor(d/16);
-    return (c=='x' ? r : (r&0x3|0x8)).toString(16);
+    var r = (d + Math.random() * 16) % 16 | 0;
+    d = Math.floor(d / 16);
+    return (c == 'x' ? r : (r & 0x3 | 0x8)).toString(16);
   });
   return uuid;
 };
@@ -73,6 +73,7 @@ function registerVideoJsMarkersPlugin(options) {
         toString.call(value) === '[object Object]' &&
         value.constructor === Object;
     }
+
     function mergeOptions(source1: Object, source2: Object) {
 
       const result = {};
@@ -99,7 +100,7 @@ function registerVideoJsMarkersPlugin(options) {
   }
 
   if (!videojs.createEl) {
-    videojs.createEl = function(tagName: string, props: Object, attrs?: Object): void {
+    videojs.createEl = function(tagName: string, props: Object, attrs ? : Object): void {
       const el = videojs.Player.prototype.createEl(tagName, props);
       if (!!attrs) {
         Object.keys(attrs).forEach(key => {
@@ -109,19 +110,19 @@ function registerVideoJsMarkersPlugin(options) {
       return el;
     }
   }
-  
 
   /**
    * register the markers plugin (dependent on jquery)
    */
   let setting = videojs.mergeOptions(defaultSetting, options),
-      markersMap: {[key:string]: Marker} = {},
-      markersList: Array<Marker>  = [], // list of markers sorted by time
-      currentMarkerIndex  = NULL_INDEX,
-      player       = this,
-      markerTip    = null,
-      breakOverlay = null,
-      overlayIndex = NULL_INDEX;
+    markersMap: {
+      [key: string]: Marker } = {},
+    markersList: Array < Marker > = [], // list of markers sorted by time
+    currentMarkerIndex = NULL_INDEX,
+    player = this,
+    markerTip = null,
+    breakOverlay = null,
+    overlayIndex = NULL_INDEX;
 
   function sortMarkersList(): void {
     // sort the list by time in asc order
@@ -130,7 +131,7 @@ function registerVideoJsMarkersPlugin(options) {
     });
   }
 
-  function addMarkers(newMarkers: Array<Marker>): void {
+  function addMarkers(newMarkers: Array < Marker > ): void {
     newMarkers.forEach((marker: Marker) => {
       marker.key = generateUUID();
 
@@ -161,7 +162,7 @@ function registerVideoJsMarkersPlugin(options) {
       markerDiv.style[key] = setting.markerStyle[key];
     });
     markerDiv.style.left = getPosition(marker) + '%';
-    markerDiv.style.marginLeft = markerDiv.getBoundingClientRect().width/2 + 'px';
+    markerDiv.style.marginLeft = markerDiv.getBoundingClientRect().width / 2 + 'px';
 
     // bind click event to seek to marker time
     markerDiv.addEventListener('click', function(e) {
@@ -187,7 +188,7 @@ function registerVideoJsMarkersPlugin(options) {
   function updateMarkers(): void {
     // update UI for markers whose time changed
     markersList.forEach((marker: Marker) => {
-      var markerDiv = player.el().querySelector(".vjs-marker[data-marker-key='" + marker.key +"']");
+      var markerDiv = player.el().querySelector(".vjs-marker[data-marker-key='" + marker.key + "']");
       var markerTime = setting.markerTip.time(marker);
 
       if (markerDiv.getAttribute('data-marker-time') !== markerTime) {
@@ -198,15 +199,15 @@ function registerVideoJsMarkersPlugin(options) {
     sortMarkersList();
   }
 
-  function removeMarkers(indexArray: Array<number>): void {
+  function removeMarkers(indexArray: Array < number > ): void {
     // reset overlay
-    if (!!breakOverlay){
+    if (!!breakOverlay) {
       overlayIndex = NULL_INDEX;
       breakOverlay.style.visibility = "hidden";
     }
     currentMarkerIndex = NULL_INDEX;
 
-    let deleteIndexList: Array<number> = [];
+    let deleteIndexList: Array < number > = [];
     indexArray.forEach((index: number) => {
       let marker = markersList[index];
       if (marker) {
@@ -215,7 +216,7 @@ function registerVideoJsMarkersPlugin(options) {
         deleteIndexList.push(index);
 
         // delete from dom
-        let el = player.el().querySelector(".vjs-marker[data-marker-key='" + marker.key +"']");
+        let el = player.el().querySelector(".vjs-marker[data-marker-key='" + marker.key + "']");
         el.parentNode.removeChild(el);
       }
     });
@@ -238,13 +239,13 @@ function registerVideoJsMarkersPlugin(options) {
         markerTip.querySelector('.vjs-tip-inner').innerText = setting.markerTip.text(marker);
         // margin-left needs to minus the padding length to align correctly with the marker
         markerTip.style.left = getPosition(marker) + '%';
-        markerTip.style.marginLeft = 
-          -parseFloat(markerTip.getBoundingClientRect().width / 2) + parseFloat(markerDiv.getBoundingClientRect().width / 4) + 'px';
+        markerTip.style.marginLeft = -parseFloat(markerTip.getBoundingClientRect().width / 2) + parseFloat(
+          markerDiv.getBoundingClientRect().width / 4) + 'px';
         markerTip.style.visibility = 'visible';
       }
     });
 
-    markerDiv.addEventListener('mouseout',() => {
+    markerDiv.addEventListener('mouseout', () => {
       if (!!markerTip) {
         markerTip.style.visibility = "hidden";
       }
@@ -335,7 +336,7 @@ function registerVideoJsMarkersPlugin(options) {
     if (currentMarkerIndex !== NULL_INDEX) {
       // check if staying at same marker
       var nextMarkerTime = getNextMarkerTime(currentMarkerIndex);
-      if(
+      if (
         currentTime >= setting.markerTip.time(markersList[currentMarkerIndex]) &&
         currentTime < nextMarkerTime
       ) {
@@ -403,10 +404,10 @@ function registerVideoJsMarkersPlugin(options) {
 
   // exposed plugin API
   player.markers = {
-    getMarkers: function(): Array<Marker> {
+    getMarkers: function(): Array < Marker > {
       return markersList;
     },
-    next : function(): void {
+    next: function(): void {
       // go to the next marker from current timestamp
       const currentTime = player.currentTime();
       for (var i = 0; i < markersList.length; i++) {
@@ -417,10 +418,10 @@ function registerVideoJsMarkersPlugin(options) {
         }
       }
     },
-    prev : function(): void {
+    prev: function(): void {
       // go to previous marker
       const currentTime = player.currentTime();
-      for (var i = markersList.length - 1; i >= 0 ; i--) {
+      for (var i = markersList.length - 1; i >= 0; i--) {
         var markerTime = setting.markerTip.time(markersList[i]);
         // add a threshold
         if (markerTime + 0.5 < currentTime) {
@@ -429,11 +430,11 @@ function registerVideoJsMarkersPlugin(options) {
         }
       }
     },
-    add : function(newMarkers: Array<Marker>): void {
+    add: function(newMarkers: Array < Marker > ): void {
       // add new markers given an array of index
       addMarkers(newMarkers);
     },
-    remove: function(indexArray: Array<number>): void {
+    remove: function(indexArray: Array < number > ): void {
       // remove markers given an array of index
       removeMarkers(indexArray);
     },
@@ -448,7 +449,7 @@ function registerVideoJsMarkersPlugin(options) {
       // notify the plugin to update the UI for changes in marker times
       updateMarkers();
     },
-    reset: function(newMarkers: Array<Marker>): void {
+    reset: function(newMarkers: Array < Marker > ): void {
       // remove all the existing markers and add new ones
       player.markers.removeAll();
       addMarkers(newMarkers);
@@ -464,4 +465,4 @@ function registerVideoJsMarkersPlugin(options) {
   };
 }
 
-videojs.plugin('markers', registerVideoJsMarkersPlugin);
+videojs.registerPlugin('markers', registerVideoJsMarkersPlugin);

@@ -332,11 +332,8 @@ export class Bundler {
 
     // Every file in the bundle is a candidate for injection into the document.
     for (const importUrl of bundle.bundle.files) {
-      const relativeImportUrl = urlUtils.relativeUrl(bundle.url, importUrl);
-
-      // If relative URL is empty, it is because the import URL and the document
-      // URL are the same, so there is no need to inject.
-      if (!relativeImportUrl) {
+      // We don't want to inject the bundle into itself.
+      if (bundle.url === importUrl) {
         continue;
       }
 
@@ -373,6 +370,7 @@ export class Bundler {
       }
 
       // Inject the new html import into the document.
+      const relativeImportUrl = urlUtils.relativeUrl(bundle.url, importUrl);
       const newHtmlImport = this._createHtmlImport(relativeImportUrl);
       if (prependTarget) {
         dom5.insertBefore(
@@ -470,7 +468,8 @@ export class Bundler {
       bundle: AssignedBundle,
       excludes?: string[],
       rewriteUrlsInTemplates?: boolean) {
-    const cssLinks = dom5.queryAll(ast, matchers.externalStyle);
+    const cssLinks = dom5.queryAll(
+        ast, matchers.externalStyle, undefined, dom5.childNodesIncludeTemplate);
     for (const cssLink of cssLinks) {
       await importUtils.inlineStylesheet(
           this.analyzer,

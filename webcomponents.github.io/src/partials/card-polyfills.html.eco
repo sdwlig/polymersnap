@@ -1,0 +1,23 @@
+<!-- <%= @name %> -->
+<section class="card card-story card-<%= @slug %>" role="region" itemscope itemtype="http://schema.org/WebPage">
+    <h3 itemprop="name"><%= @name %></h3>
+    <div class="description" itemprop="description">
+      <p>The webcomponent.js polyfills enable Web Components in (evergreen) browsers that lack native support.</p>
+      <p class="card-package-install">
+      <strong>Install with <a href="http://bower.io">Bower</a></strong>
+      <code>bower install webcomponentsjs</code>
+      </p>
+      <p class="card-package-install">
+      <strong>Install with <a href="http://npmjs.org">npm</a></strong>
+      <code>npm install webcomponents.js</code>
+      </p>
+        <p>
+          <a href="https://github.com/webcomponents/webcomponentsjs/archive/v0.7.12.zip" class="card-download-button" onclick="_gaq.push(['_trackEvent', 'Downloads', 'webcomponents.js', 'v0.7.12']);">
+            Download webcomponents.js
+          </a>
+          <span class="filesize">0.7.12 (117KB minified, 34KB gzipped)</span>
+        </p>
+      </p>
+    </div>
+    <a class="card-main-btn" href="/polyfills/">Learn more about the <%= @slug %></a>
+</section>

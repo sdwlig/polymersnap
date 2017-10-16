@@ -1,6 +1,6 @@
 {
   "name": "@polymer/gen-closure-declarations",
-  "version": "0.2.0",
+  "version": "0.4.0",
   "main": "lib/gen-closure.js",
   "bin": {
     "gen-closure-declarations": "bin/gen-closure-declarations.js"
@@ -12,11 +12,11 @@
   "author": "Daniel Freedman <dfreedm@google.com>",
   "license": "BSD-3-Clause",
   "dependencies": {
-    "escodegen": "^1.8.1",
-    "polymer-analyzer": "^2.2.2"
+    "escodegen": "^1.9.0",
+    "polymer-analyzer": "^2.3.0"
   },
   "devDependencies": {
-    "typescript": "^2.4.1"
+    "typescript": "^2.5.3"
   },
   "scripts": {
     "build": "tsc",

@@ -1,0 +1,4 @@
+{
+  "extends": [":library"],
+  "ignoreDeps": ["expect"]
+}

@@ -12,12 +12,15 @@
  * http://polymer.github.io/PATENTS.txt
  */
 
+import './css/deprecated-css-custom-property-syntax';
+
 import './html/dom-module-name-or-is';
 import './html/move-style-into-template';
 import './html/undefined-elements';
 
 import './polymer/behaviors-spelling';
 import './polymer/call-super-in-callbacks';
+import './polymer/content-to-slot';
 import './polymer/databinding-calls-must-be-functions';
 import './polymer/databind-with-unknown-property';
 import './polymer/element-before-dom-module';

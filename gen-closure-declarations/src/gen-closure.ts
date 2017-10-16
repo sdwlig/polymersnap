@@ -9,37 +9,35 @@
  */
 // Requires node >= 7.6
 
-import { Analyzer, Feature, FSUrlLoader, PackageUrlResolver, Property, Method, PolymerElementMixin } from 'polymer-analyzer';
+import { Analyzer, Feature, FSUrlLoader, Property, Method, PolymerElementMixin } from 'polymer-analyzer';
 
 import {Analysis} from 'polymer-analyzer/lib/model/model';
 
 const isInTestsRegex = /(\b|\/|\\)(test[s]?)(\/|\\)/;
 const isTest = (f: Feature) => f.sourceRange && isInTestsRegex.test(f.sourceRange.file);
 
-// const declarationKinds = ['element', 'element-mixin', 'namespace', 'function'];
-// const isDeclaration = (f: Feature) => declarationKinds.some((kind) => f.kinds.has(kind));
+export interface Options {
+  entrypoint?: string;
+  directory?: string;
+}
 
-const header =
-`
-/**
- * @fileoverview Closure types for Polymer mixins
- *
- * This file is generated, do not edit manually
- */
-/* eslint-disable no-unused-vars, strict */
-`;
+export function generateDeclarations(options: Options = {}):Promise<string> {
+  const urlLoader = new FSUrlLoader(options.directory);
+  const analyzer = new Analyzer({urlLoader});
 
-export function generateDeclarations():Promise<string> {
-  const analyzer = new Analyzer({
-    urlLoader: new FSUrlLoader(),
-    urlResolver: new PackageUrlResolver(),
-  });
+  let analysisPromise: Promise<Analysis>;
 
-  return analyzer.analyzePackage().then(generatePackage);
+  if (options.entrypoint) {
+    analysisPromise = analyzer.analyze([options.entrypoint]);
+  } else {
+    analysisPromise = analyzer.analyzePackage();
+  }
+
+  return analysisPromise.then(generatePackage);
 }
 
 function generatePackage(pkg: Analysis):string {
-  const declarations:string[] = [header];
+  const declarations:string[] = [];
 
   const features = pkg.getFeatures();
   for (const feature of features) {
@@ -84,7 +82,7 @@ function genMixinDeclaration(mixin: PolymerElementMixin, declarations: string[])
   });
 
   mixin.staticMethods.forEach((method) => {
-    const methodText = genStaticMethod(mixinName, method);
+    const methodText = genMethod(mixinName, method, true);
     if (methodText) {
       mixinDesc.push(methodText);
     }
@@ -93,11 +91,6 @@ function genMixinDeclaration(mixin: PolymerElementMixin, declarations: string[])
   declarations.push(mixinDesc.join('\n'));
 }
 
-/**
- * Property
- *
- * @param property
- */
 function genProperty(mixinName: string, property: Property): string {
   if (property.inheritedFrom) {
     return '';
@@ -105,13 +98,8 @@ function genProperty(mixinName: string, property: Property): string {
   return `/** @type {${property.type}} */\n${mixinName}.prototype.${property.name};\n`;
 }
 
-/**
- * Method
- *
- * @param method
- */
-function genMethod(mixinName: string, method: Method): string {
-  if (method.privacy === 'private') {
+function genMethod(mixinName: string, method: Method, isStatic = false): string {
+  if (method.privacy === 'private' || method.inheritedFrom) {
     return '';
   }
   let override = false;
@@ -138,39 +126,7 @@ function genMethod(mixinName: string, method: Method): string {
   const paramText = method.params
     ? method.params.map((p) => cleanVarArgs(p.name)).join(', ')
     : '';
-  out.push(`${mixinName}.prototype.${method.name} = function(${paramText}){};`);
-  return out.join('\n');
-}
-
-/**
- * Static Method
- */
-function genStaticMethod(mixinName: string, method: Method): string {
-  if (method.privacy === 'private') {
-    return '';
-  }
-  let override = false;
-  if (method.jsdoc && method.jsdoc.tags.some(t => t.title === 'override')) {
-    override = true;
-  }
-  let out = ['/**'];
-  let docParams = true;
-  if (override) {
-    out.push('* @override');
-    docParams = Boolean(method.jsdoc && method.jsdoc.tags.some(t => t.title === 'param'));
-  }
-  if (method.params && docParams) {
-    method.params.forEach(p => out.push(genParameter(p)));
-  }
-  const returnType = method.return && method.return.type;
-  if (returnType) {
-    out.push(`* @return {${returnType}}`);
-  }
-  out.push('*/');
-  const paramText = method.params
-    ? method.params.map((p) => cleanVarArgs(p.name)).join(', ')
-    : '';
-  out.push(`${mixinName}.${method.name} = function(${paramText}){};`);
+  out.push(`${mixinName}${!isStatic ? '.prototype' : ''}.${method.name} = function(${paramText}){};`);
   return out.join('\n');
 }
 
@@ -181,11 +137,6 @@ function cleanVarArgs(name: string) {
   return name;
 }
 
-/**
- * Parameter
- *
- * @param parameter
- */
 function genParameter(parameter: { name: string; type?: string; description?: string }) {
   let implicitType = parameter.name.startsWith('...') ? '...*' : '*';
   return `* @param {${parameter.type || implicitType}} ${cleanVarArgs(parameter.name)} ${parameter.description || ''}`;

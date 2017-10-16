@@ -21,6 +21,7 @@ registry.register(
     new RuleCollection('polymer-2', `Rules for projects that use Polymer 2.x`, [
       'behaviors-spelling',
       'call-super-in-callbacks',
+      'content-to-slot',
       'databind-with-unknown-property',
       'databinding-calls-must-be-functions',
       'dom-module-invalid-attrs',
@@ -29,6 +30,7 @@ registry.register(
       'style-into-template',
       'unbalanced-polymer-delimiters',
       'undefined-elements',
+      'deprecated-css-custom-property-syntax',
     ]));
 
 registry.register(new RuleCollection(
@@ -38,6 +40,7 @@ registry.register(new RuleCollection(
 Will warn about use of deprecated Polymer 1.x features or brand new features in Polymer 2.x`,
     [
       'behaviors-spelling',
+      'content-to-slot',
       'databinding-calls-must-be-functions',
       'databind-with-unknown-property',
       'dom-module-invalid-attrs',
@@ -46,6 +49,7 @@ Will warn about use of deprecated Polymer 1.x features or brand new features in 
       'style-into-template',
       'unbalanced-polymer-delimiters',
       'undefined-elements',
+      'deprecated-css-custom-property-syntax',
     ]));
 
 registry.register(new RuleCollection(

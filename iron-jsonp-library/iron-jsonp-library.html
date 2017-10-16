@@ -86,12 +86,11 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       if (err) {
         Polymer.Base._warn("Library load failed:", err.message);
         this._setLibraryErrorMessage(err.message);
-      }
-      else {
+      } else {
         this._setLibraryErrorMessage(null);
         this._setLibraryLoaded(true);
         if (this.notifyEvent)
-          this.fire(this.notifyEvent, result, {composed: true});
+          this.fire(this.notifyEvent, result, { composed: true });
       }
     },
 
@@ -141,7 +140,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 
   /** @constructor */
   var Loader = function(name, url, callbackName) {
-    this.notifiers = [];  // array of notifyFn [ notifyFn* ]
+    this.notifiers = []; // array of notifyFn [ notifyFn* ]
 
     // callback is specified either as callback name
     // or computed dynamically if url has callbackMacro in it
@@ -166,6 +165,15 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     loaded: false,
 
     addScript: function(src) {
+      var script = document.createElement('script');
+      script.src = src;
+      script.onerror = this.handleError.bind(this);
+      var s = document.documentElement.firstChild;
+      s.parentNode.insertBefore(script, s);
+      this.script = script;
+    },
+
+    origaddScript: function(src) {
       var script = document.createElement('script');
       script.src = src;
       script.onerror = this.handleError.bind(this);
@@ -199,7 +207,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     },
 
     notifyAll: function() {
-      this.notifiers.forEach( function(notifyCallback) {
+      this.notifiers.forEach(function(notifyCallback) {
         notifyCallback(this.error, this.result);
       }.bind(this));
       this.notifiers = [];
@@ -207,13 +215,14 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 
     requestNotify: function(notifyCallback) {
       if (this.loaded || this.error) {
-        notifyCallback( this.error, this.result);
+        notifyCallback(this.error, this.result);
       } else {
         this.notifiers.push(notifyCallback);
       }
     }
   };
 })();
+
 </script>
 
 <!--
@@ -234,38 +243,38 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
   @demo
 -->
 <script>
-  Polymer({
+Polymer({
 
-    is: 'iron-jsonp-library',
+  is: 'iron-jsonp-library',
 
-    behaviors: [ Polymer.IronJsonpLibraryBehavior ],
+  behaviors: [Polymer.IronJsonpLibraryBehavior],
 
-    properties: {
-      /**
-       * Library url. Must contain string `%%callback%%`.
-       *
-       * `%%callback%%` is a placeholder for jsonp wrapper function name
-       *
-       * Ex: https://maps.googleapis.com/maps/api/js?callback=%%callback%%
-       */
-      libraryUrl: String,
-      /**
-       * Set if library requires specific callback name.
-       * Name will be automatically generated if not set.
-       */
-      callbackName: String,
-      /**
-       * event with name specified in 'notifyEvent' attribute
-       * will fire upon successful load
-       */
-      notifyEvent: String
-      /**
-       * event with name specified in 'notifyEvent' attribute
-       * will fire upon successful load
-       * @event `notifyEvent`
-       */
+  properties: {
+    /**
+     * Library url. Must contain string `%%callback%%`.
+     *
+     * `%%callback%%` is a placeholder for jsonp wrapper function name
+     *
+     * Ex: https://maps.googleapis.com/maps/api/js?callback=%%callback%%
+     */
+    libraryUrl: String,
+    /**
+     * Set if library requires specific callback name.
+     * Name will be automatically generated if not set.
+     */
+    callbackName: String,
+    /**
+     * event with name specified in 'notifyEvent' attribute
+     * will fire upon successful load
+     */
+    notifyEvent: String
+    /**
+     * event with name specified in 'notifyEvent' attribute
+     * will fire upon successful load
+     * @event `notifyEvent`
+     */
 
-    }
-  });
+  }
+});
 
 </script>

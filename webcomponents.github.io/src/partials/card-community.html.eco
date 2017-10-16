@@ -1,0 +1,9 @@
+<section class="card card-community" role="region" itemscope itemtype="http://schema.org/ItemList">
+    <h3 itemprop="name">Who?</h3>
+    <p class="card-about-description">We are the pioneers and community-members of the Web Components ecosystem. The WebComponents.org team is dedicated to supporting all that is part of Web Components. Here is a complete list of the contributors to the project on Github.</p>
+    <ul class="layout-community profile-list">
+
+    </ul>
+</section>
+
+<script src="<%= @site.url %>/js/contrib.js"></script>

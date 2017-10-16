@@ -61,7 +61,8 @@ ShadyRoot.prototype._init = function(host, options) {
   this._renderPending = false;
   this._hasRendered = false;
   this._slotList = [];
-  this._slotMap = null;
+  this._slotMap = {};
+  this.__pendingSlots = [];
   // fast path initial render: remove existing physical dom.
   let c$ = childNodes(host);
   for (let i=0, l=c$.length; i < l; i++) {
@@ -79,7 +80,7 @@ ShadyRoot.prototype._asyncRender = function() {
 
 // returns the oldest renderPending ancestor root.
 ShadyRoot.prototype._getRenderRoot = function() {
-  let renderRoot = this;
+  let renderRoot;
   let root = this;
   while (root) {
     if (root._renderPending) {
@@ -106,8 +107,9 @@ ShadyRoot.prototype._rendererForHost = function() {
 }
 
 ShadyRoot.prototype._render = function() {
-  if (this._renderPending) {
-    this._getRenderRoot()['_renderRoot']();
+  const root = this._getRenderRoot();
+  if (root) {
+    root['_renderRoot']();
   }
 }
 
@@ -120,6 +122,7 @@ ShadyRoot.prototype['_renderRoot'] = function() {
 }
 
 ShadyRoot.prototype._distribute = function() {
+  this._validateSlots();
   // capture # of previously assigned nodes to help determine if dirty.
   for (let i=0, slot; i < this._slotList.length; i++) {
     slot = this._slotList[i];
@@ -228,12 +231,15 @@ ShadyRoot.prototype._clearSlotAssignedNodes = function(slot) {
   }
 }
 
-ShadyRoot.prototype._addAssignedToFlattenedNodes = function(flattened, asssigned) {
-  for (let i=0, n; (i<asssigned.length) && (n=asssigned[i]); i++) {
+ShadyRoot.prototype._addAssignedToFlattenedNodes = function(flattened, assigned) {
+  for (let i=0, n; (i<assigned.length) && (n=assigned[i]); i++) {
     if (n.localName == 'slot') {
-      this._addAssignedToFlattenedNodes(flattened, n.__shady.assignedNodes);
+      const nestedAssigned = n.__shady.assignedNodes;
+      if (nestedAssigned && nestedAssigned.length) {
+        this._addAssignedToFlattenedNodes(flattened, nestedAssigned);
+      }
     } else {
-      flattened.push(asssigned[i]);
+      flattened.push(assigned[i]);
     }
   }
 }
@@ -331,14 +337,23 @@ ShadyRoot.prototype._updateChildNodes = function(container, children) {
   }
 }
 
+ShadyRoot.prototype._addSlots = function(slots) {
+  this.__pendingSlots.push(...slots);
+}
+
+ShadyRoot.prototype._validateSlots = function() {
+  if (this.__pendingSlots.length) {
+    this._mapSlots(this.__pendingSlots);
+    this.__pendingSlots = [];
+  }
+}
+
 /**
  * Adds the given slots. Slots are maintained in an dom-ordered list.
  * In addition a map of name to slot is updated.
  */
-ShadyRoot.prototype._addSlots = function(slots) {
+ShadyRoot.prototype._mapSlots = function(slots) {
   let slotNamesToSort;
-  this._slotMap = this._slotMap || {};
-  this._slotList = this._slotList || [];
   for (let i=0; i < slots.length; i++) {
     let slot = slots[i];
     // ensure insertionPoints's and their parents have logical dom info.
@@ -408,9 +423,8 @@ function ancestorList(node) {
  * Any removed slots also have their `assignedNodes` removed from comopsed dom.
  */
 ShadyRoot.prototype._removeContainedSlots = function(container) {
+  this._validateSlots();
   let didRemove;
-  this._slotMap = this._slotMap || {};
-  this._slotList = this._slotList || [];
   const map = this._slotMap;
   for (let n in map) {
     let slots = map[n];
@@ -465,6 +479,7 @@ ShadyRoot.prototype._removeFlattenedNodes = function(slot) {
 }
 
 ShadyRoot.prototype._hasInsertionPoint = function() {
+  this._validateSlots();
   return Boolean(this._slotList.length);
 }
 
