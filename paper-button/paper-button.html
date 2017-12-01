@@ -7,7 +7,6 @@ The complete set of contributors may be found at http://polymer.github.io/CONTRI
 Code distributed by Google as part of the polymer project is also
 subject to an additional IP rights grant found at http://polymer.github.io/PATENTS.txt
 -->
-
 <link rel="import" href="../polymer/polymer.html">
 <link rel="import" href="../iron-flex-layout/iron-flex-layout.html">
 <link rel="import" href="../paper-behaviors/paper-button-behavior.html">
@@ -84,124 +83,126 @@ Custom property | Description | Default
 <dom-module id="paper-button">
   <template strip-whitespace>
     <style include="paper-material-styles">
-      /* Need to specify the same specificity as the styles imported from paper-material. */
-      :host {
-        @apply --layout-inline;
-        @apply --layout-center-center;
-        position: relative;
-        box-sizing: border-box;
-        min-width: 5.14em;
-        margin: 0 0.29em;
-        background: transparent;
-        -webkit-tap-highlight-color: rgba(0, 0, 0, 0);
-        -webkit-tap-highlight-color: transparent;
-        font: inherit;
-        text-transform: uppercase;
-        outline-width: 0;
-        border-radius: 3px;
-        -moz-user-select: none;
-        -ms-user-select: none;
-        -webkit-user-select: none;
-        user-select: none;
-        cursor: pointer;
-        z-index: 0;
-        padding: 0.7em 0.57em;
+    /* Need to specify the same specificity as the styles imported from paper-material. */
 
-        @apply --paper-font-common-base;
-        @apply --paper-button;
-      }
+     :host {
+      @apply --layout-inline;
+      @apply --layout-center-center;
+      position: relative;
+      box-sizing: border-box;
+      min-width: 5.14em;
+      margin: 0 0.29em;
+      background: transparent;
+      -webkit-tap-highlight-color: rgba(0, 0, 0, 0);
+      -webkit-tap-highlight-color: transparent;
+      font: inherit;
+      text-transform: uppercase;
+      outline-width: 0;
+      border-radius: 3px;
+      -moz-user-select: none;
+      -ms-user-select: none;
+      -webkit-user-select: none;
+      user-select: none;
+      cursor: pointer;
+      z-index: 0;
+      padding: 0.7em 0.57em;
 
-      :host([elevation="1"]) {
-        @apply --paper-material-elevation-1;
-      }
+      @apply --paper-font-common-base;
+      @apply --paper-button;
+    }
 
-      :host([elevation="2"]) {
-        @apply --paper-material-elevation-2;
-      }
+     :host([elevation="1"]) {
+      @apply --paper-material-elevation-1;
+    }
 
-      :host([elevation="3"]) {
-        @apply --paper-material-elevation-3;
-      }
+     :host([elevation="2"]) {
+      @apply --paper-material-elevation-2;
+    }
 
-      :host([elevation="4"]) {
-        @apply --paper-material-elevation-4;
-      }
+     :host([elevation="3"]) {
+      @apply --paper-material-elevation-3;
+    }
 
-      :host([elevation="5"]) {
-        @apply --paper-material-elevation-5;
-      }
+     :host([elevation="4"]) {
+      @apply --paper-material-elevation-4;
+    }
 
-      :host([hidden]) {
-        display: none !important;
-      }
+     :host([elevation="5"]) {
+      @apply --paper-material-elevation-5;
+    }
 
-      :host([raised].keyboard-focus) {
-        font-weight: bold;
-        @apply --paper-button-raised-keyboard-focus;
-      }
+     :host([hidden]) {
+      display: none !important;
+    }
 
-      :host(:not([raised]).keyboard-focus) {
-        font-weight: bold;
-        @apply --paper-button-flat-keyboard-focus;
-      }
+     :host([raised].keyboard-focus) {
+      font-weight: bold;
+      @apply --paper-button-raised-keyboard-focus;
+    }
 
-      :host([disabled]) {
-        background: #eaeaea;
-        color: #a8a8a8;
-        cursor: auto;
-        pointer-events: none;
+     :host(:not([raised]).keyboard-focus) {
+      font-weight: bold;
+      @apply --paper-button-flat-keyboard-focus;
+    }
 
-        @apply --paper-button-disabled;
-      }
+     :host([disabled]) {
+      background: #eaeaea;
+      color: #a8a8a8;
+      cursor: auto;
+      pointer-events: none;
 
-      :host([animated]) {
-        @apply --shadow-transition;
-      }
+      @apply --paper-button-disabled;
+    }
 
-      paper-ripple {
-        color: var(--paper-button-ink-color);
-      }
+     :host([animated]) {
+      @apply --shadow-transition;
+    }
+
+    paper-ripple {
+      color: var(--paper-button-ink-color);
+    }
     </style>
 
     <slot></slot>
   </template>
 
   <script>
-    Polymer({
-      is: 'paper-button',
+  Polymer({
+    is: 'paper-button',
 
-      behaviors: [
-        Polymer.PaperButtonBehavior
-      ],
+    behaviors: [
+      Polymer.PaperButtonBehavior
+    ],
 
-      properties: {
-        /**
-         * If true, the button should be styled with a shadow.
-         */
-        raised: {
-          type: Boolean,
-          reflectToAttribute: true,
-          value: false,
-          observer: '_calculateElevation'
-        }
-      },
-
-      _calculateElevation: function() {
-        if (!this.raised) {
-          this._setElevation(0);
-        } else {
-          Polymer.PaperButtonBehaviorImpl._calculateElevation.apply(this);
-        }
-      }
-
+    properties: {
       /**
-      Fired when the animation finishes.
-      This is useful if you want to wait until
-      the ripple animation finishes to perform some action.
+       * If true, the button should be styled with a shadow.
+       */
+      raised: {
+        type: Boolean,
+        reflectToAttribute: true,
+        value: false,
+        observer: '_calculateElevation'
+      }
+    },
 
-      @event transitionend
-      Event param: {{node: Object}} detail Contains the animated node.
-      */
-    });
+    _calculateElevation: function() {
+      if (!this.raised) {
+        this._setElevation(0);
+      } else {
+        Polymer.PaperButtonBehaviorImpl._calculateElevation.apply(this);
+      }
+    }
+
+    /**
+    Fired when the animation finishes.
+    This is useful if you want to wait until
+    the ripple animation finishes to perform some action.
+
+    @event transitionend
+    Event param: {{node: Object}} detail Contains the animated node.
+    */
+  });
+
   </script>
 </dom-module>

@@ -11,11 +11,7 @@ Prism.languages.apl = {
 		alias: 'function'
 	},
 	'constant': /[⍬⌾#⎕⍞]/,
-<<<<<<< HEAD
 	'function': /[-+×÷⌈⌊∣|⍳⍸?*⍟○!⌹<≤=>≥≠≡≢∊⍷∪∩~∨∧⍱⍲⍴,⍪⌽⊖⍉↑↓⊂⊃⊆⊇⌷⍋⍒⊤⊥⍕⍎⊣⊢⍁⍂≈⍯↗¤→]/,
-=======
-	'function': /[-+×÷⌈⌊∣|⍳?*⍟○!⌹<≤=>≥≠≡≢∊⍷∪∩~∨∧⍱⍲⍴,⍪⌽⊖⍉↑↓⊂⊃⌷⍋⍒⊤⊥⍕⍎⊣⊢⍁⍂≈⍯↗¤→]/,
->>>>>>> afe0542b48d79c33faedea277d6fbad53127cf6a
 	'monadic-operator': {
 		pattern: /[\\\/⌿⍀¨⍨⌶&∥]/,
 		alias: 'operator'
