@@ -1,0 +1,462 @@
+<!doctype html>
+
+<head>
+  <meta charset="UTF-8">
+  <title>vaadin-overlay tests</title>
+  <script src="../../web-component-tester/browser.js"></script>
+  <link rel="import" href="../../iron-test-helpers/iron-test-helpers.html">
+  <link rel="import" href="../../vaadin-button/vaadin-button.html">
+  <link rel="import" href="../vaadin-overlay.html">
+</head>
+
+<body>
+  <test-fixture id="default">
+    <template>
+      <div>
+        <div id="parent">
+          <vaadin-overlay>
+            <template>
+              content
+              <button>native button</button>
+              <button tabindex="-1">button with tabindex="-1"</button>
+              <select tabindex="2"></select>
+              <textarea tabindex="1"></textarea>
+              <input type="text">
+              <vaadin-button>vaadin-button</vaadin-button>
+            </template>
+          </vaadin-overlay>
+        </div>
+      </div>
+    </template>
+  </test-fixture>
+
+  <test-fixture id="empty">
+    <template>
+      <div>
+        <div id="parent">
+          <vaadin-overlay focus-trap>
+            <template>
+            </template>
+          </vaadin-overlay>
+        </div>
+      </div>
+    </template>
+  </test-fixture>
+
+  <script>
+    const fire = (type, el) =>
+      el.dispatchEvent(new CustomEvent(type, {bubbles: true, cancelable: true, composed: true}));
+
+    const click = (el) => fire('click', el);
+    const mousedown = (el) => fire('mousedown', el);
+    const mouseup = (el) => fire('mouseup', el);
+
+    describe('overlay', function() {
+      var overlay, parent, overlayPart, content, backdrop, focusableElements;
+
+      beforeEach(function() {
+        parent = fixture('default').children[0];
+        overlay = parent.children[0];
+        overlayPart = overlay.$.overlay;
+        content = overlay.$.content;
+        focusableElements = overlay._getFocusableElements();
+        backdrop = overlay.$.backdrop;
+        overlay._observer.flush();
+        overlay.opened = true;
+      });
+
+      afterEach(function() {
+        // Avoid stacking up <vaadin-overlay> elements in the body.
+        overlay.opened = false;
+      });
+
+      it('should move under body when open', () => {
+        expect(overlay.parentElement).to.eql(document.body);
+      });
+
+      it('should not prevent clicking elements outside overlay when modeless (non-modal)', () => {
+        overlay.modeless = true;
+        expect(document.body.style.pointerEvents).to.eql('');
+      });
+
+      it('should prevent clicking elements outside overlay when modal', () => {
+        expect(document.body.style.pointerEvents).to.eql('none');
+      });
+
+      it('should not prevent clicking document elements after modal is closed', () => {
+        overlay.opened = false;
+        expect(document.body.style.pointerEvents).to.eql('');
+      });
+
+      it('should move back to original place after closing', () => {
+        overlay.opened = false;
+
+        expect(overlay.parentElement).to.eql(parent);
+      });
+
+      it('should stamp contents inside shadow root', () => {
+        expect(overlay.root.textContent).to.contain('content');
+      });
+
+      describe('focus trap', function() {
+        beforeEach(function() {
+          window.focus();
+        });
+
+        it('should not focus the content when focusTrap = false', (done) => {
+          overlay.addEventListener('vaadin-overlay-open', () => {
+            expect(overlay._focusedElement).not.to.be.ok;
+            done();
+          });
+        });
+
+        it('should properly detect focusable elements inside the content', () => {
+          overlay.focusTrap = true;
+          expect(focusableElements.length).to.eql(5);
+          expect(focusableElements[0]).to.eql(overlay.$.content.querySelector('textarea'));
+          expect(focusableElements[1]).to.eql(overlay.$.content.querySelector('select'));
+          expect(focusableElements[2]).to.eql(overlay.$.content.querySelector('button'));
+          expect(focusableElements[3]).to.eql(overlay.$.content.querySelector('input'));
+          expect(focusableElements[4]).to.eql(overlay.$.content.querySelector('vaadin-button'));
+        });
+
+        it('should focus focusable elements inside the content when focusTrap = true', (done) => {
+          overlay.focusTrap = true;
+          overlay.addEventListener('vaadin-overlay-open', () => {
+            // TAB
+            for (let i = 0; i < focusableElements.length; i++) {
+              expect(overlay._focusedElement).to.eql(focusableElements[i]);
+              MockInteractions.pressAndReleaseKeyOn(document.body, 9);
+            }
+            expect(overlay._focusedElement).to.eql(focusableElements[0]);
+
+            // SHIFT+TAB
+            MockInteractions.pressAndReleaseKeyOn(document.body, 9, 'shift');
+            for (let i = focusableElements.length - 1; i >= 0; i--) {
+              expect(overlay._focusedElement).to.eql(focusableElements[i]);
+              MockInteractions.pressAndReleaseKeyOn(document.body, 9, 'shift');
+            }
+            expect(overlay._focusedElement).to.eql(focusableElements[focusableElements.length - 1]);
+            done();
+          });
+        });
+
+        describe('empty content', function() {
+          beforeEach(function() {
+            parent = fixture('empty').children[0];
+            overlay = parent.children[0];
+            overlayPart = overlay.$.overlay;
+            content = overlay.$.content;
+            overlay._observer.flush();
+            overlay.opened = true;
+          });
+
+          it('should focus the overlayPart when focusTrap = true', (done) => {
+            overlay.addEventListener('vaadin-overlay-open', () => {
+              expect(overlay._focusedElement).to.eql(overlayPart);
+              done();
+            });
+          });
+        });
+      });
+
+      it('should close on esc', () => {
+        MockInteractions.pressAndReleaseKeyOn(document.body, 27);
+
+        expect(overlay.opened).to.be.false;
+      });
+
+      it('backdrop should be toggled by with-backdrop attribute', () => {
+        expect(backdrop.hidden).to.be.true;
+
+        overlay.setAttribute('with-backdrop', true);
+
+        expect(backdrop.hidden).to.be.false;
+      });
+
+      it('should fire the vaadin-overlay-escape-press event only when ESC pressed', function(done) {
+        var doneHandler = () => done();
+
+        overlay.addEventListener('vaadin-overlay-escape-press', doneHandler, false);
+
+        MockInteractions.pressAndReleaseKeyOn(document.body, 27);
+        MockInteractions.pressAndReleaseKeyOn(document.body, 13);
+
+        overlay.removeEventListener('vaadin-overlay-escape-press', doneHandler, false);
+      });
+
+      it('should not close on esc if vaadin-overlay-escape-press event was canceled', () => {
+        overlay.addEventListener('vaadin-overlay-escape-press', e => {
+          e.preventDefault();
+        });
+
+        MockInteractions.pressAndReleaseKeyOn(document.body, 27);
+
+        expect(overlay.opened).to.be.true;
+      });
+
+      it('should not close on inside click', () => {
+        click(overlayPart);
+
+        expect(overlay.opened).to.be.true;
+      });
+
+      it('should fire the vaadin-overlay-outside-click event on outside click', function(done) {
+        var outsideClickHandler = () => done();
+
+        overlay.addEventListener('vaadin-overlay-outside-click', outsideClickHandler, false);
+        click(parent);
+        overlay.removeEventListener('vaadin-overlay-outside-click', outsideClickHandler, false);
+      });
+
+      it('should fire the vaadin-overlay-outside-click event on backdrop click', function(done) {
+        var outsideClickHandler = () => done();
+
+        overlay.withBackdrop = true;
+        overlay.addEventListener('vaadin-overlay-outside-click', outsideClickHandler, false);
+        click(backdrop);
+        overlay.removeEventListener('vaadin-overlay-outside-click', outsideClickHandler, false);
+      });
+
+      it('should not fire the vaadin-overlay-outside-click event on inside click', () => {
+        var outsideClickHandler = () => {
+          throw new Error('Should not come here!');
+        };
+
+        overlay.addEventListener('vaadin-overlay-outside-click', outsideClickHandler, false);
+        click(overlayPart);
+        overlay.removeEventListener('vaadin-overlay-outside-click', outsideClickHandler, false);
+      });
+
+      it('should close on outside click', () => {
+        click(parent);
+
+        expect(overlay.opened).to.be.false;
+      });
+
+      it('should not close on outside click if vaadin-overlay-outside-click event was canceled', () => {
+        overlay.addEventListener('vaadin-overlay-outside-click', e => {
+          e.preventDefault();
+        });
+        click(parent);
+
+        expect(overlay.opened).to.be.true;
+      });
+
+      describe('moving mouse pointer during click', () => {
+        it('should close if both mousedown and mouseup outside', () => {
+          mousedown(parent);
+          mouseup(parent);
+          click(parent);
+
+          expect(overlay.opened).to.be.false;
+        });
+
+        it('should not close if mousedown outside and mouseup inside', () => {
+          mousedown(parent);
+          mouseup(overlayPart);
+          click(overlayPart);
+
+          expect(overlay.opened).to.be.true;
+        });
+
+        it('should not close if mousedown inside and mouseup outside', () => {
+          mousedown(overlayPart);
+          mouseup(parent);
+          click(parent);
+
+          expect(overlay.opened).to.be.true;
+        });
+
+        it('should not close if both mousedown mouseup inside', () => {
+          mousedown(overlayPart);
+          mouseup(overlayPart);
+          click(overlayPart);
+
+          expect(overlay.opened).to.be.true;
+        });
+      });
+
+      describe('mouseup after contextmenu event opening', () => {
+        // On some platforms, contextmenu event is dispatched right on
+        // mousedown, before mouseup. If the contextmenu event opens
+        // the overlay, then one contextmenu-related mouseup event also occurs.
+
+        it('should close on outside click after mouseup inside', () => {
+          // assume the overlay was opened on contextmenu event
+          mouseup(overlayPart);
+
+          mousedown(parent);
+          mouseup(parent);
+          click(parent);
+
+          expect(overlay.opened).to.be.false;
+        });
+
+        it('should close on outside click after mouseup outside', () => {
+          // assume the overlay was opened on contextmenu event,
+          // but this time the cursor was moved outside before mouseup
+          mouseup(parent);
+
+          mousedown(parent);
+          mouseup(parent);
+          click(parent);
+
+          expect(overlay.opened).to.be.false;
+        });
+
+        it('should not close on inside click after mouseup inside', () => {
+          mouseup(overlayPart);
+
+          mousedown(overlayPart);
+          mouseup(overlayPart);
+          click(overlayPart);
+
+          expect(overlay.opened).to.be.true;
+        });
+
+        it('should not close on outside click after mouseup outside', () => {
+          mouseup(parent);
+
+          mousedown(overlayPart);
+          mouseup(overlayPart);
+          click(overlayPart);
+
+          expect(overlay.opened).to.be.true;
+        });
+      });
+
+      it('should not close on backdrop click if vaadin-overlay-outside-click event was canceled', () => {
+        overlay.addEventListener('vaadin-overlay-outside-click', e => {
+          e.preventDefault();
+        });
+        click(backdrop);
+
+        expect(overlay.opened).to.be.true;
+      });
+
+      it('should close on the backdrop click', () => {
+        overlay.withBackdrop = true;
+
+        backdrop.dispatchEvent(new CustomEvent('click', {bubbles: true, composed: true}));
+
+        expect(overlay.opened).to.be.false;
+      });
+
+      it('should prevent `iron-overlay-canceled` when is opened', () => {
+        const evtOnOpened = new CustomEvent('iron-overlay-canceled', {bubbles: true, cancelable: true});
+        parent.dispatchEvent(evtOnOpened);
+        expect(evtOnOpened.defaultPrevented).to.be.true;
+
+        click(parent);
+
+        const evtOnClosed = new CustomEvent('iron-overlay-canceled', {bubbles: true, cancelable: true});
+        parent.dispatchEvent(evtOnClosed);
+        expect(evtOnClosed.defaultPrevented).to.be.false;
+      });
+
+      it('should prevent closing the overlay when preventing vaadin-overlay-cancel', done => {
+        overlay.addEventListener('vaadin-overlay-close', e => {
+          e.preventDefault();
+
+          setTimeout(() => {
+            expect(overlay.opened).to.be.true;
+            done();
+          }, 1);
+        });
+        click(parent);
+      });
+
+      it('should have a click lisneter', () => {
+        // Having at least one mouse event listener is needed for iOS
+        // to enable mouse events dispatching.
+
+        sinon.spy(Vaadin.OverlayElement.prototype, 'addEventListener');
+        const overlay = document.createElement('vaadin-overlay');
+        document.body.appendChild(overlay);
+
+        expect(Vaadin.OverlayElement.prototype.addEventListener.calledWith('click')).to.be.true;
+
+        document.body.removeChild(overlay);
+        Vaadin.OverlayElement.prototype.addEventListener.restore();
+      });
+
+      it('should have a click listener on the backdrop', () => {
+        // When backdrop is visible, it should also dispatch clicks,
+        // so another iOS workaround listener is needed for the backdrop.
+
+        sinon.spy(HTMLElement.prototype, 'addEventListener');
+
+        const overlay = document.createElement('vaadin-overlay');
+        document.body.appendChild(overlay);
+
+        const backdropCall = HTMLElement.prototype.addEventListener.getCalls()
+          .filter((call) => call.calledOn(overlay.$.backdrop))[0];
+        expect(backdropCall).to.not.be.undefined;
+        expect(backdropCall.calledWith('click')).to.be.true;
+
+        document.body.removeChild(overlay);
+        HTMLElement.prototype.addEventListener.restore();
+      });
+
+      it('should allow pointer events on the overlayPart while skipping on the host', () => {
+        expect(window.getComputedStyle(overlayPart).pointerEvents).to.equal('auto');
+        expect(window.getComputedStyle(overlay).pointerEvents).to.equal('none');
+      });
+
+      it('should have scrollable overlayPart', () => {
+        expect(window.getComputedStyle(overlayPart).overflow).to.equal('auto');
+      });
+
+      describe('position and sizing', () => {
+        it('should fit in the viewport by default', () => {
+          const rect = overlay.getBoundingClientRect();
+          expect(rect.left).to.be.gte(0);
+          expect(rect.top).to.be.gte(0);
+          expect(rect.right).to.be.lte(document.documentElement.clientWidth);
+          expect(rect.bottom).to.be.lte(document.documentElement.clientHeight);
+        });
+
+        it('should fit in viewport when huge content is used', () => {
+          content.lastElementChild.style = 'display: block; width: 2000px; height: 2000px;';
+
+          const rect = overlay.getBoundingClientRect();
+          expect(rect.left).to.be.gte(0);
+          expect(rect.top).to.be.gte(0);
+          expect(rect.right).to.be.lte(document.documentElement.clientWidth);
+          expect(rect.bottom).to.be.lte(document.documentElement.clientHeight);
+        });
+
+        it('should fit overlayPart in overlay', () => {
+          const overlayRect = overlay.getBoundingClientRect();
+          const overlayPartRect = overlayPart.getBoundingClientRect();
+
+          expect(overlayPartRect.left).to.be.gte(overlayRect.left);
+          expect(overlayPartRect.top).to.be.gte(overlayRect.top);
+          expect(overlayPartRect.right).to.be.lte(overlayRect.right);
+          expect(overlayPartRect.bottom).to.be.lte(overlayRect.bottom);
+        });
+
+        it('should center overlayPart in overlay with flex by default', () => {
+          // The “default” fixture content is too large to test this
+          content.textContent = 'foo';
+
+          const overlayRect = overlay.getBoundingClientRect();
+          const overlayPartRect = overlayPart.getBoundingClientRect();
+
+          const halfWidthDifference = (overlayRect.width - overlayPartRect.width) / 2;
+          const halfHeightDifference = (overlayRect.height - overlayPartRect.height) / 2;
+
+          // Should not stretch the overlayPart in the overlay
+          expect(halfWidthDifference).to.be.gte(0);
+          expect(halfHeightDifference).to.be.gte(0);
+
+          expect(overlayPartRect.left - overlayRect.left).to.be.closeTo(halfWidthDifference, 1);
+          expect(overlayRect.right - overlayPartRect.right).to.be.closeTo(halfWidthDifference, 1);
+          expect(overlayPartRect.top - overlayRect.top).to.be.closeTo(halfHeightDifference, 1);
+          expect(overlayRect.bottom - overlayPartRect.bottom).to.be.closeTo(halfHeightDifference, 1);
+        });
+      });
+    });
+  </script>
+</body>
