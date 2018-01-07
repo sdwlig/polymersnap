@@ -12,19 +12,42 @@
  * http://polymer.github.io/PATENTS.txt
  */
 
+import {SourceRange} from '../analysis-format/analysis-format';
+import {AnalysisContext} from '../core/analysis-context';
+import {addAll} from '../core/utils';
+import {PackageRelativeUrl} from '../index';
+
 import {Document} from './document';
 import {Feature} from './feature';
 import {ImmutableMap, ImmutableSet} from './immutable';
 import {AnalysisQuery as Query, AnalysisQueryWithKind as QueryWithKind, DocumentQuery, FeatureKind, FeatureKindMap, Queryable} from './queryable';
+import {isPositionInsideRange} from './source-range';
+import {ResolvedUrl} from './url';
 import {Warning} from './warning';
 
 
+/**
+ * Represents the result of a computation that may fail.
+ *
+ * This lets us represent errors in a type-safe way, as well as
+ * in a way that makes it clear to the caller that the computation
+ * may fail.
+ */
+export type Result<T, E> = {
+  successful: true,
+  value: T,
+}|{
+  successful: false,
+  error: E,
+};
+
 // A regexp that matches paths to external code.
-// TODO(rictic): Make this extensible (polymer.json?).
-// Note that we match directories named exactly `build`, but will match any
-// directory name prefixed by `bower_components` or `node_modules`, in order to
-// ignore `polymer install`'s variants, which look like bower_components-foo
-const MATCHES_EXTERNAL = /(^|\/)(bower_components|node_modules|build($|\/))/;
+// TODO(rictic): Make this part of the URL Resolver.
+//     https://github.com/Polymer/polymer-analyzer/issues/803
+// Note that we will match any directory name prefixed by `bower_components` or
+// `node_modules` in order to ignore `polymer install`'s variants, which look
+// like bower_components-foo
+const MATCHES_EXTERNAL = /(^|\/)(bower_components|node_modules($|\/))/;
 
 /**
  * Represents a queryable interface over all documents in a package/project.
@@ -34,19 +57,22 @@ const MATCHES_EXTERNAL = /(^|\/)(bower_components|node_modules|build($|\/))/;
  * documents in the package.
  */
 export class Analysis implements Queryable {
-  private readonly _results: ImmutableMap<string, Document|Warning>;
+  private readonly _results: ImmutableMap<ResolvedUrl, Document|Warning>;
   private readonly _searchRoots: ImmutableSet<Document>;
 
   static isExternal(path: string) {
     return MATCHES_EXTERNAL.test(path);
   }
 
-  constructor(results: Map<string, Document|Warning>) {
+  constructor(
+      results: Map<ResolvedUrl, Document|Warning>,
+      private readonly context: AnalysisContext) {
     workAroundDuplicateJsScriptsBecauseOfHtmlScriptTags(results);
 
     this._results = results;
-    const documents = Array.from(results.values())
-                          .filter((r) => r instanceof Document) as Document[];
+    const documents =
+        Array.from(results.values()).filter((r) => r instanceof Document) as
+        Document[];
     const potentialRoots = new Set(documents);
 
     // We trim down the set of documents as a performance optimization. We only
@@ -65,10 +91,19 @@ export class Analysis implements Queryable {
     this._searchRoots = potentialRoots;
   }
 
-  getDocument(url: string): Document|Warning|undefined {
+  getDocument(packageRelativeUrl: string): Result<Document, Warning|undefined> {
+    const url =
+        this.context.resolver.resolve(packageRelativeUrl as PackageRelativeUrl);
+    if (url === undefined) {
+      return {successful: false, error: undefined};
+    }
     const result = this._results.get(url);
     if (result != null) {
-      return result;
+      if (result instanceof Document) {
+        return {successful: true, value: result};
+      } else {
+        return {successful: false, error: result};
+      }
     }
     const documents =
         Array
@@ -76,9 +111,9 @@ export class Analysis implements Queryable {
                 {kind: 'document', id: url, externalPackages: true}))
             .filter((d) => !d.isInline);
     if (documents.length !== 1) {
-      return undefined;
+      return {successful: false, error: undefined};
     }
-    return documents[0]!;
+    return {successful: true, value: documents[0]!};
   }
 
   /**
@@ -117,6 +152,36 @@ export class Analysis implements Queryable {
     return Array.from(result);
   }
 
+  /**
+   * Potentially narrow down the document that contains the sourceRange.
+   * For example, if a source range is inside a inlineDocument, this function
+   * will narrow down the document to the most specific inline document.
+   *
+   * @param sourceRange Source range to search for in a document
+   */
+  getDocumentContaining(sourceRange: SourceRange|undefined): Document
+      |undefined {
+    if (!sourceRange) {
+      return undefined;
+    }
+    let mostSpecificDocument: undefined|Document = undefined;
+    const [outerDocument] =
+        this.getFeatures({kind: 'document', id: sourceRange.file});
+    if (!outerDocument) {
+      return undefined;
+    }
+    for (const doc of outerDocument.getFeatures({kind: 'document'})) {
+      if (isPositionInsideRange(sourceRange.start, doc.sourceRange)) {
+        if (!mostSpecificDocument ||
+            isPositionInsideRange(
+                doc.sourceRange!.start, mostSpecificDocument.sourceRange)) {
+          mostSpecificDocument = doc;
+        }
+      }
+    }
+    return mostSpecificDocument;
+  }
+
   private _getDocumentQuery(query: Query = {}): DocumentQuery {
     return {
       kind: query.kind,
@@ -126,14 +191,6 @@ export class Analysis implements Queryable {
       noLazyImports: query.noLazyImports
     };
   }
-}
-
-// TODO(justinfagnani): move to utils
-function addAll<T>(set1: Set<T>, set2: Set<T>): Set<T> {
-  for (const val of set2) {
-    set1.add(val);
-  }
-  return set1;
 }
 
 /**
@@ -151,8 +208,9 @@ function addAll<T>(set1: Set<T>, set2: Set<T>): Set<T> {
  */
 function workAroundDuplicateJsScriptsBecauseOfHtmlScriptTags(
     results: Map<string, Document|Warning>) {
-  const documents = Array.from(results.values())
-                        .filter((r) => r instanceof Document) as Document[];
+  const documents =
+      Array.from(results.values()).filter((r) => r instanceof Document) as
+      Document[];
   // TODO(rictic): handle JS imported via script src from HTML better than
   //     this.
   const potentialDuplicates =

@@ -12,14 +12,15 @@
  * http://polymer.github.io/PATENTS.txt
  */
 
+import * as babel from 'babel-types';
 import * as doctrine from 'doctrine';
-import * as estree from 'estree';
 
 import {Warning} from '../model/model';
+import {comparePosition} from '../model/source-range';
 
 import {getIdentifierName, getNamespacedIdentifier} from './ast-value';
 import {Visitor} from './estree-visitor';
-import {getAttachedComment, getOrInferPrivacy, isFunctionType, objectKeyToString} from './esutil';
+import {getAttachedComment, getOrInferPrivacy, objectKeyToString} from './esutil';
 import {ScannedFunction} from './function';
 import {JavaScriptDocument} from './javascript-document';
 import {JavaScriptScanner} from './javascript-scanner';
@@ -31,7 +32,12 @@ export class FunctionScanner implements JavaScriptScanner {
       visit: (visitor: Visitor) => Promise<void>) {
     const visitor = new FunctionVisitor(document);
     await visit(visitor);
-    return {features: Array.from(visitor.functions)};
+    return {
+      features: Array.from(visitor.functions)
+                    .sort(
+                        (a, b) => comparePosition(
+                            a.sourceRange.start, b.sourceRange.start)),
+    };
   }
 }
 
@@ -48,8 +54,16 @@ class FunctionVisitor implements Visitor {
    * Scan standalone function declarations.
    */
   enterFunctionDeclaration(
-      node: estree.FunctionDeclaration, _parent: estree.Node) {
+      node: babel.FunctionDeclaration, _parent: babel.Node) {
     this._initFunction(node, getIdentifierName(node.id), node);
+    return;
+  }
+
+  /**
+   * Scan object method declarations.
+   */
+  enterObjectMethod(node: babel.ObjectMethod, _parent: babel.Node) {
+    this._initFunction(node, getIdentifierName(node.key), node);
     return;
   }
 
@@ -57,14 +71,14 @@ class FunctionVisitor implements Visitor {
    * Scan functions assigned to newly declared variables.
    */
   enterVariableDeclaration(
-      node: estree.VariableDeclaration, _parent: estree.Node) {
+      node: babel.VariableDeclaration, _parent: babel.Node) {
     if (node.declarations.length !== 1) {
       return;  // Ambiguous.
     }
     const declaration = node.declarations[0];
     const declarationId = declaration.id;
     const declarationValue = declaration.init;
-    if (declarationValue && isFunctionType(declarationValue)) {
+    if (declarationValue && babel.isFunction(declarationValue)) {
       return this._initFunction(
           node, objectKeyToString(declarationId), declarationValue);
     }
@@ -74,8 +88,8 @@ class FunctionVisitor implements Visitor {
    * Scan functions assigned to variables and object properties.
    */
   enterAssignmentExpression(
-      node: estree.AssignmentExpression, parent: estree.Node) {
-    if (isFunctionType(node.right)) {
+      node: babel.AssignmentExpression, parent: babel.Node) {
+    if (babel.isFunction(node.right)) {
       this._initFunction(parent, objectKeyToString(node.left), node.right);
     }
   }
@@ -83,12 +97,15 @@ class FunctionVisitor implements Visitor {
   /**
    * Scan functions defined inside of object literals.
    */
-  enterObjectExpression(node: estree.ObjectExpression, _parent: estree.Node) {
+  enterObjectExpression(node: babel.ObjectExpression, _parent: babel.Node) {
     for (let i = 0; i < node.properties.length; i++) {
       const prop = node.properties[i];
+      if (babel.isSpreadProperty(prop)) {
+        continue;
+      }
       const propValue = prop.value;
       const name = objectKeyToString(prop.key);
-      if (isFunctionType(propValue)) {
+      if (babel.isFunction(propValue)) {
         this._initFunction(prop, name, propValue);
         continue;
       }
@@ -102,12 +119,17 @@ class FunctionVisitor implements Visitor {
   }
 
   private _initFunction(
-      node: estree.Node, analyzedName?: string, _fn?: estree.Function) {
+      node: babel.Node, analyzedName?: string, _fn?: babel.Function) {
     const comment = getAttachedComment(node);
-
-    // Quickly filter down to potential candidates.
-    if (!comment || comment.indexOf('@memberof') === -1) {
+    if (!comment) {
       return;
+    }
+    const docs = jsdoc.parseJsdoc(comment);
+
+    // The @function annotation can override the name.
+    const functionTag = jsdoc.getTag(docs, 'function');
+    if (functionTag && functionTag.name) {
+      analyzedName = functionTag.name;
     }
 
     if (!analyzedName) {
@@ -115,13 +137,22 @@ class FunctionVisitor implements Visitor {
       return;
     }
 
-    const docs = jsdoc.parseJsdoc(comment);
+    if (!jsdoc.hasTag(docs, 'global') && !jsdoc.hasTag(docs, 'memberof')) {
+      // Without this check we would emit a lot of functions not worthy of
+      // inclusion. Since we don't do scope analysis, we can't tell when a
+      // function is actually part of an exposed API. Only include functions
+      // that are explicitly @global, or declared as part of some namespace
+      // with @memberof.
+      return;
+    }
+
     // TODO(justinfagnani): remove polymerMixin support
     if (jsdoc.hasTag(docs, 'mixinFunction') ||
         jsdoc.hasTag(docs, 'polymerMixin')) {
       // This is a mixin, not a normal function.
       return;
     }
+
     const functionName = getNamespacedIdentifier(analyzedName, docs);
     const sourceRange = this.document.sourceRangeForNode(node)!;
     const returnTag = jsdoc.getTag(docs, 'return');
@@ -141,17 +172,22 @@ class FunctionVisitor implements Visitor {
     // TODO(justinfagnani): consolidate with similar param processing code in
     // docs.ts
     const functionParams: {type: string, desc: string, name: string}[] = [];
-    if (docs.tags) {
-      docs.tags.forEach((tag) => {
-        if (tag.title !== 'param') {
-          return;
-        }
+    const templateTypes: string[] = [];
+    for (const tag of docs.tags) {
+      if (tag.title === 'param') {
         functionParams.push({
           type: tag.type ? doctrine.type.stringify(tag.type) : 'N/A',
           desc: tag.description || '',
           name: tag.name || 'N/A'
         });
-      });
+      } else if (tag.title === 'template') {
+        for (let t of (tag.description || '').split(',')) {
+          t = t.trim();
+          if (t.length > 0) {
+            templateTypes.push(t);
+          }
+        }
+      }
     }
     // TODO(fks): parse params directly from `fn`, merge with docs.tags data
 
@@ -165,6 +201,7 @@ class FunctionVisitor implements Visitor {
         docs,
         sourceRange,
         functionParams,
-        functionReturn));
+        functionReturn,
+        templateTypes));
   }
 }

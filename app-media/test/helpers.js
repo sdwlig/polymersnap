@@ -94,18 +94,24 @@
     };
   }
 
-  function awaitEvent(element, event, timeout) {
+  function awaitEvent(element, eventName, timeout) {
     timeout = timeout || 1000;
 
     return new Promise(function(resolve, reject) {
-      element.addEventListener(event, function listener() {
-        element.removeEventListener(event, listener);
-        resolve();
+      element.addEventListener(eventName, function listener(event) {
+        element.removeEventListener(eventName, listener);
+        resolve(event);
       });
 
       setTimeout(function() {
         reject(new Error((element.is || element.tagName) + ' never fired ' + event + '!'));
       }, timeout);
+    });
+  }
+
+  function timePasses(ms) {
+    return new Promise(function(resolve) {
+      Polymer.Base.async(resolve, ms);
     });
   }
 
@@ -216,6 +222,7 @@
     restoreDevices: restoreDevices,
     createDevice: createDevice,
     awaitEvent: awaitEvent,
+    timePasses: timePasses,
     createAudioMediaStream: createAudioMediaStream,
     createFakeMediaStream: createFakeMediaStream,
     setRecorderData: setRecorderData,

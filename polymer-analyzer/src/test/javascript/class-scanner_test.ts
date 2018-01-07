@@ -14,31 +14,18 @@
 
 
 import {assert} from 'chai';
-import * as path from 'path';
 
 import {Analyzer} from '../../core/analyzer';
 import {ClassScanner} from '../../javascript/class-scanner';
-import {Visitor} from '../../javascript/estree-visitor';
-import {JavaScriptParser} from '../../javascript/javascript-parser';
 import {Class, Element, ElementMixin, Method, ScannedClass} from '../../model/model';
-import {FSUrlLoader} from '../../url-loader/fs-url-loader';
-import {CodeUnderliner} from '../test-utils';
+import {CodeUnderliner, fixtureDir, runScanner} from '../test-utils';
 
-const fixturesDir = path.resolve(__dirname, '../static');
 suite('Class', () => {
-  const urlLoader = new FSUrlLoader(fixturesDir);
-  const underliner = new CodeUnderliner(urlLoader);
-  const analyzer = new Analyzer({urlLoader});
+  const analyzer = Analyzer.createForDirectory(fixtureDir);
+  const underliner = new CodeUnderliner(analyzer);
 
   async function getScannedFeatures(filename: string) {
-    const file = await urlLoader.load(filename);
-    const parser = new JavaScriptParser();
-    const document = parser.parse(file, filename);
-    const scanner = new ClassScanner();
-    const visit = (visitor: Visitor) =>
-        Promise.resolve(document.visit([visitor]));
-
-    const {features} = await scanner.scan(document, visit);
+    const {features} = await runScanner(analyzer, new ClassScanner(), filename);
     return features;
   };
 
@@ -59,7 +46,7 @@ suite('Class', () => {
       privacy: string,
       properties?: any[],
       methods?: any[],
-      warnings?: string[],
+      warnings?: ReadonlyArray<string>,
       mixins?: any[],
       superClass?: string,
     };
@@ -86,6 +73,12 @@ suite('Class', () => {
             }
             if (p.type != null) {
               param.type = p.type;
+            }
+            if (p.defaultValue != null) {
+              param.defaultValue = p.defaultValue;
+            }
+            if (p.rest != null) {
+              param.rest = p.rest;
             }
             return param;
           });
@@ -116,7 +109,7 @@ suite('Class', () => {
   };
 
   suite('scanning', () => {
-    test('finds classes and their names and comment blocks', async() => {
+    test('finds classes and their names and comment blocks', async () => {
       const classes = await getScannedClasses('class/class-names.js');
       assert.deepEqual(classes.map((c) => c.name), [
         'Declaration',
@@ -161,13 +154,80 @@ suite('Class', () => {
       ]);
     });
 
-    test('finds methods', async() => {
+    test('finds properties', async () => {
+      const cls = (await getScannedClasses('class/class-properties.js'))[0];
+
+      assert.deepInclude(cls.properties.get('customPropertyGetterType'), {
+        name: 'customPropertyGetterType',
+        type: 'boolean',
+        description: 'A boolean getter',
+        readOnly: true
+      });
+
+      assert.deepInclude(cls.properties.get('customPropertyWithGetterSetter'), {
+        name: 'customPropertyWithGetterSetter',
+        description: 'a property with a getter/setter',
+        readOnly: false
+      });
+
+      assert.deepInclude(cls.properties.get('customPropertyWithReadOnlyGetter'), {
+        name: 'customPropertyWithReadOnlyGetter',
+        readOnly: true
+      });
+
+      assert.deepInclude(cls.properties.get('customPropertyOnProto'), {
+        name: 'customPropertyOnProto',
+        type: 'string'
+      });
+
+      assert.deepInclude(cls.properties.get('customPropertyOnProtoValue'), {
+        name: 'customPropertyOnProtoValue',
+        type: 'number'
+      });
+
+      assert.deepInclude(cls.properties.get('customPropertyOnProtoDoc'), {
+        name: 'customPropertyOnProtoDoc',
+        description: 'A property',
+        type: '(boolean | number)',
+        privacy: 'private',
+        readOnly: true
+      });
+
+      assert.deepInclude(cls.properties.get('__customPropertyOnProtoPrivate'), {
+        name: '__customPropertyOnProtoPrivate',
+        privacy: 'private'
+      });
+
+      assert.deepEqual(await getTestProps(cls), {
+        name: 'Class',
+        description: '',
+        privacy: 'public',
+        properties: [
+          { name: 'customPropertyGetter' },
+          { name: 'customPropertyGetterType' },
+          { name: 'customPropertyWithGetterSetter' },
+          { name: 'customPropertyWithSetterFirst' },
+          { name: 'customPropertyWithReadOnlyGetter' },
+          { name: 'customPropertyWithValue' },
+          { name: 'customPropertyWithJSDoc' },
+          { name: 'customPropertyOnProto' },
+          { name: 'customPropertyOnProtoValue' },
+          { name: 'customPropertyOnProtoDoc' },
+          { name: '__customPropertyOnProtoPrivate' }
+        ]
+      });
+    });
+
+    test('finds methods', async () => {
       const classes = await getScannedClasses('class/class-methods.js');
       assert.deepEqual(await Promise.all(classes.map((c) => getTestProps(c))), [
         {
           name: 'Class',
           description: '',
           privacy: 'public',
+          properties: [
+            { name: 'customInstanceGetter' }
+          ],
           methods: [
             {
               name: 'customInstanceFunction',
@@ -217,12 +277,97 @@ suite('Class', () => {
               description: 'This is the description for\n' +
                   'customInstanceFunctionWithParamsAndPrivateJSDoc.',
             },
+            {
+              name: 'customInstanceFunctionWithRestParam',
+              description: 'This is the description for ' +
+                  'customInstanceFunctionWithRestParam.',
+              params: [
+                {
+                  name: 'a',
+                  type: 'Number',
+                  description: 'The first argument.',
+                },
+                {
+                  name: 'b',
+                  type: '...Number',
+                  rest: true,
+                  description: 'The second argument.',
+                }
+              ],
+              return: {
+                desc: 'The number 9, always.',
+                type: 'Number',
+              },
+            },
+            {
+              name: 'customInstanceFunctionWithParamDefault',
+              description: 'This is the description for ' +
+                  'customInstanceFunctionWithParamDefault.',
+              params: [
+                {
+                  name: 'a',
+                  type: 'Number',
+                  description: 'The first argument.',
+                },
+                {
+                  name: 'b',
+                  type: 'Number',
+                  defaultValue: '0',
+                  description: 'The second argument.',
+                }
+              ],
+              return: {
+                desc: 'The number 10, always.',
+                type: 'Number',
+              },
+            },
+            {
+              description: undefined,
+              name: 'customInstanceFunctionOnProto',
+              params: [
+                {
+                  description: 'a bool',
+                  name: 'foo',
+                  type: 'boolean'
+                }
+              ],
+              return: {
+                type: 'void'
+              }
+            },
+            {
+              description: undefined,
+              name: '__customInstanceFunctionOnProtoPrivate'
+            },
+            {
+              description: undefined,
+              name: 'customInstanceFunctionOnProtoWithBody'
+            },
+            {
+              description: 'Returns the sum of two numbers',
+              name: 'customInstanceFunctionOnProtoWithBodyDoc',
+              params: [
+                {
+                  description: 'some number',
+                  name: 'a',
+                  type: 'number'
+                },
+                {
+                  description: 'another number',
+                  name: 'b',
+                  type: 'number'
+                }
+              ],
+              return: {
+                type: 'number'
+              }
+            },
           ]
         },
       ]);
     });
 
-    test('deals with super classes correctly', async() => {
+    test('deals with super classes correctly', async () => {
       const classes = await getScannedClasses('class/super-class.js');
 
       assert.deepEqual(classes.map((f) => f.name), ['Base', 'Subclass']);
@@ -263,13 +408,13 @@ suite('Class', () => {
 
     const testName =
         'does not produce duplicate classes for elements or mixins';
-    test(testName, async() => {
+    test(testName, async () => {
       const scannedFeatures =
           await getScannedFeatures('class/more-specific-classes.js');
 
       // Ensures no duplicates
       assert.deepEqual(
-          scannedFeatures.map((f) => f.name),
+          scannedFeatures.map((f) => (f as any).name),
           ['Element', 'AnnotatedElement', 'Mixin', 'AnnotatedMixin']);
 
       // Ensures we get the more specific types
@@ -281,11 +426,10 @@ suite('Class', () => {
         'ScannedPolymerElementMixin'
       ]);
     });
-
   });
 
   suite('resolving', () => {
-    test('finds classes and their names and descriptions', async() => {
+    test('finds classes and their names and descriptions', async () => {
       const classes = await getClasses('class/class-names.js');
       assert.deepEqual(classes.map((c) => c.name), [
         'Declaration',
@@ -330,13 +474,16 @@ suite('Class', () => {
       ]);
     });
 
-    test('finds methods', async() => {
+    test('finds methods', async () => {
       const classes = await getClasses('class/class-methods.js');
       assert.deepEqual(await Promise.all(classes.map((c) => getTestProps(c))), [
         {
           name: 'Class',
           description: '',
           privacy: 'public',
+          properties: [
+            { name: 'customInstanceGetter' }
+          ],
           methods: [
             {
               name: 'customInstanceFunction',
@@ -387,12 +534,97 @@ suite('Class', () => {
               description: 'This is the description for\n' +
                   'customInstanceFunctionWithParamsAndPrivateJSDoc.',
             },
+            {
+              name: 'customInstanceFunctionWithRestParam',
+              description: 'This is the description for ' +
+                  'customInstanceFunctionWithRestParam.',
+              params: [
+                {
+                  name: 'a',
+                  type: 'Number',
+                  description: 'The first argument.',
+                },
+                {
+                  name: 'b',
+                  type: '...Number',
+                  rest: true,
+                  description: 'The second argument.',
+                }
+              ],
+              return: {
+                desc: 'The number 9, always.',
+                type: 'Number',
+              },
+            },
+            {
+              name: 'customInstanceFunctionWithParamDefault',
+              description: 'This is the description for ' +
+                  'customInstanceFunctionWithParamDefault.',
+              params: [
+                {
+                  name: 'a',
+                  type: 'Number',
+                  description: 'The first argument.',
+                },
+                {
+                  name: 'b',
+                  type: 'Number',
+                  defaultValue: '0',
+                  description: 'The second argument.',
+                }
+              ],
+              return: {
+                desc: 'The number 10, always.',
+                type: 'Number',
+              },
+            },
+            {
+              description: undefined,
+              name: 'customInstanceFunctionOnProto',
+              params: [
+                {
+                  description: 'a bool',
+                  name: 'foo',
+                  type: 'boolean'
+                }
+              ],
+              return: {
+                type: 'void'
+              }
+            },
+            {
+              description: undefined,
+              name: '__customInstanceFunctionOnProtoPrivate'
+            },
+            {
+              description: undefined,
+              name: 'customInstanceFunctionOnProtoWithBody'
+            },
+            {
+              description: 'Returns the sum of two numbers',
+              name: 'customInstanceFunctionOnProtoWithBodyDoc',
+              params: [
+                {
+                  description: 'some number',
+                  name: 'a',
+                  type: 'number'
+                },
+                {
+                  description: 'another number',
+                  name: 'b',
+                  type: 'number'
+                }
+              ],
+              return: {
+                type: 'number'
+              }
+            },
           ]
         },
       ]);
     });
 
-    test('deals with super classes correctly', async() => {
+    test('deals with super classes correctly', async () => {
       const classes = await getClasses('class/super-class.js');
 
       assert.deepEqual(classes.map((f) => f.name), ['Base', 'Subclass']);
@@ -438,13 +670,14 @@ suite('Class', () => {
 
     const testName =
         'does not produce duplicate classes for elements or mixins';
-    test(testName, async() => {
+    test(testName, async () => {
       const features = (await analyzer.analyze([
                          'class/more-specific-classes.js'
                        ])).getFeatures();
-      const interestingFeatures = Array.from(features).filter(
-          (f) => f instanceof Element || f instanceof ElementMixin ||
-              f instanceof Class) as Array<Element|ElementMixin|Class>;
+      const interestingFeatures =
+          Array.from(features).filter(
+              (f) => f instanceof Element || f instanceof ElementMixin ||
+                  f instanceof Class) as Array<Element|ElementMixin|Class>;
 
       // Ensures no duplicates
       assert.deepEqual(
@@ -460,6 +693,5 @@ suite('Class', () => {
         'PolymerElementMixin'
       ]);
     });
-
   });
 });

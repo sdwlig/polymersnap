@@ -14,45 +14,47 @@
 
 
 import {assert} from 'chai';
-import * as fs from 'fs';
-import * as path from 'path';
 
-import {Visitor} from '../../javascript/estree-visitor';
+import {Analyzer} from '../../core/analyzer';
 import {JavaScriptImportScanner} from '../../javascript/javascript-import-scanner';
-import {JavaScriptParser} from '../../javascript/javascript-parser';
+import {fixtureDir, runScanner} from '../test-utils';
 
 suite('JavaScriptImportScanner', () => {
+  const analyzer = Analyzer.createForDirectory(fixtureDir);
 
-  const parser = new JavaScriptParser();
-  const scanner = new JavaScriptImportScanner();
-
-  test('finds imports', async() => {
-    const file = fs.readFileSync(
-        path.resolve(__dirname, '../static/javascript/module.js'), 'utf8');
-    const document = parser.parse(file, '/static/javascript/module.js');
-
-    const visit = (visitor: Visitor) =>
-        Promise.resolve(document.visit([visitor]));
-
-    const {features} = await scanner.scan(document, visit);
-    assert.equal(features.length, 1);
-    assert.equal(features[0].type, 'js-import');
-    assert.equal(features[0].url, '/static/javascript/submodule.js');
+  test('finds imports', async () => {
+    const {features} = await runScanner(
+        analyzer, new JavaScriptImportScanner(), 'javascript/module.js');
+    assert.containSubset(features, [
+      {
+        type: 'js-import',
+        url: './submodule.js',
+        lazy: false,
+      },
+    ]);
   });
 
-  test('skips non-path imports', async() => {
-    const file = fs.readFileSync(
-        path.resolve(
-            __dirname, '../static/javascript/module-with-named-import.js'),
-        'utf8');
-    const document =
-        parser.parse(file, '/static/javascript/module-with-named-import.js');
+  test('finds dynamic imports', async () => {
+    const {features} = await runScanner(
+        analyzer,
+        new JavaScriptImportScanner(),
+        'javascript/dynamic-import.js');
 
-    const visit = (visitor: Visitor) =>
-        Promise.resolve(document.visit([visitor]));
+    assert.containSubset(features, [
+      {
+        type: 'js-import',
+        url: './submodule.js',
+        lazy: true,
+      },
+    ]);
+  });
 
-    const {features} = await scanner.scan(document, visit);
+  test('skips non-path imports', async () => {
+    const {features} = await runScanner(
+        analyzer,
+        new JavaScriptImportScanner(),
+        'javascript/module-with-named-import.js');
+
     assert.equal(features.length, 0);
   });
-
 });

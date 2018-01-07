@@ -12,14 +12,14 @@
  * http://polymer.github.io/PATENTS.txt
  */
 
-import * as estree from 'estree';
+import * as babel from 'babel-types';
 
 import * as jsdocLib from '../javascript/jsdoc';
 import {Document, Feature, Method, Privacy, Property, Reference, Resolvable, ScannedFeature, ScannedMethod, ScannedProperty, ScannedReference, Severity, SourceRange, Warning} from '../model/model';
 import {ParsedDocument} from '../parser/document';
 
 import {Demo} from './element-base';
-import {ImmutableMap} from './immutable';
+import {ImmutableMap, unsafeAsMutable} from './immutable';
 
 /**
  * Represents a JS class as encountered in source code.
@@ -37,7 +37,7 @@ export class ScannedClass implements ScannedFeature, Resolvable {
   readonly name: string|undefined;
   /** The name of the class in the local scope where it is defined. */
   readonly localName: string|undefined;
-  readonly astNode: estree.Node;
+  readonly astNode: babel.Node;
   readonly jsdoc: jsdocLib.Annotation;
   readonly description: string;
   readonly summary: string;
@@ -50,10 +50,10 @@ export class ScannedClass implements ScannedFeature, Resolvable {
   readonly abstract: boolean;
   readonly privacy: Privacy;
   readonly warnings: Warning[];
-  readonly demos: {desc?: string; path: string}[];
+  readonly demos: Demo[];
   constructor(
       className: string|undefined, localClassName: string|undefined,
-      astNode: estree.Node, jsdoc: jsdocLib.Annotation, description: string,
+      astNode: babel.Node, jsdoc: jsdocLib.Annotation, description: string,
       sourceRange: SourceRange, properties: Map<string, ScannedProperty>,
       methods: Map<string, ScannedMethod>,
       staticMethods: Map<string, ScannedMethod>,
@@ -80,6 +80,24 @@ export class ScannedClass implements ScannedFeature, Resolvable {
 
   resolve(document: Document): Feature|undefined {
     return new Class(this, document);
+  }
+
+  /**
+   * Allows additional properties and methods
+   * to be added to the class after initialization.
+   * For example, members found attached to the
+   * prototype at a later place in the document
+   */
+  finishInitialization(
+      methods: Map<string, ScannedMethod>,
+      properties: Map<string, ScannedProperty>) {
+    const mutableMethods = unsafeAsMutable(this.methods);
+    for (const [name, method] of methods) {
+      mutableMethods.set(name, method);
+    }
+    for (const [name, prop] of properties) {
+      this.properties.set(name, prop);
+    }
   }
 }
 

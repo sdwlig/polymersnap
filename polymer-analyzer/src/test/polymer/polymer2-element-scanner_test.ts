@@ -16,30 +16,22 @@
 import {assert, use as chaiUse} from 'chai';
 import * as path from 'path';
 
+import {Analyzer} from '../../core/analyzer';
 import {ClassScanner} from '../../javascript/class-scanner';
-import {Visitor} from '../../javascript/estree-visitor';
-import {JavaScriptParser} from '../../javascript/javascript-parser';
 import {ScannedPolymerElement} from '../../polymer/polymer-element';
-import {FSUrlLoader} from '../../url-loader/fs-url-loader';
-import {CodeUnderliner} from '../test-utils';
+import {CodeUnderliner, fixtureDir, runScanner} from '../test-utils';
 
 chaiUse(require('chai-subset'));
 
 suite('Polymer2ElementScanner', () => {
-  const testFilesDir = path.resolve(__dirname, '../static/polymer2/');
-  const urlLoader = new FSUrlLoader(testFilesDir);
-  const underliner = new CodeUnderliner(urlLoader);
+  const analyzer =
+      Analyzer.createForDirectory(path.resolve(fixtureDir, 'polymer2/'));
+  const underliner = new CodeUnderliner(analyzer);
 
   async function getElements(filename: string):
       Promise<ScannedPolymerElement[]> {
-    const file = await urlLoader.load(filename);
-    const parser = new JavaScriptParser();
-    const document = parser.parse(file, filename);
-    const scanner = new ClassScanner();
-    const visit = (visitor: Visitor) =>
-        Promise.resolve(document.visit([visitor]));
+    const {features} = await runScanner(analyzer, new ClassScanner(), filename);
 
-    const {features} = await scanner.scan(document, visit);
     return features.filter((e) => e instanceof ScannedPolymerElement) as
         ScannedPolymerElement[];
   };
@@ -109,7 +101,7 @@ suite('Polymer2ElementScanner', () => {
         properties: [{
           name: 'foo',
           description: 'The foo prop.',
-          type: '(m-test|function)',
+          type: '(m-test | function)',
         }],
         attributes: [{
           name: 'foo',
@@ -123,8 +115,11 @@ suite('Polymer2ElementScanner', () => {
         superClass: 'Polymer.Element',
         description: 'A very basic element',
         summary: 'A basic element',
-        properties:
-            [{name: 'foo', description: 'A base foo element.', type: 'string'}],
+        properties: [{
+          name: 'foo',
+          description: 'A base foo element.',
+          type: 'string | null | undefined'
+        }],
         attributes: [{
           name: 'foo',
         }],
@@ -251,7 +246,7 @@ class BaseElement extends Polymer.Element {
         properties: [{
           name: 'foo',
           description: '',
-          type: 'string',
+          type: 'string | null | undefined',
         }],
         attributes: [
           {
@@ -282,7 +277,7 @@ namespaced name.`,
         properties: [{
           name: 'foo',
           description: '',
-          type: 'string',
+          type: 'string | null | undefined',
         }],
         attributes: [{
           name: 'foo',
@@ -301,7 +296,7 @@ namespaced name.`,
         properties: [{
           name: 'foo',
           description: '',
-          type: 'string',
+          type: 'string | null | undefined',
         }],
         attributes: [{
           name: 'foo',
@@ -399,11 +394,17 @@ namespaced name.`,
             superClass: 'Polymer.Element',
             description: ``,
             summary: '',
-            properties: [{
-              name: 'foo',
-              description: '',
-              type: 'string',
-            }],
+            properties: [
+              {
+                name: 'customInstanceGetter',
+                description: undefined
+              },
+              {
+                name: 'foo',
+                description: '',
+                type: 'string | null | undefined',
+              }
+            ],
             attributes: [{
               name: 'foo',
             }],
@@ -428,9 +429,27 @@ namespaced name.`,
                 name: 'customInstanceFunctionWithParams',
                 description: '',
                 params: [
-                  {name: 'a', type: undefined, description: undefined},
-                  {name: 'b', type: undefined, description: undefined},
-                  {name: 'c', type: undefined, description: undefined}
+                  {
+                    name: 'a',
+                    type: undefined,
+                    defaultValue: undefined,
+                    rest: undefined,
+                    description: undefined
+                  },
+                  {
+                    name: 'b',
+                    type: undefined,
+                    defaultValue: undefined,
+                    rest: undefined,
+                    description: undefined
+                  },
+                  {
+                    name: 'c',
+                    type: undefined,
+                    defaultValue: undefined,
+                    rest: undefined,
+                    description: undefined
+                  }
                 ],
                 return: undefined,
               },
@@ -442,12 +461,22 @@ namespaced name.`,
                   {
                     name: 'a',
                     type: 'Number',
+                    defaultValue: undefined,
+                    rest: undefined,
                     description: 'The first argument',
                   },
-                  {name: 'b', type: 'Number', description: undefined},
+                  {
+                    name: 'b',
+                    type: 'Number',
+                    defaultValue: undefined,
+                    rest: undefined,
+                    description: undefined
+                  },
                   {
                     name: 'c',
                     type: 'Number',
+                    defaultValue: undefined,
+                    rest: undefined,
                     description: 'The third argument',
                   }
                 ],
@@ -481,7 +510,7 @@ namespaced name.`,
           properties: [
             {
               name: 'parseError',
-              type: 'string',
+              type: 'string | null | undefined',
               description: '',
               warningUnderlines: [
                 `
@@ -494,7 +523,7 @@ namespaced name.`,
             },
             {
               name: 'badKindOfExpression',
-              type: 'string',
+              type: 'string | null | undefined',
               description: '',
               propertiesInComputed: ['foo'],
               propertiesInObserver: ['foo', 'bar', 'baz'],
@@ -531,18 +560,21 @@ namespaced name.`,
   test('can identify elements registered with ClassName.is', async () => {
     const elements = await getElements('test-element-11.js');
     const elementData = await Promise.all(elements.map(getTestProps));
-    assert.deepEqual(
-        elementData, [{
-          attributes: [{name: 'prop1'}],
-          className: 'MyElement',
-          description: '',
-          methods: [],
-          properties: [{name: 'prop1', description: '', type: 'string'}],
-          summary: '',
-          superClass: 'Polymer.Element',
-          tagName: 'my-app',
-          warningUnderlines: [],
-        }]);
+    assert.deepEqual(elementData, [
+      {
+        attributes: [{name: 'prop1'}],
+        className: 'MyElement',
+        description: '',
+        methods: [],
+        properties: [
+          {name: 'prop1', description: '', type: 'string | null | undefined'}
+        ],
+        summary: '',
+        superClass: 'Polymer.Element',
+        tagName: 'my-app',
+        warningUnderlines: [],
+      }
+    ]);
   });
 
   test('can infer properties assigned to in the constructor', async () => {
@@ -561,7 +593,7 @@ namespaced name.`,
           {
             name: 'foo',
             description: 'This description lives in the constructor.',
-            type: 'string'
+            type: 'string | null | undefined'
           },
           {
             name: 'constructorOnly_',
@@ -579,7 +611,7 @@ namespaced name.`,
         name: 'foo',
         privacy: 'protected',
         description: 'This description lives in the constructor.',
-        type: 'string',
+        type: 'string | null | undefined',
         default: `'bar'`,
         published: true,
         notify: true,

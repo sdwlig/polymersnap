@@ -171,10 +171,11 @@
 
   const disabledLinkSelector = `link[rel=stylesheet][href][type=${importDisableType}]`;
 
-  const importDependenciesSelector = `${importSelector}, ${disabledLinkSelector},
-    style:not([type]), link[rel=stylesheet][href]:not([type]),
-    script:not([type]), script[type="application/javascript"],
-    script[type="text/javascript"]`;
+  const scriptsSelector = `script:not([type]),script[type="application/javascript"],` +
+    `script[type="text/javascript"]`;
+
+  const importDependenciesSelector = `${importSelector},${disabledLinkSelector},` +
+    `style:not([type]),link[rel=stylesheet][href]:not([type]),` + scriptsSelector;
 
   const importDependencyAttr = 'import-dependency';
 
@@ -182,8 +183,8 @@
 
   const pendingScriptsSelector = `script[${importDependencyAttr}]`;
 
-  const pendingStylesSelector = `style[${importDependencyAttr}],
-    link[rel=stylesheet][${importDependencyAttr}]`;
+  const pendingStylesSelector = `style[${importDependencyAttr}],` +
+    `link[rel=stylesheet][${importDependencyAttr}]`;
 
   /**
    * Importer will:
@@ -231,7 +232,7 @@
         // and fire the load/error event.
         const imp = this.documents[url];
         if (imp && imp['__loaded']) {
-          link.import = imp;
+          link['__import'] = imp;
           this.fireEventIfNeeded(link);
         }
         return;
@@ -283,8 +284,23 @@
         (document.createElement('template'));
       template.innerHTML = resource;
       if (template.content) {
-        // This creates issues in Safari10 when used with shadydom (see #12).
         content = template.content;
+        // Clone scripts inside templates since they won't execute when the
+        // hosting template is cloned.
+        const replaceScripts = (content) => {
+          forEach(content.querySelectorAll('template'), template => {
+            forEach(template.content.querySelectorAll(scriptsSelector), script => {
+              const clone = /** @type {!HTMLScriptElement} */
+                (document.createElement('script'));
+              forEach(script.attributes, attr => clone.setAttribute(attr.name, attr.value));
+              clone.textContent = script.textContent;
+              script.parentNode.insertBefore(clone, script);
+              script.parentNode.removeChild(script);
+            });
+            replaceScripts(template.content);
+          });
+        };
+        replaceScripts(content);
       } else {
         // <template> not supported, create fragment and move content into it.
         content = document.createDocumentFragment();
@@ -377,14 +393,13 @@
         (doc.querySelectorAll(importSelector));
       forEach(n$, n => {
         const imp = this.documents[n.href];
-        n.import = /** @type {!Document} */ (imp);
+        n['__import'] = /** @type {!Document} */ (imp);
         if (imp && imp.nodeType === Node.DOCUMENT_FRAGMENT_NODE) {
           // We set the .import to be the link itself, and update its readyState.
           // Other links with the same href will point to this link.
           this.documents[n.href] = n;
           n.readyState = 'loading';
-          // Suppress Closure warning about incompatible subtype assignment.
-          ( /** @type {!HTMLElement} */ (n).import = n);
+          n['__import'] = n;
           this.flatten(imp);
           n.appendChild(imp);
         }
@@ -639,6 +654,18 @@
     return doc;
   }
 
+  let importer = null;
+  /**
+   * Ensures imports contained in the element are imported.
+   * Use this to handle dynamic imports attached to body.
+   * @param {!(HTMLDocument|Element)} doc
+   */
+  const loadImports = (doc) => {
+    if (importer) {
+      importer.loadImports(doc);
+    }
+  };
+  
   const newCustomEvent = (type, params) => {
     if (typeof window.CustomEvent === 'function') {
       return new CustomEvent(type, params);
@@ -695,7 +722,18 @@
       enumerable: true
     });
 
-    whenDocumentReady(() => new Importer());
+    // Define 'import' read-only property.
+    Object.defineProperty(HTMLLinkElement.prototype, 'import', {
+      get() {
+        return /** @type {HTMLLinkElement} */ (this)['__import'] || null;
+      },
+      configurable: true,
+      enumerable: true
+    });
+
+    whenDocumentReady(() => {
+      importer = new Importer()
+    });
   }
 
   /**
@@ -719,5 +757,6 @@
   scope.useNative = useNative;
   scope.whenReady = whenReady;
   scope.importForElement = importForElement;
+  scope.loadImports = loadImports;
 
 })(window.HTMLImports = (window.HTMLImports || {}));

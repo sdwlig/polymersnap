@@ -16,7 +16,7 @@ import {assert} from 'chai';
 
 import {PrefixedUrlLoader} from '../../url-loader/prefixed-url-loader';
 import {UrlLoader} from '../../url-loader/url-loader';
-import {invertPromise} from '../test-utils';
+import {invertPromise, resolvedUrl} from '../test-utils';
 
 class MockLoader implements UrlLoader {
   canLoadUrls: string[];
@@ -45,13 +45,11 @@ class MockLoader implements UrlLoader {
 }
 
 suite('PrefixedUrlLoader', () => {
-
   suite('canLoad', () => {
-
     test('canLoad is true if the url starts with prefix', () => {
       const delegate = new MockLoader('stuff');
       const loader = new PrefixedUrlLoader('path/to/stuff/', delegate);
-      assert.isTrue(loader.canLoad('path/to/stuff/file.html'));
+      assert.isTrue(loader.canLoad(resolvedUrl`path/to/stuff/file.html`));
       // Delegate receives an unprefixed url to check.
       assert.deepEqual(delegate.canLoadUrls, ['file.html']);
     });
@@ -59,7 +57,7 @@ suite('PrefixedUrlLoader', () => {
     test('canLoad is false if the url does not start with prefix', () => {
       const delegate = new MockLoader('stuff');
       const loader = new PrefixedUrlLoader('path/to/stuff/', delegate);
-      assert.isFalse(loader.canLoad('path/to/other/file.html'));
+      assert.isFalse(loader.canLoad(resolvedUrl`path/to/other/file.html`));
       // Delegate is not consulted.
       assert.deepEqual(delegate.canLoadUrls, []);
     });
@@ -67,26 +65,27 @@ suite('PrefixedUrlLoader', () => {
     test('canLoad is false if the delgate loader says it is', () => {
       const delegate = new MockLoader(null);
       const loader = new PrefixedUrlLoader('path/to/stuff/', delegate);
-      assert.isFalse(loader.canLoad('path/to/stuff/file.html'));
+      assert.isFalse(loader.canLoad(resolvedUrl`path/to/stuff/file.html`));
       // Delegate receives an unprefixed url to check.
       assert.deepEqual(delegate.canLoadUrls, ['file.html']);
     });
   });
 
   suite('load', () => {
-
-    test('load returns content if url starts with prefix', async() => {
+    test('load returns content if url starts with prefix', async () => {
       const delegate = new MockLoader('stuff');
       const loader = new PrefixedUrlLoader('path/to/stuff/', delegate);
-      assert.deepEqual(await loader.load('path/to/stuff/file.html'), 'stuff');
+      assert.deepEqual(
+          await loader.load(resolvedUrl`path/to/stuff/file.html`), 'stuff');
       // Delegate receives an unprefixed url to load.
       assert.deepEqual(delegate.loadUrls, ['file.html']);
     });
 
-    test('load throws error if url does not start with prefix', async() => {
+    test('load throws error if url does not start with prefix', async () => {
       const delegate = new MockLoader('stuff');
       const loader = new PrefixedUrlLoader('path/to/stuff/', delegate);
-      const error = await invertPromise(loader.load('path/to/other/file.html'));
+      const error = await invertPromise(
+          loader.load(resolvedUrl`path/to/other/file.html`));
       assert.instanceOf(error, Error);
       assert.deepEqual(
           error.message,
@@ -95,17 +94,18 @@ suite('PrefixedUrlLoader', () => {
       assert.deepEqual(delegate.loadUrls, []);
     });
 
-    test('load passes on delegate error if url starts with prefix', async() => {
-      const delegate = new MockLoader(null);
-      const loader = new PrefixedUrlLoader('path/to/stuff/', delegate);
-      const error = await invertPromise(loader.load('path/to/stuff/file.html'));
-      assert.instanceOf(error, Error);
-      assert.deepEqual(
-          error.message,
-          'Tried to load "file.html", and delegate can\'t load it.');
-      // Delegate was asked.
-      assert.deepEqual(delegate.loadUrls, ['file.html']);
-
-    });
+    test(
+        'load passes on delegate error if url starts with prefix', async () => {
+          const delegate = new MockLoader(null);
+          const loader = new PrefixedUrlLoader('path/to/stuff/', delegate);
+          const error = await invertPromise(
+              loader.load(resolvedUrl`path/to/stuff/file.html`));
+          assert.instanceOf(error, Error);
+          assert.deepEqual(
+              error.message,
+              'Tried to load "file.html", and delegate can\'t load it.');
+          // Delegate was asked.
+          assert.deepEqual(delegate.loadUrls, ['file.html']);
+        });
   });
 });

@@ -53,20 +53,25 @@
 
       /* Spec label */
 
-      div[label] {
+      [spec] {
         flex: 0 0 170px;
+        display: flex;
         margin-right: 16px;
+        color: var(--theme-blue-small);
+      }
+
+      [spec] div[label] {
         display: flex;
         align-items: center;
       }
 
-      div[label] svg {
+      [spec] svg {
         width: 26px;
         margin-right: 8px;
         fill: var(--theme-blue-grey, #697785);
       }
 
-      div[label]:after {
+      [spec] div[label]:after {
         content: attr(label);
         display: inline-block;
       }
@@ -79,13 +84,13 @@
         align-items: center;
       }
 
-      .row > :not([label]) {
+      .row > :not([spec]) {
         flex: 1 1 60px;
         padding: 8px 0;
         font-weight: bold;
       }
 
-      div.header > div.row > div:not([label]), div.row [title] {
+      div.header > div.row > div:not([spec]), div.row [title] {
         display: flex;
         align-items: center;
         margin: 8px 0;
@@ -102,7 +107,7 @@
         margin-right: 8px;
       }
 
-      div:not(.header) > div.row > :not([title]):not([label]) {
+      div:not(.header) > div.row > :not([title]):not([spec]) {
         flex-direction: column;
       }
 
@@ -150,7 +155,7 @@
           margin: 0 24px;
           width: auto;
         }
-        
+
         [title="Stable"]:after,
         [title="Polyfill"]:after,
         [title="On hold"]:after,
@@ -203,31 +208,32 @@
       <div class="header">
         <h1 label>Browser support</h1>
         <div class="row">
-          <div label=""></div>
           <div>
-            <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/c/ca/Google_Chrome_for_Android_Icon_2016.svg/48px-Google_Chrome_for_Android_Icon_2016.svg.png">
+            <img src="/assets/chrome.png">
             <span>Chrome</span>
           </div>
           <div>
-            <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/4/49/Opera_2015_icon.svg/48px-Opera_2015_icon.svg.png">
+            <img src="/assets/opera.png">
             <span>Opera</span>
           </div>
           <div>
-            <img src="https://upload.wikimedia.org/wikipedia/en/6/61/Apple_Safari.png">
+            <img src="/assets/safari.png">
             <span>Safari</span>
           </div>
           <div>
-            <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/7/76/Mozilla_Firefox_logo_2013.svg/48px-Mozilla_Firefox_logo_2013.svg.png">
+            <img src="/assets/firefox.png">
             <span>Firefox</span>
           </div>
           <div>
-            <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/d/d6/Microsoft_Edge_logo.svg/48px-Microsoft_Edge_logo.svg.png">
+            <img src="/assets/edge.png">
             <span>Edge</span>
           </div>
         </div>
       </div>
       <div class="row">
-        <div label="Templates"><svg viewBox="0 0 26 22"><use xlink:href="/sprite.octicons.svg#template"></use></svg></div>
+        <a spec href="https://html.spec.whatwg.org/multipage/scripting.html#the-template-element" target="_blank" rel="noopener">
+          <div label="Templates"><svg viewBox="0 0 26 22"><use xlink:href="/sprite.octicons.svg#template"></use></svg></div>
+        </a>
         <a title="Stable" href="https://www.chromestatus.com/feature/5207287069147136"></a>
         <a title="Stable" href="https://www.chromestatus.com/feature/5207287069147136"></a>
         <a title="Stable" href="https://webkit.org/status/#feature-template-element"></a>
@@ -235,7 +241,9 @@
         <a title="Stable" href="https://developer.microsoft.com/en-us/microsoft-edge/platform/status/templateelement/"></a>
       </div>
       <div class="row">
-        <div label="Custom elements"><svg viewBox="0 0 26 22"><use xlink:href="/sprite.octicons.svg#element"></use></svg></div>
+        <a spec href="https://w3c.github.io/webcomponents/spec/custom/" target="_blank" rel="noopener">
+          <div label="Custom elements"><svg viewBox="0 0 26 22"><use xlink:href="/sprite.octicons.svg#element"></use></svg></div>
+        </a>
         <a title="Stable" href="https://www.chromestatus.com/feature/4696261944934400"></a>
         <a title="Stable" href="https://www.chromestatus.com/feature/4696261944934400"></a>
         <a title="Stable" href="https://webkit.org/status/#feature-custom-elements"></a>
@@ -249,11 +257,13 @@
         </a>
       </div>
       <div class="row">
-        <div label="Shadow DOM"><svg viewBox="0 0 26 22"><use xlink:href="/sprite.octicons.svg#shadow"></use></svg></div>
+        <a spec href="https://w3c.github.io/webcomponents/spec/shadow/" target="_blank" rel="noopener">
+          <div label="Shadow DOM"><svg viewBox="0 0 26 22"><use xlink:href="/sprite.octicons.svg#shadow"></use></svg></div>
+        </a>
         <a title="Stable" href="https://www.chromestatus.com/feature/4667415417847808"></a>
         <a title="Stable" href="https://www.chromestatus.com/feature/4667415417847808"></a>
         <a title="Stable" href="https://webkit.org/status/#feature-shadow-dom"></a>
-        <a href="https://bugzilla.mozilla.org/show_bug.cgi?id=1240072">
+        <a href="https://platform-status.mozilla.org/#shadow-dom">
           <div title="Polyfill"></div>
           <div title="Developing"></div>
         </a>
@@ -263,15 +273,19 @@
         </a>
       </div>
       <div class="row">
-        <div label='<script type="module">'><svg viewBox="0 0 26 22"><use xlink:href="/sprite.octicons.svg#import"></use></svg></div>
+        <a spec href="https://html.spec.whatwg.org/multipage/webappapis.html#integration-with-the-javascript-module-system" target="_blank" rel="noopener">
+          <div label='<script type="module">'><svg viewBox="0 0 26 22"><use xlink:href="/sprite.octicons.svg#import"></use></svg></div>
+        </a>
         <a title="Stable" href="https://www.chromestatus.com/feature/5365692190687232"></a>
         <a title="Stable" href="https://www.chromestatus.com/feature/5684934484164608"></a>
-        <a type="Stable" title href="https://webkit.org/status/#feature-modules">10.1</a>
+        <a title="Stable" href="https://webkit.org/status/#feature-modules"></a>
         <a type="Developing" title href="https://developer.mozilla.org/en-US/Firefox/Experimental_features#JavaScript">Flag in 54</a>
-        <a type="Developing" title href="https://developer.microsoft.com/en-us/microsoft-edge/platform/status/moduleses6/">Flag in 15</a>
+        <a title="Stable" href="https://developer.microsoft.com/en-us/microsoft-edge/platform/status/moduleses6/"></a>
       </div>
       <div class="row">
-        <div label="HTML imports"><svg viewBox="0 0 26 22"><use xlink:href="/sprite.octicons.svg#import"></use></svg></div>
+        <a spec href="https://w3c.github.io/webcomponents/spec/imports/" target="_blank" rel="noopener">
+          <div label="HTML imports"><svg viewBox="0 0 26 22"><use xlink:href="/sprite.octicons.svg#import"></use></svg></div>
+        </a>
         <a title="Stable" href="https://www.chromestatus.com/feature/5144752345317376"></a>
         <a title="Stable" href="https://www.chromestatus.com/feature/5144752345317376"></a>
         <a href="https://webkit.org/status/#feature-html-imports">

@@ -14,13 +14,14 @@
 
 import * as fs from 'fs';
 import * as pathlib from 'path';
-import {Url} from 'url';
+import Uri from 'vscode-uri';
 
-import {parseUrl} from '../core/utils';
+import {isPathInside} from '../core/utils';
+import {ResolvedUrl} from '../index';
+import {Result} from '../model/analysis';
+import {PackageRelativeUrl} from '../model/url';
 
 import {UrlLoader} from './url-loader';
-
-
 
 /**
  * Resolves requests via the file system.
@@ -28,26 +29,25 @@ import {UrlLoader} from './url-loader';
 export class FSUrlLoader implements UrlLoader {
   root: string;
 
-  constructor(root?: string) {
-    this.root = root || '';
+  constructor(root: string = '') {
+    if (root.endsWith('/')) {
+      root += '/';
+    }
+    this.root = pathlib.resolve(root);
   }
 
-  canLoad(url: string): boolean {
-    const urlObject = parseUrl(url);
-    const pathname =
-        pathlib.normalize(decodeURIComponent(urlObject.pathname || ''));
-    return this._isValid(urlObject, pathname);
+  canLoad(url: ResolvedUrl): boolean {
+    return url.startsWith('file:///');
   }
 
-  private _isValid(urlObject: Url, pathname: string) {
-    return (urlObject.protocol === 'file' || !urlObject.hostname) &&
-        !pathname.startsWith('../');
-  }
-
-  load(url: string): Promise<string> {
+  load(url: ResolvedUrl): Promise<string> {
     return new Promise((resolve, reject) => {
-      const filepath = this.getFilePath(url);
-      fs.readFile(filepath, 'utf8', (error: Error, contents: string) => {
+      const result = this.getFilePath(url);
+      if (!result.successful) {
+        throw new Error(`FSUrlLoader can not load url ${
+            JSON.stringify(url)} - ${result.error}`);
+      }
+      fs.readFile(result.value, 'utf8', (error: Error, contents: string) => {
         if (error) {
           reject(error);
         } else {
@@ -57,17 +57,28 @@ export class FSUrlLoader implements UrlLoader {
     });
   }
 
-  getFilePath(url: string): string {
-    const urlObject = parseUrl(url);
-    const pathname =
-        pathlib.normalize(decodeURIComponent(urlObject.pathname || ''));
-    if (!this._isValid(urlObject, pathname)) {
-      throw new Error(`Invalid URL ${url}`);
+  /**
+   * If successful, result.value will be the filesystem path that we would load
+   * the given url from.
+   *
+   * If unsuccessful, result.value will be an error message as a string.
+   */
+  getFilePath(url: ResolvedUrl): Result<string, string> {
+    if (!this.canLoad(url)) {
+      return {successful: false, error: 'Not a local file:// url.'};
     }
-    return this.root ? pathlib.join(this.root, pathname) : pathname;
+    const path = Uri.parse(url).fsPath;
+    if (!isPathInside(this.root, path)) {
+      return {
+        successful: false,
+        error: `Path is not inside root directory: ${JSON.stringify(this.root)}`
+      };
+    }
+    return {successful: true, value: path};
   }
 
-  async readDirectory(pathFromRoot: string, deep?: boolean): Promise<string[]> {
+  async readDirectory(pathFromRoot: string, deep?: boolean):
+      Promise<PackageRelativeUrl[]> {
     const files = await new Promise<string[]>((resolve, reject) => {
       fs.readdir(
           pathlib.join(this.root, pathFromRoot),
@@ -86,13 +97,13 @@ export class FSUrlLoader implements UrlLoader {
           subDirResultPromises.push(this.readDirectory(file, deep));
         }
       } else {
-        results.push(file);
+        results.push(file as PackageRelativeUrl);
       }
     }
     const arraysOfFiles = await Promise.all(subDirResultPromises);
     for (const dirResults of arraysOfFiles) {
       for (const file of dirResults) {
-        results.push(file);
+        results.push(file as PackageRelativeUrl);
       }
     }
     return results;

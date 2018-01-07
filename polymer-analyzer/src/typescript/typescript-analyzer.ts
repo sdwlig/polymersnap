@@ -18,6 +18,8 @@ import * as ts from 'typescript';
 
 import {AnalysisContext} from '../core/analysis-context';
 import {LanguageAnalyzer} from '../core/language-analyzer';
+import {PackageRelativeUrl, ResolvedUrl} from '../model/url';
+
 import {ParsedTypeScriptDocument} from './typescript-document';
 
 const _compilerOptions: ts.CompilerOptions = {
@@ -80,7 +82,7 @@ class AnalyzerCompilerHost implements ts.CompilerHost {
   }
 
   getSourceFile(
-      fileName: string, languageVersion: ts.ScriptTarget,
+      fileName: PackageRelativeUrl, languageVersion: ts.ScriptTarget,
       onError?: (message: string) => void): ts.SourceFile {
     if (isLibraryPath(fileName)) {
       const libSource = getLibrarySource(fileName);
@@ -93,7 +95,8 @@ class AnalyzerCompilerHost implements ts.CompilerHost {
       // This method will be called during analysis, but after all files
       // in the dependency graph have been loaded, so it can call a synchronous
       // method to get the source of a file.
-      const scannedDocument = this.context._getScannedDocument(fileName);
+      const scannedDocument =
+          this.context._getScannedDocument(this._failSafeResolveUrl(fileName));
       if (scannedDocument != null) {
         const typescriptDocument =
             scannedDocument.document as ParsedTypeScriptDocument;
@@ -115,7 +118,7 @@ class AnalyzerCompilerHost implements ts.CompilerHost {
             _data: string,
             _writeByteOrderMark: boolean,
             _onError?: (message: string) => void,
-            _sourceFiles?: ts.SourceFile[]): void => {
+            _sourceFiles?: ReadonlyArray<ts.SourceFile>): void => {
       throw new Error('unsupported operation');
     };
   }
@@ -130,8 +133,8 @@ class AnalyzerCompilerHost implements ts.CompilerHost {
     return [''];
   }
 
-  getCanonicalFileName(fileName: string) {
-    return this.context.resolveUrl(fileName);
+  getCanonicalFileName(fileName: PackageRelativeUrl) {
+    return this._failSafeResolveUrl(fileName);
   }
 
   getNewLine() {
@@ -142,15 +145,15 @@ class AnalyzerCompilerHost implements ts.CompilerHost {
     return true;
   }
 
-  fileExists(fileName: string) {
-    const resolvedUrl = this.context.resolveUrl(fileName);
+  fileExists(fileName: PackageRelativeUrl) {
+    const resolvedUrl = this._failSafeResolveUrl(fileName);
     return isLibraryPath(resolvedUrl) &&
         getLibrarySource(resolvedUrl) != null ||
         this.context._getScannedDocument(resolvedUrl) != null;
   }
 
-  readFile(fileName: string): string {
-    const resolvedUrl = this.context.resolveUrl(fileName);
+  readFile(fileName: PackageRelativeUrl): string {
+    const resolvedUrl = this._failSafeResolveUrl(fileName);
     if (isLibraryPath(resolvedUrl)) {
       const libPath = require.resolve(`typescript/lib/${fileName}`);
       return fs.readFileSync(libPath, {encoding: 'utf-8'});
@@ -168,9 +171,21 @@ class AnalyzerCompilerHost implements ts.CompilerHost {
         return {resolvedFileName: null as any as string};
       }
       // since we have a path, we can simply resolve it
-      const fileName = path.resolve(path.dirname(containingFile), moduleName);
-      const resolvedFileName = this.context.resolveUrl(fileName);
+      const fileName = path.resolve(path.dirname(containingFile), moduleName) as
+          PackageRelativeUrl;
+      const resolvedFileName = this._failSafeResolveUrl(fileName);
       return {resolvedFileName};
     });
+  }
+
+  /**
+   * Resolves the given url.
+   *
+   * If the url is unresolvable, the given unresolved URL is returned as a
+   * resolved URL.
+   */
+  private _failSafeResolveUrl(url: string): ResolvedUrl {
+    const resolved = this.context.resolver.resolve(url as PackageRelativeUrl);
+    return resolved === undefined ? url as any as ResolvedUrl : resolved;
   }
 }

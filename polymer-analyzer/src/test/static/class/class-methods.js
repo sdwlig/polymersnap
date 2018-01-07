@@ -46,4 +46,48 @@ class Class {
   customInstanceFunctionWithParamsAndPrivateJSDoc() {
     return 8;
   }
+
+  /**
+   * This is the description for customInstanceFunctionWithRestParam.
+   * @param {Number} a The first argument.
+   * @param {...Number} b The second argument.
+   * @returns {Number} - The number 9, always.
+   */
+  customInstanceFunctionWithRestParam(a, ...b) {
+    return 9;
+  }
+
+  /**
+   * This is the description for customInstanceFunctionWithParamDefault.
+   * @param {Number} a The first argument.
+   * @param {Number} b The second argument.
+   * @returns {Number} - The number 10, always.
+   */
+  customInstanceFunctionWithParamDefault(a, b = 0) {
+    return 10;
+  }
+}
+
+/**
+ * @param {boolean} foo a bool
+ * @return {void}
+ * @function
+ */
+Class.prototype.customInstanceFunctionOnProto;
+
+/** @function */
+Class.prototype.__customInstanceFunctionOnProtoPrivate;
+
+Class.prototype.customInstanceFunctionOnProtoWithBody = function() {
+  return true;
+};
+
+/**
+ * Returns the sum of two numbers
+ * @param {number} a some number
+ * @param {number} b another number
+ * @return {number}
+ */
+Class.prototype.customInstanceFunctionOnProtoWithBodyDoc = function(a, b) {
+  return a + b;
 }

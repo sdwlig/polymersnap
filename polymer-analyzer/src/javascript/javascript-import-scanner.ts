@@ -12,10 +12,10 @@
  * http://polymer.github.io/PATENTS.txt
  */
 
-import * as estree from 'estree';
-import {resolve as resolveUrl} from 'url';
+import * as babel from 'babel-types';
 
 import {ScannedImport} from '../model/model';
+import {FileRelativeUrl} from '../model/url';
 
 import {Visitor} from './estree-visitor';
 import {JavaScriptDocument} from './javascript-document';
@@ -28,16 +28,42 @@ export class JavaScriptImportScanner implements JavaScriptScanner {
     const imports: ScannedImport[] = [];
 
     await visit({
-      enterImportDeclaration(node: estree.ImportDeclaration, _: estree.Node) {
-        const source = node.source.value as string;
+      enterCallExpression(node: babel.CallExpression, _: babel.Node) {
+        // TODO(usergenic): There's no babel.Import type or babel.isImport()
+        // function right now, we have to just check the type property
+        // here until there is; please change to use babel.isImport(node.callee)
+        // once it is a thing.
+        if (node.callee.type as string !== 'Import') {
+          return;
+        }
+        const arg = node.arguments[0]! as any;
+        if (!arg) {
+          // TODO(usergenic): push a warning
+          return;
+        }
+        const source = arg.value as FileRelativeUrl;
+        if (!isPathImport(source)) {
+          // TODO(usergenic): push a warning
+          return;
+        }
+        imports.push(new ScannedImport(
+            'js-import',
+            source,
+            document.sourceRangeForNode(node)!,
+            document.sourceRangeForNode(node.callee)!,
+            node,
+            true));
+      },
+
+      enterImportDeclaration(node: babel.ImportDeclaration, _: babel.Node) {
+        const source = node.source.value as FileRelativeUrl;
         if (!isPathImport(source)) {
           // TODO(justinfagnani): push a warning
           return;
         }
-        const importUrl = resolveUrl(document.url, source);
         imports.push(new ScannedImport(
             'js-import',
-            importUrl,
+            source,
             document.sourceRangeForNode(node)!,
             document.sourceRangeForNode(node.source)!,
             node,

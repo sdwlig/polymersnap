@@ -16,46 +16,43 @@
 import {assert} from 'chai';
 import * as path from 'path';
 
-import {Visitor} from '../../javascript/estree-visitor';
+import {Analyzer} from '../../core/analyzer';
 import {ScannedFunction} from '../../javascript/function';
 import {FunctionScanner} from '../../javascript/function-scanner';
-import {JavaScriptParser} from '../../javascript/javascript-parser';
-import {FSUrlLoader} from '../../url-loader/fs-url-loader';
-
-import {CodeUnderliner} from '../test-utils';
+import {CodeUnderliner, fixtureDir, runScanner} from '../test-utils';
 
 suite('FunctionScanner', () => {
-  const testFilesDir = path.resolve(__dirname, '../static/namespaces/');
-  const urlLoader = new FSUrlLoader(testFilesDir);
-  const underliner = new CodeUnderliner(urlLoader);
+  const testFilesDir = path.resolve(fixtureDir, 'namespaces/');
+  const analyzer = Analyzer.createForDirectory(testFilesDir);
+  const underliner = new CodeUnderliner(analyzer);
 
-  async function getNamespaceFunctions(filename: string): Promise<any[]> {
-    const file = await urlLoader.load(filename);
-    const parser = new JavaScriptParser();
-    const document = parser.parse(file, filename);
-    const scanner = new FunctionScanner();
-    const visit = (visitor: Visitor) =>
-        Promise.resolve(document.visit([visitor]));
-    const {features} = await scanner.scan(document, visit);
-    return <ScannedFunction[]>features.filter(
-        (e) => e instanceof ScannedFunction);
+  async function getNamespaceFunctions(filename: string) {
+    const {features} =
+        await runScanner(analyzer, new FunctionScanner(), filename);
+    const scannedFunctions = [];
+    for (const feature of features) {
+      if (feature instanceof ScannedFunction) {
+        scannedFunctions.push(feature);
+      }
+    }
+    return scannedFunctions;
   };
 
 
-  async function getTestProps(fn: ScannedFunction):
-      Promise<any> {
-        return {
-          name: fn.name,
-          description: fn.description,
-          summary: fn.summary,
-          warnings: fn.warnings,
-          params: fn.params, return: fn.return,
-          codeSnippet: await underliner.underline(fn.sourceRange),
-          privacy: fn.privacy
-        };
-      }
+  async function getTestProps(fn: ScannedFunction): Promise<any> {
+    return {
+      name: fn.name,
+      description: fn.description,
+      summary: fn.summary,
+      warnings: fn.warnings,
+      params: fn.params,
+      return: fn.return,
+      codeSnippet: await underliner.underline(fn.sourceRange),
+      privacy: fn.privacy
+    };
+  }
 
-  test('scans', async() => {
+  test('handles @memberof annotation', async () => {
     const namespaceFunctions =
         await getNamespaceFunctions('memberof-functions.js');
     const functionData =
@@ -71,7 +68,8 @@ suite('FunctionScanner', () => {
           name: 'a',
           type: 'Number',
         }],
-        privacy: 'public', return: undefined,
+        privacy: 'public',
+        return: undefined,
         codeSnippet: `
 function aaa(a) {
 ~~~~~~~~~~~~~~~~~
@@ -85,7 +83,8 @@ function aaa(a) {
         description: 'bbb',
         summary: '',
         warnings: [],
-        params: [], return: undefined,
+        params: [],
+        return: undefined,
         privacy: 'public',
         codeSnippet: `
 Polymer.bbb = function bbb() {
@@ -100,7 +99,8 @@ Polymer.bbb = function bbb() {
         description: 'ccc',
         summary: '',
         warnings: [],
-        params: [], return: undefined,
+        params: [],
+        return: undefined,
         privacy: 'protected',
         codeSnippet: `
   function ccc() {
@@ -114,7 +114,8 @@ Polymer.bbb = function bbb() {
         summary: '',
         warnings: [],
         privacy: 'protected',
-        params: [], return: undefined,
+        params: [],
+        return: undefined,
         codeSnippet: `
   _ddd: function() {
   ~~~~~~~~~~~~~~~~~~
@@ -128,7 +129,8 @@ Polymer.bbb = function bbb() {
         description: 'eee',
         summary: '',
         warnings: [],
-        params: [], return: undefined,
+        params: [],
+        return: undefined,
         privacy: 'private',
         codeSnippet: `
   eee: () => {},
@@ -139,7 +141,8 @@ Polymer.bbb = function bbb() {
         description: 'fff',
         summary: '',
         warnings: [],
-        params: [], return: undefined,
+        params: [],
+        return: undefined,
         privacy: 'public',
         codeSnippet: `
   fff() {
@@ -154,7 +157,8 @@ Polymer.bbb = function bbb() {
         description: 'ggg',
         summary: '',
         warnings: [],
-        params: [], return: undefined,
+        params: [],
+        return: undefined,
         privacy: 'public',
         codeSnippet: `
   ggg: someFunction,
@@ -165,7 +169,8 @@ Polymer.bbb = function bbb() {
         description: 'hhh_ should be private',
         summary: '',
         warnings: [],
-        params: [], return: undefined,
+        params: [],
+        return: undefined,
         privacy: 'private',
         codeSnippet: `
   hhh_: someOtherFunc,
@@ -176,7 +181,8 @@ Polymer.bbb = function bbb() {
         description: '__iii should be private too',
         summary: '',
         warnings: [],
-        params: [], return: undefined,
+        params: [],
+        return: undefined,
         privacy: 'private',
         codeSnippet: `
   __iii() { },
@@ -187,7 +193,8 @@ Polymer.bbb = function bbb() {
         description: 'jjj',
         summary: '',
         warnings: [],
-        params: [], return: undefined,
+        params: [],
+        return: undefined,
         privacy: 'public',
         codeSnippet: `
 var jjj = function() {
@@ -197,6 +204,23 @@ var jjj = function() {
 };
 ~~`,
       },
+    ]);
+  });
+
+  test('handles @global, @memberof, @function annotations', async () => {
+    const functions = await getNamespaceFunctions('annotated-functions.js');
+    assert.deepEqual(functions.map((fn) => fn.name), [
+      'globalFn',
+      'SomeNamespace.memberofFn',
+      'overrideNameFn',
+    ]);
+  });
+
+  test('handles @template annotation', async () => {
+    const functions = await getNamespaceFunctions('templated-functions.js');
+    assert.deepEqual(functions.map((fn) => [fn.name, fn.templateTypes]), [
+      ['templateFn', ['T']],
+      ['multiTemplateFn', ['A', 'B', 'C']],
     ]);
   });
 });

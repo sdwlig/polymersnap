@@ -19,9 +19,7 @@ import * as path from 'path';
 import {Analysis} from '../../analysis-format/analysis-format';
 import {generateAnalysis, validateAnalysis, ValidationError} from '../../analysis-format/generate-analysis';
 import {Analyzer} from '../../core/analyzer';
-import {Analysis as AnalysisResult} from '../../model/analysis';
-import {FSUrlLoader} from '../../url-loader/fs-url-loader';
-import {PackageUrlResolver} from '../../url-loader/package-url-resolver';
+import {fileRelativeUrl, fixtureDir} from '../test-utils';
 
 const onlyTests = new Set<string>([]);  // Should be empty when not debugging.
 
@@ -30,14 +28,10 @@ const onlyTests = new Set<string>([]);  // Should be empty when not debugging.
 const skipTests = new Set<string>(['bower_packages', 'nested-packages']);
 
 
-const fixturesDir = path.join(__dirname, '..', 'static');
-
 suite('generate-analysis', () => {
-
   suite('generateAnalysisMetadata', () => {
-
     suite('generates for Document array from fixtures', () => {
-      const basedir = path.join(fixturesDir, 'analysis');
+      const basedir = path.join(fixtureDir, 'analysis');
       const analysisFixtureDirs =
           fs.readdirSync(basedir)
               .map((p) => path.join(basedir, p))
@@ -53,9 +47,10 @@ suite('generate-analysis', () => {
         const testName = `produces a correct analysis.json ` +
             `for fixture dir \`${testBaseName}\``;
 
-        testDefiner(testName, async() => {
+        testDefiner(testName, async () => {
           // Test body here:
-          const documents = await analyzeDir(analysisFixtureDir);
+          const {analysis: documents, analyzer} =
+              await analyzeDir(analysisFixtureDir);
 
           const packages = new Set<string>(mapI(
               filterI(
@@ -68,11 +63,8 @@ suite('generate-analysis', () => {
           }
           for (const packagePath of packages) {
             const pathToGolden = path.join(packagePath || '', 'analysis.json');
-            const renormedPackagePath = packagePath ?
-                packagePath.substring(analysisFixtureDir.length + 1) :
-                packagePath;
             const analysisWithUndefineds =
-                generateAnalysis(documents, renormedPackagePath);
+                generateAnalysis(documents, analyzer.urlResolver);
             validateAnalysis(analysisWithUndefineds);
             const analysis = JSON.parse(JSON.stringify(analysisWithUndefineds));
 
@@ -80,7 +72,7 @@ suite('generate-analysis', () => {
                 JSON.parse(fs.readFileSync(pathToGolden, 'utf-8'));
 
             try {
-              const shortPath = path.relative(fixturesDir, pathToGolden);
+              const shortPath = path.relative(fixtureDir, pathToGolden);
               assert.deepEqual(
                   analysis,
                   golden,
@@ -98,38 +90,29 @@ suite('generate-analysis', () => {
     });
 
     suite('generates from package', () => {
-
-      test('does not include external features', async() => {
-        const basedir = path.resolve(fixturesDir, 'analysis/bower_packages');
-        const analyzer = new Analyzer({
-          urlLoader: new FSUrlLoader(basedir),
-          urlResolver: new PackageUrlResolver(),
-        });
+      test('does not include external features', async () => {
+        const basedir = path.resolve(fixtureDir, 'analysis/bower_packages');
+        const analyzer = Analyzer.createForDirectory(basedir);
         const _package = await analyzer.analyzePackage();
-        const metadata = generateAnalysis(_package, '');
+        const metadata = generateAnalysis(_package, analyzer.urlResolver);
         // The fixture only contains external elements
         assert.isUndefined(metadata.elements);
       });
 
-      test('includes package features', async() => {
-        const basedir = path.resolve(fixturesDir, 'analysis/simple');
-        const analyzer = new Analyzer({
-          urlLoader: new FSUrlLoader(basedir),
-          urlResolver: new PackageUrlResolver(),
-        });
+      test('includes package features', async () => {
+        const basedir = path.resolve(fixtureDir, 'analysis/simple');
+        const analyzer = Analyzer.createForDirectory(basedir);
         const _package = await analyzer.analyzePackage();
-        const metadata = generateAnalysis(_package, '');
+        const metadata = generateAnalysis(_package, analyzer.urlResolver);
         assert.equal(metadata.elements && metadata.elements.length, 1);
         assert.equal(metadata.elements![0].tagname, 'simple-element');
-        assert.equal(metadata.elements![0].path, 'simple-element.html');
+        assert.equal(
+            metadata.elements![0].path, fileRelativeUrl`simple-element.html`);
       });
-
     });
-
   });
 
   suite('validateAnalysis', () => {
-
     test('throws when validating valid analysis.json', () => {
       try {
         validateAnalysis({} as any);
@@ -144,7 +127,10 @@ suite('generate-analysis', () => {
     });
 
     test(`doesn't throw when validating a valid analysis.json`, () => {
-      validateAnalysis({elements: [], schema_version: '1.0.0'});
+      validateAnalysis({
+        elements: [],
+        schema_version: '1.0.0',
+      });
     });
 
     test(`doesn't throw when validating a version from the future`, () => {
@@ -169,7 +155,6 @@ suite('generate-analysis', () => {
       throw new Error('expected Analysis validation to fail!');
     });
   });
-
 });
 
 function* filterI<T>(it: Iterable<T>, pred: (t: T) => boolean): Iterable<T> {
@@ -199,15 +184,13 @@ function* walkRecursively(dir: string): Iterable<string> {
   }
 }
 
-async function analyzeDir(baseDir: string): Promise<AnalysisResult> {
-  const analyzer = new Analyzer({
-    urlLoader: new FSUrlLoader(baseDir),
-    urlResolver: new PackageUrlResolver(),
-  });
+async function analyzeDir(baseDir: string) {
+  const analyzer = Analyzer.createForDirectory(baseDir);
   const allFilenames = Array.from(walkRecursively(baseDir));
   const htmlOrJsFilenames =
       allFilenames.filter((f) => f.endsWith('.html') || f.endsWith('.js'));
   const filePaths =
       htmlOrJsFilenames.map((filename) => path.relative(baseDir, filename));
-  return analyzer.analyze(filePaths);
+  const analysis = await analyzer.analyze(filePaths);
+  return {analysis, analyzer};
 }

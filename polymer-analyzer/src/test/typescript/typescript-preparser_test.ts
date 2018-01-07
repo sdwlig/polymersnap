@@ -20,9 +20,14 @@ import stripIndent = require('strip-indent');
 import {ParsedTypeScriptDocument} from '../../typescript/typescript-document';
 import {TypeScriptPreparser} from '../../typescript/typescript-preparser';
 import {WarningCarryingException} from '../../model/model';
-import {CodeUnderliner} from '../test-utils';
+import {CodeUnderliner, resolvedUrl} from '../test-utils';
+import {PackageUrlResolver} from '../../url-loader/package-url-resolver';
 
-suite('TypeScriptParser', () => {
+suite('TypeScriptParser', function() {
+  // These tests are unexpectedly rather slow, and travis has started flakily
+  // failing on them recently.
+  this.timeout(8 * 1000);
+
   let parser: TypeScriptPreparser;
 
   setup(() => {
@@ -30,7 +35,6 @@ suite('TypeScriptParser', () => {
   });
 
   suite('parse()', () => {
-
     test('parses classes', () => {
       const contents = `
         import * as b from './b';
@@ -39,7 +43,8 @@ suite('TypeScriptParser', () => {
           bar: string = 'baz';
         }
       `;
-      const document = parser.parse(contents, '/typescript/test.ts');
+      const document = parser.parse(
+          contents, resolvedUrl`/typescript/test.ts`, new PackageUrlResolver());
       assert.instanceOf(document, ParsedTypeScriptDocument);
       assert.equal(document.url, '/typescript/test.ts');
       const sourceFile = document.ast as ts.SourceFile;
@@ -50,12 +55,12 @@ suite('TypeScriptParser', () => {
           sourceFile.statements[0].kind, ts.SyntaxKind.ImportDeclaration);
     });
 
-    test('throws a WarningCarryingException for parse errors', async() => {
+    test('throws a WarningCarryingException for parse errors', async () => {
       const contents = 'const const const const const #!@(~~)!();';
-      const url = 'ts-parse-error.ts';
+      const url = resolvedUrl`ts-parse-error.ts`;
       let error: WarningCarryingException|undefined = undefined;
       try {
-        parser.parse(contents, url);
+        parser.parse(contents, url, new PackageUrlResolver());
       } catch (e) {
         if (!(e instanceof WarningCarryingException)) {
           console.log(e);
@@ -85,7 +90,8 @@ const const const const const #!@(~~)!();
           }
         }`).trim() +
             '\n';
-        const document = parser.parse(contents, 'test-file.js');
+        const document = parser.parse(
+            contents, resolvedUrl`test-file.js`, new PackageUrlResolver());
         assert.deepEqual(document.stringify({}), contents);
       });
     });

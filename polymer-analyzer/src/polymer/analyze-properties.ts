@@ -12,8 +12,8 @@
  * http://polymer.github.io/PATENTS.txt
  */
 
+import * as babel from 'babel-types';
 import * as doctrine from 'doctrine';
-import * as estree from 'estree';
 
 import * as astValue from '../javascript/ast-value';
 import * as esutil from '../javascript/esutil';
@@ -34,14 +34,17 @@ import {ScannedPolymerProperty} from './polymer-element';
  * @param document The containing JS document.
  */
 export function analyzeProperties(
-    node: estree.Node, document: JavaScriptDocument): ScannedPolymerProperty[] {
+    node: babel.Node, document: JavaScriptDocument): ScannedPolymerProperty[] {
   const analyzedProps: ScannedPolymerProperty[] = [];
 
-  if (node.type !== 'ObjectExpression') {
+  if (!babel.isObjectExpression(node)) {
     return analyzedProps;
   }
 
   for (const property of node.properties) {
+    if (babel.isSpreadProperty(property)) {
+      continue;
+    }
     const prop = toScannedPolymerProperty(
         property, document.sourceRangeForNode(property)!, document);
 
@@ -59,13 +62,15 @@ export function analyzeProperties(
 
     let isComputed = false;
 
-    if (property.value.type === 'Identifier') {
-      // If we've already got a type it's from jsdoc and thus canonical.
-      if (!prop.type) {
-        prop.type = property.value.name;
-      }
-    } else if (property.value.type !== 'ObjectExpression') {
+    const value = property.value;
+    if (babel.isIdentifier(value)) {
+      // Polymer supports this simple syntax, where only the attribute
+      // deserializer is specified.
+      prop.attributeType = value.name;
+
+    } else if (!babel.isObjectExpression(value)) {
       continue;
+
     } else {
       /**
        * Parse the expression inside a property object block. e.g.
@@ -79,24 +84,23 @@ export function analyzeProperties(
        *   }
        * }
        */
-      for (const propertyArg of property.value.properties) {
+      for (const propertyArg of value.properties) {
+        if (babel.isSpreadProperty(propertyArg)) {
+          continue;
+        }
         const propertyKey = esutil.objectKeyToString(propertyArg.key);
 
         switch (propertyKey) {
           case 'type':
-            // If we've already got a type, then it was found in the jsdocs,
-            // and is canonical.
-            if (!prop.type) {
-              prop.type = esutil.objectKeyToString(propertyArg.value);
-              if (prop.type === undefined) {
-                prop.warnings.push(new Warning({
-                  code: 'invalid-property-type',
-                  message: 'Invalid type in property object.',
-                  severity: Severity.WARNING,
-                  sourceRange: document.sourceRangeForNode(propertyArg)!,
-                  parsedDocument: document
-                }));
-              }
+            prop.attributeType = esutil.objectKeyToString(propertyArg.value);
+            if (prop.attributeType === undefined && prop.type === undefined) {
+              prop.warnings.push(new Warning({
+                code: 'invalid-property-type',
+                message: 'Invalid type in property object.',
+                severity: Severity.WARNING,
+                sourceRange: document.sourceRangeForNode(propertyArg)!,
+                parsedDocument: document
+              }));
             }
             break;
           case 'notify':
@@ -143,9 +147,20 @@ export function analyzeProperties(
       prop.readOnly = true;
     }
 
-    prop.type = esutil.CLOSURE_CONSTRUCTOR_MAP.get(prop.type!) || prop.type;
+    // If we've already got a type, then it was found in the jsdocs, and is
+    // canonical. Otherwise we can infer it now from the attribute
+    // deserializer.
+    if (prop.type === undefined && prop.attributeType !== undefined) {
+      prop.type = prop.attributeType;
+      // Map primitive constructors to their primitive value types (e.g. String
+      // => string).
+      prop.type = esutil.CLOSURE_CONSTRUCTOR_MAP.get(prop.type) || prop.type;
+      // Assume this type is possibly null or undefined. Users should add a
+      // @type annotation if they want to tighten this type.
+      prop.type += ' | null | undefined';
+    }
 
-    if (!prop.type) {
+    if (prop.type === undefined) {
       prop.warnings.push(new Warning({
         code: 'no-type-for-property',
         message: 'Unable to determine type for property.',

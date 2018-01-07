@@ -12,24 +12,21 @@
  * http://polymer.github.io/PATENTS.txt
  */
 
-import {Document, ParsedCssDocument, Severity} from 'polymer-analyzer';
+import {Document, ParsedCssDocument, Severity, Warning} from 'polymer-analyzer';
 import * as shady from 'shady-css-parser';
 
 import {CssRule} from '../css/rule';
 import {registry} from '../registry';
-import {FixableWarning} from '../warning';
-
-import stripIndent = require('strip-indent');
-
+import {stripIndentation} from '../util';
 
 class DeprecatedCustomPropertySyntax extends CssRule {
   code = 'deprecated-css-custom-property-syntax';
-  description = stripIndent(`
+  description = stripIndentation(`
       Warns when using deprecated css syntax around CSS Custom Properties.
-  `).trim();
+  `);
 
   async checkDocument(parsedDocument: ParsedCssDocument, _document: Document) {
-    const warnings: FixableWarning[] = [];
+    const warnings: Warning[] = [];
 
     for (const node of parsedDocument) {
       this.addAtApplyWarnings(node, parsedDocument, warnings);
@@ -39,39 +36,38 @@ class DeprecatedCustomPropertySyntax extends CssRule {
     return warnings;
   }
 
-  // Convert `@apply(--foo);` to `@apply foo;`
+  // Convert `@apply(--foo);` to `@apply --foo;`
   private addAtApplyWarnings(
       node: shady.Node, parsedDocument: ParsedCssDocument,
-      warnings: FixableWarning[]) {
+      warnings: Warning[]) {
     if (node.type === shady.nodeType.atRule && node.name === 'apply') {
       if (node.parametersRange && node.parameters.startsWith('(') &&
           node.parameters.endsWith(')')) {
-        const w = new FixableWarning({
+        warnings.push(new Warning({
           code: 'at-apply-with-parens',
           parsedDocument,
           severity: Severity.ERROR,
           sourceRange:
               parsedDocument.sourceRangeForShadyRange(node.parametersRange),
           message:
-              '@apply with parentheses is deprecated. Prefer: @apply --foo;'
-        });
-        w.fix = [
-          {
-            range: parsedDocument.sourceRangeForShadyRange({
-              start: node.parametersRange.start,
-              end: node.parametersRange.start + 1
-            }),
-            replacementText: ' '
-          },
-          {
-            range: parsedDocument.sourceRangeForShadyRange({
-              start: node.parametersRange.end - 1,
-              end: node.parametersRange.end
-            }),
-            replacementText: ''
-          }
-        ];
-        warnings.push(w);
+              '@apply with parentheses is deprecated. Prefer: @apply --foo;',
+          fix: [
+            {
+              range: parsedDocument.sourceRangeForShadyRange({
+                start: node.parametersRange.start,
+                end: node.parametersRange.start + 1
+              }),
+              replacementText: ' '
+            },
+            {
+              range: parsedDocument.sourceRangeForShadyRange({
+                start: node.parametersRange.end - 1,
+                end: node.parametersRange.end
+              }),
+              replacementText: ''
+            }
+          ]
+        }));
       }
     }
   }
@@ -79,7 +75,7 @@ class DeprecatedCustomPropertySyntax extends CssRule {
   // Convert `var(--foo, --bar)` to `var(--foo, var(--bar))`
   private addVarSyntaxWarnings(
       node: shady.Node, parsedDocument: ParsedCssDocument,
-      warnings: FixableWarning[]): any {
+      warnings: Warning[]): any {
     if (node.type === 'expression') {
       const match = node.text.match(
           /var\s*\(\s*--[a-zA-Z0-9_-]+\s*,\s*(--[a-zA-Z0-9_-]+)\s*\)/);
@@ -94,15 +90,14 @@ class DeprecatedCustomPropertySyntax extends CssRule {
         const end = start + secondCustomProp.length;
         const sourceRange =
             parsedDocument.sourceRangeForShadyRange({start, end});
-        const warning = new FixableWarning({
+        warnings.push(new Warning({
           code: 'invalid-second-arg-to-var-expression',
           severity: Severity.WARNING, parsedDocument, sourceRange,
           message:
               'When the second argument to a var() expression is another ' +
-              'custom property, it must also be wrapped in a var().'
-        });
-        warning.fix = [{range: sourceRange, replacementText: newText}];
-        warnings.push(warning);
+              'custom property, it must also be wrapped in a var().',
+          fix: [{range: sourceRange, replacementText: newText}]
+        }));
       }
     }
   }

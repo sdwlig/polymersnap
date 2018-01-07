@@ -12,10 +12,9 @@
  * http://polymer.github.io/PATENTS.txt
  */
 
-import * as doctrine from 'doctrine';
-import * as estree from 'estree';
+import * as babel from 'babel-types';
 
-import {closureType, configurationProperties, getAttachedComment, getOrInferPrivacy, objectKeyToString} from '../javascript/esutil';
+import {configurationProperties, getAttachedComment, getClosureType, getOrInferPrivacy, objectKeyToString} from '../javascript/esutil';
 import * as jsdoc from '../javascript/jsdoc';
 import {Severity, SourceRange, Warning} from '../model/model';
 import {ParsedDocument} from '../parser/document';
@@ -26,7 +25,7 @@ import {ScannedPolymerProperty} from './polymer-element';
  * Create a ScannedProperty object from an estree Property AST node.
  */
 export function toScannedPolymerProperty(
-    node: estree.Property|estree.MethodDefinition,
+    node: babel.ObjectMethod|babel.ObjectProperty|babel.ClassMethod,
     sourceRange: SourceRange,
     document: ParsedDocument): ScannedPolymerProperty {
   const parsedJsdoc = jsdoc.parseJsdoc(getAttachedComment(node) || '');
@@ -45,11 +44,18 @@ export function toScannedPolymerProperty(
       parsedDocument: document
     }));
   }
-  let type = closureType(node.value, sourceRange, document);
-  const typeTag = jsdoc.getTag(parsedJsdoc, 'type');
-  if (typeTag) {
-    type = doctrine.type.stringify(typeTag.type!) || type;
+
+  const value = babel.isObjectProperty(node) ? node.value : node;
+
+  const typeResult = getClosureType(value, parsedJsdoc, sourceRange, document);
+  let type;
+  if (typeResult.successful) {
+    type = typeResult.value;
+  } else {
+    warnings.push(typeResult.error);
+    type = 'Object';
   }
+
   const name = maybeName || '';
   const result: ScannedPolymerProperty = {
     name,

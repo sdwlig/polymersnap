@@ -14,17 +14,22 @@
 
 import {Document, Severity, Warning} from 'polymer-analyzer';
 
-import stripIndent = require('strip-indent');
-import {stripWhitespace} from '../util';
-import {Rule} from '../rule';
 import {registry} from '../registry';
+import {Rule} from '../rule';
+import {stripIndentation, stripWhitespace} from '../util';
 
 const definitelyNotMethodTypes =
     new Set(['string', 'number', 'boolean', 'Array']);
 
+for (const type of [...definitelyNotMethodTypes]) {
+  definitelyNotMethodTypes.add(`${type} | null | undefined`);
+  definitelyNotMethodTypes.add(`${type} | null`);
+  definitelyNotMethodTypes.add(`${type} | undefined`);
+}
+
 class DatabindingCallsMustBeFunctions extends Rule {
   code = 'databinding-calls-must-be-functions';
-  description = stripIndent(`
+  description = stripIndentation(`
       Warns when a property in a Polymer databinding is called but it isn't
       a function property on the element.
 
@@ -51,7 +56,7 @@ class DatabindingCallsMustBeFunctions extends Rule {
             },
             foo(bar) { /* ... */}
           });
-  `).trim();
+  `);
 
   async check(document: Document) {
     const warnings: Warning[] = [];

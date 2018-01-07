@@ -12,27 +12,31 @@
  */
 
 import * as path from 'path';
-import {Severity, SourcePosition, SourceRange} from 'polymer-analyzer';
-import {Diagnostic, DiagnosticSeverity, Position as LSPosition, Range as LSRange} from 'vscode-languageserver';
+import {Edit, PackageRelativeUrl, ResolvedUrl, Severity, SourcePosition, SourceRange, UrlResolver, Warning} from 'polymer-analyzer';
+import {Diagnostic, DiagnosticSeverity, Location, Position as LSPosition, Range as LSRange, TextEdit, WorkspaceEdit} from 'vscode-languageserver';
 import Uri from 'vscode-uri';
-import {Warning} from '../editor-service';
 
 /**
  * Converts between Analyzer and Editor Service types and LSP types.
  */
 export default class AnalyzerLSPConverter {
-  private readonly _workspaceUri: Uri;
-  constructor(workspaceUri: Uri) {
-    this._workspaceUri = workspaceUri;
+  constructor(
+      private readonly workspaceUri: Uri,
+      private readonly urlResolver: UrlResolver) {
   }
 
   getWorkspacePathToFile(document: {uri: string}): string {
+    // TODO(rictic): if this isn't a file uri we should return undefined here.
     return path.relative(
-        this._workspaceUri.fsPath, Uri.parse(document.uri).fsPath);
+        this.workspaceUri.fsPath, Uri.parse(document.uri).fsPath);
+  }
+
+  getAnalyzerUrl(document: {uri: string}): ResolvedUrl|undefined {
+    return this.urlResolver.resolve(document.uri as PackageRelativeUrl);
   }
 
   getUriForLocalPath(localPath: string): string {
-    const workspacePath = this._workspaceUri.fsPath;
+    const workspacePath = this.workspaceUri.fsPath;
     const absolutePath = path.join(workspacePath, localPath);
     return Uri.file(absolutePath).toString();
   }
@@ -41,7 +45,7 @@ export default class AnalyzerLSPConverter {
     return {
       code: warning.code,
       message: warning.message,
-      range: this.convertRange(warning.sourceRange),
+      range: this.convertPRangeToL(warning.sourceRange),
       source: 'polymer-ide',
       severity: this.convertSeverity(warning.severity),
     };
@@ -51,10 +55,26 @@ export default class AnalyzerLSPConverter {
     return {line, column};
   }
 
-  convertRange({start, end}: SourceRange): LSRange {
+  convertSourcePosition({line, column: character}: SourcePosition): LSPosition {
+    return {line, character};
+  }
+
+  convertPRangeToL({start, end}: SourceRange): LSRange {
     return {
       start: {line: start.line, character: start.column},
       end: {line: end.line, character: end.column}
+    };
+  }
+
+  convertLRangeToP({start, end}: LSRange, document: {uri: string}): SourceRange
+      |undefined {
+    const file = this.getAnalyzerUrl(document);
+    if (file === undefined) {
+      return undefined;
+    }
+    return {
+      start: {line: start.line, column: start.character},
+      end: {line: end.line, column: end.character}, file,
     };
   }
 
@@ -70,5 +90,30 @@ export default class AnalyzerLSPConverter {
         throw new Error(
             `This should never happen. Got a severity of ${severity}`);
     }
+  }
+
+  editToWorkspaceEdit(fix: Edit): WorkspaceEdit {
+    return this.editsToWorkspaceEdit([fix]);
+  }
+
+  editsToWorkspaceEdit(edits: Iterable<Edit>): WorkspaceEdit {
+    const edit: WorkspaceEdit = {changes: {}};
+    const changes = edit.changes!;
+    for (const polymerEdit of edits) {
+      for (const replacement of polymerEdit) {
+        const uri = replacement.range.file;
+        if (!changes[uri]) {
+          changes[uri] = [];
+        }
+        changes[uri]!.push(TextEdit.replace(
+            this.convertPRangeToL(replacement.range),
+            replacement.replacementText));
+      }
+    }
+    return edit;
+  }
+
+  getLocation(sourceRange: SourceRange): Location {
+    return {uri: sourceRange.file, range: this.convertPRangeToL(sourceRange)};
   }
 }

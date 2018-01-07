@@ -14,6 +14,7 @@
 
 import * as path from 'path';
 
+
 import {ForkOptions, LazyEdgeMap, NoKnownParserError, Options, ScannerTable} from '../core/analyzer';
 import {CssCustomPropertyScanner} from '../css/css-custom-property-scanner';
 import {CssParser} from '../css/css-parser';
@@ -24,11 +25,13 @@ import {HtmlScriptScanner} from '../html/html-script-scanner';
 import {HtmlStyleScanner} from '../html/html-style-scanner';
 import {ClassScanner} from '../javascript/class-scanner';
 import {FunctionScanner} from '../javascript/function-scanner';
+import {JavaScriptImportScanner} from '../javascript/javascript-import-scanner';
 import {JavaScriptParser} from '../javascript/javascript-parser';
 import {NamespaceScanner} from '../javascript/namespace-scanner';
 import {JsonParser} from '../json/json-parser';
 import {Document, InlineDocInfo, LocationOffset, ScannedDocument, ScannedElement, ScannedImport, ScannedInlineDocument, Severity, Warning, WarningCarryingException} from '../model/model';
-import {ParsedDocument} from '../parser/document';
+import {PackageRelativeUrl, ResolvedUrl} from '../model/url';
+import {ParsedDocument, UnparsableParsedDocument} from '../parser/document';
 import {Parser} from '../parser/parser';
 import {BehaviorScanner} from '../polymer/behavior-scanner';
 import {CssImportScanner} from '../polymer/css-import-scanner';
@@ -114,7 +117,8 @@ export class AnalysisContext {
           new BehaviorScanner(),
           new NamespaceScanner(),
           new FunctionScanner(),
-          new ClassScanner()
+          new ClassScanner(),
+          new JavaScriptImportScanner()
         ]
       ],
       ['css', [new CssCustomPropertyScanner()]]
@@ -135,17 +139,16 @@ export class AnalysisContext {
   /**
    * Returns a copy of this cache context with proper cache invalidation.
    */
-  filesChanged(urls: string[]) {
-    const newCache =
-        this._cache.invalidate(urls.map((url) => this.resolveUrl(url)));
+  filesChanged(urls: PackageRelativeUrl[]) {
+    const newCache = this._cache.invalidate(this.resolveUserInputUrls(urls));
     return this._fork(newCache);
   }
 
   /**
    * Implements Analyzer#analyze, see its docs.
    */
-  async analyze(urls: string[]): Promise<AnalysisContext> {
-    const resolvedUrls = urls.map((url) => this.resolveUrl(url));
+  async analyze(urls: PackageRelativeUrl[]): Promise<AnalysisContext> {
+    const resolvedUrls = this.resolveUserInputUrls(urls);
 
     // 1. Await current analysis if there is one, so we can check to see if has
     // all of the requested URLs.
@@ -168,11 +171,12 @@ export class AnalysisContext {
   /**
    * Internal analysis method called when we know we need to fork.
    */
-  private async _analyze(resolvedUrls: string[]): Promise<AnalysisContext> {
-    const analysisComplete = (async() => {
+  private async _analyze(resolvedUrls: ResolvedUrl[]):
+      Promise<AnalysisContext> {
+    const analysisComplete = (async () => {
       // 1. Load and scan all root documents
       const scannedDocumentsOrWarnings =
-          await Promise.all(resolvedUrls.map(async(url) => {
+          await Promise.all(resolvedUrls.map(async (url) => {
             try {
               const scannedResult = await this.scan(url);
               this._cache.failedDocuments.delete(url);
@@ -186,7 +190,7 @@ export class AnalysisContext {
             }
           }));
       const scannedDocuments = scannedDocumentsOrWarnings.filter(
-          (d) => d != null) as ScannedDocument[];
+                                   (d) => d != null) as ScannedDocument[];
       // 2. Run per-document resolution
       const documents = scannedDocuments.map((d) => this.getDocument(d.url));
       // TODO(justinfagnani): instead of the above steps, do:
@@ -210,8 +214,7 @@ export class AnalysisContext {
    * the scanned document cache is used and a new analyzed Document is returned.
    * If a file is in neither cache, it returns `undefined`.
    */
-  getDocument(url: string): Document|Warning {
-    const resolvedUrl = this.resolveUrl(url);
+  getDocument(resolvedUrl: ResolvedUrl): Document|Warning {
     const cachedWarning = this._cache.failedDocuments.get(resolvedUrl);
     if (cachedWarning) {
       return cachedWarning;
@@ -222,16 +225,7 @@ export class AnalysisContext {
     }
     const scannedDocument = this._cache.scannedDocuments.get(resolvedUrl);
     if (!scannedDocument) {
-      return <Warning>{
-        sourceRange: {
-          file: this.resolveUrl(url),
-          start: {line: 0, column: 0},
-          end: {line: 0, column: 0}
-        },
-        code: 'unable-to-analyze',
-        message: `Document not found: ${url}`,
-        severity: Severity.ERROR
-      };
+      return makeRequestedWithoutLoadingWarning(resolvedUrl);
     }
 
     const extension = path.extname(resolvedUrl).substring(1);
@@ -244,7 +238,7 @@ export class AnalysisContext {
     const document = new Document(scannedDocument, this, analysisResult);
     this._cache.analyzedDocuments.set(resolvedUrl, document);
     this._cache.analyzedDocumentPromises.getOrCompute(
-        resolvedUrl, async() => document);
+        resolvedUrl, async () => document);
 
     document.resolve();
     return document;
@@ -255,8 +249,7 @@ export class AnalysisContext {
    *
    * If a url has been scanned, returns the ScannedDocument.
    */
-  _getScannedDocument(url: string): ScannedDocument|undefined {
-    const resolvedUrl = this.resolveUrl(url);
+  _getScannedDocument(resolvedUrl: ResolvedUrl): ScannedDocument|undefined {
     return this._cache.scannedDocuments.get(resolvedUrl);
   }
 
@@ -306,18 +299,20 @@ export class AnalysisContext {
    * _preScan, since about the only useful things it can find are
    * imports, exports and other syntactic structures.
    */
-  private async _scanLocal(resolvedUrl: string): Promise<ScannedDocument> {
+  private async _scanLocal(resolvedUrl: ResolvedUrl): Promise<ScannedDocument> {
     return this._cache.scannedDocumentPromises.getOrCompute(
-        resolvedUrl, async() => {
+        resolvedUrl, async () => {
           try {
             const parsedDoc = await this._parse(resolvedUrl);
             const scannedDocument = await this._scanDocument(parsedDoc);
 
-            const imports = scannedDocument.getNestedFeatures().filter(
-                (e) => e instanceof ScannedImport) as ScannedImport[];
+            const imports =
+                scannedDocument.getNestedFeatures().filter(
+                    (e) => e instanceof ScannedImport) as ScannedImport[];
 
             // Update dependency graph
-            const importUrls = imports.map((i) => this.resolveUrl(i.url));
+            const importUrls = filterOutUndefineds(imports.map(
+                (i) => this.resolver.resolve(parsedDoc.baseUrl, i.url, i)));
             this._cache.dependencyGraph.addDocument(resolvedUrl, importUrls);
 
             return scannedDocument;
@@ -331,16 +326,23 @@ export class AnalysisContext {
   /**
    * Scan a toplevel document and all of its transitive dependencies.
    */
-  async scan(resolvedUrl: string): Promise<ScannedDocument> {
+  async scan(resolvedUrl: ResolvedUrl): Promise<ScannedDocument> {
     return this._cache.dependenciesScannedPromises.getOrCompute(
-        resolvedUrl, async() => {
+        resolvedUrl, async () => {
           const scannedDocument = await this._scanLocal(resolvedUrl);
-          const imports = scannedDocument.getNestedFeatures().filter(
-              (e) => e instanceof ScannedImport) as ScannedImport[];
+          const imports =
+              scannedDocument.getNestedFeatures().filter(
+                  (e) => e instanceof ScannedImport) as ScannedImport[];
 
           // Scan imports
           for (const scannedImport of imports) {
-            const importUrl = this.resolveUrl(scannedImport.url);
+            const importUrl = this.resolver.resolve(
+                scannedDocument.document.baseUrl,
+                scannedImport.url,
+                scannedImport);
+            if (importUrl === undefined) {
+              continue;
+            }
             // Request a scan of `importUrl` but do not wait for the results to
             // avoid deadlock in the case of cycles. Later we use the
             // DependencyGraph to wait for all transitive dependencies to load.
@@ -407,6 +409,8 @@ export class AnalysisContext {
             feature.contents,
             containingDocument.url,
             {locationOffset, astNode: feature.astNode});
+        // Inline documents inherit the base url of their containers.
+        parsedDoc.baseUrl = containingDocument.document.baseUrl;
         const scannedDoc = await this._scanDocument(
             parsedDoc, feature.attachedComment, containingDocument.document);
 
@@ -426,7 +430,7 @@ export class AnalysisContext {
    * semantics defined by `UrlLoader` and should only be used to check
    * resolved URLs.
    */
-  canLoad(resolvedUrl: string): boolean {
+  canLoad(resolvedUrl: ResolvedUrl): boolean {
     return this.loader.canLoad(resolvedUrl);
   }
 
@@ -439,7 +443,7 @@ export class AnalysisContext {
    * are used instead of hitting the UrlLoader (e.g. when you have in-memory
    * contents that should override disk).
    */
-  async load(resolvedUrl: string): Promise<string> {
+  async load(resolvedUrl: ResolvedUrl): Promise<string> {
     if (!this.canLoad(resolvedUrl)) {
       throw new Error(`Can't load URL: ${resolvedUrl}`);
     }
@@ -449,9 +453,9 @@ export class AnalysisContext {
   /**
    * Caching + loading wrapper around _parseContents.
    */
-  private async _parse(resolvedUrl: string): Promise<ParsedDocument> {
+  private async _parse(resolvedUrl: ResolvedUrl): Promise<ParsedDocument> {
     return this._cache.parsedDocumentPromises.getOrCompute(
-        resolvedUrl, async() => {
+        resolvedUrl, async () => {
           const content = await this.load(resolvedUrl);
           const extension = path.extname(resolvedUrl).substring(1);
           return this._parseContents(extension, content, resolvedUrl);
@@ -463,14 +467,14 @@ export class AnalysisContext {
    * to its type.
    */
   private _parseContents(
-      type: string, contents: string, url: string,
+      type: string, contents: string, url: ResolvedUrl,
       inlineInfo?: InlineDocInfo<any>): ParsedDocument {
     const parser = this.parsers.get(type);
     if (parser == null) {
       throw new NoKnownParserError(`No parser for for file type ${type}`);
     }
     try {
-      return parser.parse(contents, url, inlineInfo);
+      return parser.parse(contents, url, this.resolver, inlineInfo);
     } catch (error) {
       if (error instanceof WarningCarryingException) {
         throw error;
@@ -480,17 +484,40 @@ export class AnalysisContext {
   }
 
   /**
-   * Returns true if the url given is resovable by the Analyzer's `UrlResolver`.
+   * Resolves all resolvable URLs in the list, removes unresolvable ones.
    */
-  canResolveUrl(url: string): boolean {
-    return this.resolver.canResolve(url);
+  resolveUserInputUrls(urls: PackageRelativeUrl[]): ResolvedUrl[] {
+    return filterOutUndefineds(urls.map((u) => this.resolver.resolve(u)));
   }
+}
 
-  /**
-   * Resolves a URL with this Analyzer's `UrlResolver` or returns the given
-   * URL if it can not be resolved.
-   */
-  resolveUrl(url: string): string {
-    return this.resolver.canResolve(url) ? this.resolver.resolve(url) : url;
-  }
+function filterOutUndefineds<T>(arr: ReadonlyArray<T|undefined>): T[] {
+  return arr.filter((t) => t !== undefined) as T[];
+}
+
+/**
+ * A warning for a weird situation that should never happen.
+ *
+ * Before calling getDocument(), which is synchronous, a caller must first
+ * have finished loading and scanning, as those phases are asynchronous.
+ *
+ * So we need to construct a warning, but we don't have a parsed document,
+ * so we construct this weird fake one. This is such a rare case that it's
+ * worth going out of our way here so that warnings can uniformly expect to
+ * have documents.
+ */
+function makeRequestedWithoutLoadingWarning(resolvedUrl: ResolvedUrl) {
+  const parsedDocument = new UnparsableParsedDocument(resolvedUrl, '');
+  return new Warning({
+    sourceRange: {
+      file: resolvedUrl,
+      start: {line: 0, column: 0},
+      end: {line: 0, column: 0}
+    },
+    code: 'unable-to-analyze',
+    message: `[Internal Error] Document was requested ` +
+        ` before loading and scanning finished. This should never happen.`,
+    severity: Severity.ERROR,
+    parsedDocument
+  });
 }

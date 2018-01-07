@@ -14,10 +14,11 @@
 
 import {getAttribute, predicates as p, query} from 'dom5';
 import {parse as parseHtml} from 'parse5';
-import {resolve as resolveUrl} from 'url';
 
 import {InlineDocInfo} from '../model/model';
+import {FileRelativeUrl, ResolvedUrl} from '../model/url';
 import {Parser} from '../parser/parser';
+import {UrlResolver} from '../url-loader/url-resolver';
 
 import {ParsedHtmlDocument} from './html-document';
 
@@ -28,8 +29,9 @@ export class HtmlParser implements Parser<ParsedHtmlDocument> {
    * @param {string} htmlString an HTML document.
    * @param {string} href is the path of the document.
    */
-  parse(contents: string, url: string, inlineInfo?: InlineDocInfo<any>):
-      ParsedHtmlDocument {
+  parse(
+      contents: string, url: ResolvedUrl, urlResolver: UrlResolver,
+      inlineInfo?: InlineDocInfo<any>): ParsedHtmlDocument {
     const ast = parseHtml(contents, {locationInfo: true});
 
     // There should be at most one <base> tag and it must be inside <head> tag.
@@ -40,8 +42,14 @@ export class HtmlParser implements Parser<ParsedHtmlDocument> {
             p.hasTagName('base'),
             p.hasAttr('href')));
 
-    const baseUrl =
-        baseTag ? resolveUrl(url, getAttribute(baseTag, 'href')!) : url;
+    let baseUrl;
+    if (baseTag) {
+      const baseHref = getAttribute(baseTag, 'href')! as FileRelativeUrl;
+      baseUrl = urlResolver.resolve(url, baseHref, undefined);
+    } else {
+      baseUrl = url;
+    }
+
     const isInline = !!inlineInfo;
     inlineInfo = inlineInfo || {};
     return new ParsedHtmlDocument({
@@ -50,7 +58,8 @@ export class HtmlParser implements Parser<ParsedHtmlDocument> {
       contents,
       ast,
       locationOffset: inlineInfo.locationOffset,
-      astNode: inlineInfo.astNode, isInline,
+      astNode: inlineInfo.astNode,
+      isInline,
     });
   }
 }

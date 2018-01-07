@@ -18,12 +18,13 @@ import * as path from 'path';
 
 import {ParsedCssDocument} from '../../css/css-document';
 import {CssParser} from '../../css/css-parser';
+import {PackageUrlResolver} from '../../index';
+import {fixtureDir, resolvedUrl} from '../test-utils';
 
 suite('CssParser', () => {
-
   suite('parse()', () => {
-    const fileContents = fs.readFileSync(
-        path.resolve(__dirname, '../static/stylesheet.css'), 'utf8');
+    const fileContents =
+        fs.readFileSync(path.join(fixtureDir, 'stylesheet.css'), 'utf8');
 
     let parser: CssParser;
 
@@ -32,16 +33,21 @@ suite('CssParser', () => {
     });
 
     test('parses css', () => {
-      const document = parser.parse(fileContents, '/static/stylesheet.css');
+      const document = parser.parse(
+          fileContents,
+          resolvedUrl`/static/stylesheet.css`,
+          new PackageUrlResolver());
       assert.instanceOf(document, ParsedCssDocument);
       assert.equal(document.url, '/static/stylesheet.css');
       assert(document.ast != null);
     });
 
     test('stringifies css', () => {
-      const document = parser.parse(fileContents, '/static/stylesheet.css');
+      const document = parser.parse(
+          fileContents,
+          resolvedUrl`/static/stylesheet.css`,
+          new PackageUrlResolver());
       assert.deepEqual(document.stringify(), fileContents);
     });
   });
-
 });

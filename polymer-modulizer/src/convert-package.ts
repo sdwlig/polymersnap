@@ -12,125 +12,137 @@
  * http://polymer.github.io/PATENTS.txt
  */
 
-import * as fs from 'mz/fs';
-import * as path from 'path';
 import {Analysis, Analyzer, FSUrlLoader, InMemoryOverlayUrlLoader, PackageUrlResolver} from 'polymer-analyzer';
-import * as rimraf from 'rimraf';
 
-import {AnalysisConverter, AnalysisConverterOptions} from './analysis-converter';
+import {ConversionSettings, createDefaultConversionSettings, PartialConversionSettings} from './conversion-settings';
 import {generatePackageJson, readJson, writeJson} from './manifest-converter';
+import {ProjectConverter} from './project-converter';
 import {polymerFileOverrides} from './special-casing';
+import {PackageUrlHandler} from './urls/package-url-handler';
+import {PackageType} from './urls/types';
+import {getDocumentUrl} from './urls/util';
+import {mkdirp, rimraf, writeFileResults} from './util';
 
-const mkdirp = require('mkdirp');
 
-
-type ConvertPackageOptions = AnalysisConverterOptions&{
-  /**
-   * The directory to read HTML files from.
-   */
-  readonly inDir?: string;
-
-  /**
-   * The directory to write converted JavaScript files to.
-   */
-  readonly outDir?: string;
-
-  /**
-   * The npm package name to use in package.json
-   */
+/**
+ * Configuration options required for package-layout conversions. Contains
+ * information about the package under conversion, including what files to
+ * convert, its new package name, and its new npm version number.
+ */
+export interface PackageConversionSettings extends PartialConversionSettings {
   readonly packageName: string;
-
-  /**
-   * The npm package version to use in package.json
-   */
   readonly packageVersion: string;
-  /**
-   * Flag: If true, clear the out directory before writing to it.
-   */
-  cleanOutDir?: boolean;
-};
+  readonly packageType?: PackageType;
+  readonly inDir: string;
+  readonly outDir: string;
+  readonly cleanOutDir?: boolean;
+}
 
-export function configureAnalyzer(options: ConvertPackageOptions) {
-  const inDir = options.inDir || process.cwd();
+/**
+ * Create and/or clean the "out" directory, setting it up for conversion.
+ */
+async function setupOutDir(outDir: string, clean = false) {
+  if (clean) {
+    await rimraf(outDir);
+  }
+  try {
+    await mkdirp(outDir);
+  } catch (e) {
+    if (e.errno === -17) {
+      // directory exists, do nothing
+    } else {
+      throw e;
+    }
+  }
+}
 
-  const urlLoader = new InMemoryOverlayUrlLoader(new FSUrlLoader(inDir));
+/**
+ * Create the default conversion settings, adding any "main" files from the
+ * current package's bower.json maifest to the "includes" set.
+ */
+function getConversionSettings(
+    analysis: Analysis, options: PackageConversionSettings, bowerJson: any) {
+  const conversionSettings = createDefaultConversionSettings(analysis, options);
+  let bowerMainFiles = (bowerJson.main) || [];
+  if (!Array.isArray(bowerMainFiles)) {
+    bowerMainFiles = [bowerMainFiles];
+  }
+  for (const filename of bowerMainFiles) {
+    conversionSettings.includes.add(filename);
+  }
+  return conversionSettings;
+}
+
+/**
+ * Get the relevant documents from a package, to be converted.
+ */
+export function getPackageDocuments(
+    analysis: Analysis, conversionSettings: ConversionSettings) {
+  const htmlDocuments = [...analysis.getFeatures({kind: 'html-document'})];
+  return htmlDocuments.filter(
+      (d) => PackageUrlHandler.isUrlInternalToPackage(getDocumentUrl(d)) &&
+          !conversionSettings.excludes.has(d.url));
+}
+
+/**
+ * Configure a basic analyzer instance for the package under conversion.
+ */
+function configureAnalyzer(options: PackageConversionSettings) {
+  const urlLoader =
+      new InMemoryOverlayUrlLoader(new FSUrlLoader(options.inDir));
   for (const [url, contents] of polymerFileOverrides) {
     urlLoader.urlContentsMap.set(url, contents);
     urlLoader.urlContentsMap.set(`bower_components/polymer/${url}`, contents);
   }
-
   return new Analyzer({
     urlLoader,
     urlResolver: new PackageUrlResolver(),
   });
 }
 
-export function configureConverter(
-    analysis: Analysis, options: ConvertPackageOptions) {
-  return new AnalysisConverter(analysis, {
-    packageName: options.packageName,
-    packageType: 'element',
-    namespaces: options.namespaces,
-    excludes:
-        [...(options.excludes || []), 'neon-animation/web-animations.html'],
-    referenceExcludes: options.referenceExcludes ||
-        [
-          'Polymer.Settings',
-          'Polymer.log',
-          'Polymer.rootPath',
-          'Polymer.sanitizeDOMValue',
-          'Polymer.Collection',
-        ],
-    mainFiles: options.mainFiles
-  });
-}
-
 /**
- * Converts an entire package from HTML imports to JS modules
+ * Convert a package-layout project to JavaScript modules & npm.
  */
-export async function convertPackage(options: ConvertPackageOptions) {
-  const outDir = options.outDir || 'js_out';
-  const outDirResolved = path.resolve(process.cwd(), outDir);
-  console.log(`Out directory: ${outDirResolved}`);
-
+export default async function convert(options: PackageConversionSettings) {
+  const outDir = options.outDir;
   const npmPackageName = options.packageName;
   const npmPackageVersion = options.packageVersion;
+  await setupOutDir(outDir, options.cleanOutDir);
 
+  // Configure the analyzer and run an analysis of the package.
+  const bowerJson = readJson(options.inDir, 'bower.json');
   const analyzer = configureAnalyzer(options);
   const analysis = await analyzer.analyzePackage();
-  const converter = configureConverter(analysis, options);
-  const results = await converter.convert();
-  if (options.cleanOutDir) {
-    rimraf.sync(outDirResolved);
+  await setupOutDir(options.outDir, !!options.cleanOutDir);
+
+  // Create the url handler & converter.
+  const urlHandler =
+      new PackageUrlHandler(options.packageName, options.packageType);
+  const conversionSettings =
+      getConversionSettings(analysis, options, bowerJson);
+  const converter = new ProjectConverter(urlHandler, conversionSettings);
+
+  // Gather all relevent package documents, and run the converter on them!
+  for (const document of getPackageDocuments(analysis, conversionSettings)) {
+    converter.convertDocument(document);
   }
 
-  try {
-    await fs.mkdir(outDirResolved);
-  } catch (e) {
-    if (e.errno === -17) {  // directory exists
-      // do nothing
-    } else {
-      throw e;
+  // Filter out external results before writing them to disk.
+  const results = converter.getResults();
+  for (const [newPath] of results) {
+    if (!PackageUrlHandler.isUrlInternalToPackage(newPath)) {
+      results.delete(newPath);
     }
   }
+  await writeFileResults(outDir, results);
 
-  for (const [newPath, newSource] of results) {
-    const outPath = path.resolve(outDirResolved, newPath);
-    mkdirp.sync(path.dirname(outPath));
-    if (newSource !== undefined) {
-      await fs.writeFile(outPath, newSource);
-    } else if (fs.existsSync(outPath)) {
-      await fs.unlink(outPath);
-    }
-  }
-
+  // Generate a new package.json, and write it to disk.
   try {
-    const bowerJson = readJson(path.join(options.inDir || '.', 'bower.json'));
     const packageJson =
         generatePackageJson(bowerJson, npmPackageName, npmPackageVersion);
     writeJson(packageJson, outDir, 'package.json');
-  } catch (e) {
-    console.log('error in bower.json -> package.json conversion');
-    console.error(e);
+  } catch (err) {
+    console.log(
+        `error in bower.json -> package.json conversion (${err.message})`);
   }
 }

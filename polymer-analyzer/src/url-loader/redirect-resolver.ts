@@ -12,25 +12,49 @@
  * http://polymer.github.io/PATENTS.txt
  */
 
+import {resolve as urlLibResolver} from 'url';
+
+import {PackageRelativeUrl} from '../index';
+import {FileRelativeUrl, ResolvedUrl, ScannedImport} from '../model/model';
+
 import {UrlResolver} from './url-resolver';
 
 /**
  * Resolves a URL having one prefix to another URL with a different prefix.
  */
-export class RedirectResolver implements UrlResolver {
-  constructor(private _redirectFrom: string, private _redirectTo: string) {
+export class RedirectResolver extends UrlResolver {
+  constructor(
+      private readonly packageUrl: ResolvedUrl,
+      private readonly _redirectFrom: string,
+      private readonly _redirectTo: string) {
+    super();
   }
 
-  canResolve(url: string): boolean {
-    return url.startsWith(this._redirectFrom);
-  }
-
-  resolve(url: string): string {
-    if (!this.canResolve(url)) {
-      throw new Error(
-          `RedirectResolver cannot resolve: "${url}" from:` +
-          `"${this._redirectFrom}" to: "${this._redirectTo}"`);
+  resolve(
+      firstUrl: ResolvedUrl|PackageRelativeUrl, secondUrl?: FileRelativeUrl,
+      _import?: ScannedImport): ResolvedUrl|undefined {
+    const [baseUrl = this.packageUrl, unresolvedUrl] =
+        this.getBaseAndUnresolved(firstUrl, secondUrl);
+    const packageRelativeUrl =
+        this.brandAsResolved(urlLibResolver(baseUrl, unresolvedUrl));
+    if (packageRelativeUrl === undefined ||
+        !packageRelativeUrl.startsWith(this._redirectFrom)) {
+      return undefined;
     }
-    return this._redirectTo + url.slice(this._redirectFrom.length);
+    return this.brandAsResolved(
+        this._redirectTo + packageRelativeUrl.slice(this._redirectFrom.length));
+  }
+
+  relative(fromOrTo: ResolvedUrl, maybeTo?: ResolvedUrl, _kind?: string):
+      FileRelativeUrl {
+    let from, to;
+    if (maybeTo !== undefined) {
+      from = fromOrTo;
+      to = maybeTo;
+    } else {
+      from = this.packageUrl;
+      to = fromOrTo;
+    }
+    return this.simpleUrlRelative(from, to);
   }
 }

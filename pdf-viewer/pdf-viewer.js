@@ -98,7 +98,7 @@ Polymer({
     },
     _pos: {
       type: Object,
-      value: () => { return {x:0, y:0} },
+      value: () => { return { x: 0, y: 0 } },
     },
     _zoom: {
       type: Number,
@@ -109,39 +109,40 @@ Polymer({
   attached() {
     this._ro = new ResizeObserver((entries, observer) => {
       console.log('resize detect');
-      if(this._firstRender) this._drawPage();
+      if (this._firstRender) this._drawPage();
     });
     this._ro.observe(this);
   },
 
   detached() {
     delete this._ro;
+    if (this._PDF.shutdown) { this._PDF.shutdown(); }
   },
 
   _srcChanged() {
     this.firstRender = false;
     this.page = 1;
     PDFJS.getDocument(this.src)
-     .then(pdf => {
-       this._setPages(pdf.numPages);
-       this._PDF = pdf;
-       switch(this.initialZoom) {
-         case "fit-width":
-          this.fitWidth();
-          break;
-        default:
-          this.fit();
-       }
-     });
+      .then(pdf => {
+        this._setPages(pdf.numPages);
+        this._PDF = pdf;
+        switch (this.initialZoom) {
+          case "fit-width":
+            this.fitWidth();
+            break;
+          default:
+            this.fit();
+        }
+      });
   },
 
   _pageChanged(newValue, oldValue) {
-    if(!this.pages) {
+    if (!this.pages) {
       this.page = 1;
     }
-    if(newValue > this.pages ) this.page = this.pages;
-    if(newValue < 1) this.page = 1;
-    if(this._PDF) this._drawPage();
+    if (newValue > this.pages) this.page = this.pages;
+    if (newValue < 1) this.page = 1;
+    if (this._PDF && this._PDF.getPage) this._drawPage();
   },
 
   _modeChanged(newValue, oldValue) {
@@ -154,15 +155,15 @@ Polymer({
         this._views = 1;
         this.$.viewer2.hidden = true;
     }
-    if(this._firstRender) {
+    if (this._firstRender) {
       this._recenter();
-      switch(this.initialZoom) {
+      switch (this.initialZoom) {
         case "fit-width":
           this.fitWidth();
           break;
         default:
           this.fit();
-       }
+      }
     }
   },
 
@@ -170,14 +171,14 @@ Polymer({
    * move to the next page
    */
   next() {
-    if(this.page < this.pages) this.page += this._views;
+    if (this.page < this.pages) this.page += this._views;
   },
 
   /**
    * move to the previous page
    */
   previous() {
-    if(this.page > 1) this.page -= this._views;
+    if (this.page > 1) this.page -= this._views;
   },
 
   /**
@@ -185,18 +186,18 @@ Polymer({
    */
   fitWidth() {
     this._PDF.getPage(this.page)
-    .then(page => {
-      let viewport = page.getViewport(1);
-      let rect = this.$.container.getBoundingClientRect();
-      this._zoom = (rect.width-20)/(this._views * viewport.width);
-      if(!this._firstRender) {
-        viewport = page.getViewport(this._zoom);
-        this._pos.x = (rect.width - this._views * viewport.width) / 2;
-        this._pos.y = 10;
-        this.$.viewer.style.transform = `translate(${this._pos.x}px,${this._pos.y}px )`;
-      }
-      this._drawPage();
-    })
+      .then(page => {
+        let viewport = page.getViewport(1);
+        let rect = this.$.container.getBoundingClientRect();
+        this._zoom = (rect.width - 20) / (this._views * viewport.width);
+        if (!this._firstRender) {
+          viewport = page.getViewport(this._zoom);
+          this._pos.x = (rect.width - this._views * viewport.width) / 2;
+          this._pos.y = 10;
+          this.$.viewer.style.transform = `translate(${this._pos.x}px,${this._pos.y}px )`;
+        }
+        this._drawPage();
+      })
   },
 
   /**
@@ -204,18 +205,18 @@ Polymer({
    */
   fit() {
     this._PDF.getPage(this.page)
-    .then(page => {
-      let viewport = page.getViewport(1);
-      let rect = this.$.container.getBoundingClientRect();
-      this._zoom = Math.min((rect.width-20)/this._views * viewport.width, (rect.height-20)/viewport.height);
-      if(!this._firstRender) {
-        viewport = page.getViewport(this._zoom);
-        this._pos.x = (rect.width - this._views * viewport.width) / 2;
-        this._pos.y = (rect.height - viewport.height) / 2;
-        this.$.viewer.style.transform = `translate(${this._pos.x}px,${this._pos.y}px )`;
-      }
-      this._drawPage();
-    })
+      .then(page => {
+        let viewport = page.getViewport(1);
+        let rect = this.$.container.getBoundingClientRect();
+        this._zoom = Math.min((rect.width - 20) / this._views * viewport.width, (rect.height - 20) / viewport.height);
+        if (!this._firstRender) {
+          viewport = page.getViewport(this._zoom);
+          this._pos.x = (rect.width - this._views * viewport.width) / 2;
+          this._pos.y = (rect.height - viewport.height) / 2;
+          this.$.viewer.style.transform = `translate(${this._pos.x}px,${this._pos.y}px )`;
+        }
+        this._drawPage();
+      })
   },
 
   /**
@@ -235,50 +236,50 @@ Polymer({
   },
 
   _renderView(view, pg) {
-    return new Promise( (resolve, reject) => {
+    return new Promise((resolve, reject) => {
       this._PDF.getPage(pg)
-      .then( page => {
-        const viewport = page.getViewport(this._zoom);
-        view.width = viewport.width;
-        view.height = viewport.height;
+        .then(page => {
+          const viewport = page.getViewport(this._zoom);
+          view.width = viewport.width;
+          view.height = viewport.height;
 
-        const context = view.getContext('2d');
-        const renderContext = {
-          canvasContext: context,
-          viewport: viewport
-        };
-        resolve( page.render(renderContext));
-      })
-      .catch( (err) => {
-        this._PDF.getPage(1)
-          .then( page => {
-            const viewport = page.getViewport(this._zoom);
-            view.width = viewport.width;
-            view.height = viewport.height
-          })
-          .then( resolve );
-      });
+          const context = view.getContext('2d');
+          const renderContext = {
+            canvasContext: context,
+            viewport: viewport
+          };
+          resolve(page.render(renderContext));
+        })
+        .catch((err) => {
+          this._PDF.getPage(1)
+            .then(page => {
+              const viewport = page.getViewport(this._zoom);
+              view.width = viewport.width;
+              view.height = viewport.height
+            })
+            .then(resolve);
+        });
     })
   },
 
   _drawPage(pg) {
-    if(!pg) pg = this.page;
-    if(this._pageRendering) {
+    if (!pg) pg = this.page;
+    if (this._pageRendering) {
       this._pageNumPending = pg
       return;
     }
     this._pageRendering = true;
     this.$.spinner.active = true;
     const promises = [];
-    if( this.mode === "single" ) {
+    if (this.mode === "single") {
       promises.push(this._renderView(this.$.viewer1, pg))
     } else {
 
       promises.push(this._renderView(this.$.viewer1, pg - pg % 2));
-      promises.push(this._renderView(this.$.viewer2, pg - pg % 2 +1));
+      promises.push(this._renderView(this.$.viewer2, pg - pg % 2 + 1));
     }
     Promise.all(promises)
-      .then( () => {
+      .then(() => {
         this._firstRender = true;
         this._pageRendering = false;
         this.$.spinner.active = false;
@@ -296,45 +297,45 @@ Polymer({
     let getDiff = (evt) => {
       return {
         x: this._trackPos.x - evt.detail.x,
-        y: this._trackPos.y -  evt.detail.y,
+        y: this._trackPos.y - evt.detail.y,
       };
     };
-    switch(evt.detail.state) {
+    switch (evt.detail.state) {
       case 'start':
-       this._trackPos = { x:evt.detail.x, y:evt.detail.y};
-       break;
-     case 'track':
-       tmp = getDiff(evt);
-       this.$.viewer.style.transform = `translate(${this._pos.x-tmp.x}px,${this._pos.y-tmp.y}px )`;
-       break;
-     case 'end':
-       tmp = getDiff(evt);
-       this._pos.x = this._pos.x-tmp.x;
-       this._pos.y = this._pos.y-tmp.y;
-       this._recenter();
-       break;
-   }
- },
+        this._trackPos = { x: evt.detail.x, y: evt.detail.y };
+        break;
+      case 'track':
+        tmp = getDiff(evt);
+        this.$.viewer.style.transform = `translate(${this._pos.x-tmp.x}px,${this._pos.y-tmp.y}px )`;
+        break;
+      case 'end':
+        tmp = getDiff(evt);
+        this._pos.x = this._pos.x - tmp.x;
+        this._pos.y = this._pos.y - tmp.y;
+        this._recenter();
+        break;
+    }
+  },
 
   _recenter() {
     const rect = this.$.container.getBoundingClientRect();
     const viewerRect = this.$.viewer.getBoundingClientRect();
-    if(rect.width > viewerRect.width) {
+    if (rect.width > viewerRect.width) {
       this._pos.x = (rect.width - viewerRect.width) / 2;
     }
-    if(rect.height > viewerRect.height) {
+    if (rect.height > viewerRect.height) {
       this._pos.y = (rect.height - viewerRect.height) / 2;
     }
-    if( rect.width < viewerRect.width && rect.width > viewerRect.width + this._pos.x + 50) {
+    if (rect.width < viewerRect.width && rect.width > viewerRect.width + this._pos.x + 50) {
       this._pos.x = rect.width - 50 - viewerRect.width;
     }
-    if( rect.width < viewerRect.width && this._pos.x > 50 ) {
+    if (rect.width < viewerRect.width && this._pos.x > 50) {
       this._pos.x = 50
     }
-    if( rect.height < viewerRect.height && rect.height > viewerRect.height + this._pos.y + 50) {
+    if (rect.height < viewerRect.height && rect.height > viewerRect.height + this._pos.y + 50) {
       this._pos.y = rect.height - 50 - viewerRect.height;
     }
-    if( rect.height < viewerRect.height && this._pos.y > 50 ) {
+    if (rect.height < viewerRect.height && this._pos.y > 50) {
       this._pos.y = 50
     }
     this.$.viewer.style.transform = `translate(${this._pos.x}px,${this._pos.y}px )`;

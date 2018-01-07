@@ -14,9 +14,9 @@
 
 import * as dom5 from 'dom5';
 import {ASTNode, treeAdapters} from 'parse5';
-import {resolve as resolveUrl} from 'url';
 
 import {getAttachedCommentText, getLocationOffsetOfStartOfTextContent, ScannedImport, ScannedInlineDocument} from '../model/model';
+import {FileRelativeUrl} from '../model/url';
 
 import {HtmlVisitor, ParsedHtmlDocument} from './html-document';
 import {HtmlScanner} from './html-scanner';
@@ -40,15 +40,14 @@ export class HtmlStyleScanner implements HtmlScanner {
       visit: (visitor: HtmlVisitor) => Promise<void>) {
     const features: (ScannedImport|ScannedInlineDocument)[] = [];
 
-    const visitor = async(node: ASTNode) => {
+    const visitor = async (node: ASTNode) => {
       if (isStyleNode(node)) {
         const tagName = node.nodeName;
         if (tagName === 'link') {
-          const href = dom5.getAttribute(node, 'href')!;
-          const importUrl = resolveUrl(document.baseUrl, href);
+          const href = dom5.getAttribute(node, 'href')! as FileRelativeUrl;
           features.push(new ScannedImport(
               'html-style',
-              importUrl,
+              href,
               document.sourceRangeForNode(node)!,
               document.sourceRangeForAttributeValue(node, 'href')!,
               node,

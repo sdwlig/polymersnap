@@ -17,11 +17,12 @@ import * as fs from 'fs';
 import * as path from 'path';
 
 import {HtmlParser} from '../../html/html-parser';
+import {Analyzer} from '../../index';
+import {PackageUrlResolver} from '../../url-loader/package-url-resolver';
+import {fixtureDir, resolvedUrl} from '../test-utils';
 
 suite('HtmlParser', () => {
-
   suite('parse()', () => {
-
     let parser: HtmlParser;
 
     setup(() => {
@@ -30,27 +31,35 @@ suite('HtmlParser', () => {
 
     suite('on a well-formed document', () => {
       const file = fs.readFileSync(
-          path.resolve(__dirname, '../static/html-parse-target.html'), 'utf8');
+          path.resolve(fixtureDir, 'html-parse-target.html'), 'utf8');
 
       test('parses a well-formed document', () => {
-        const document = parser.parse(file, '/static/html-parse-target.html');
+        const document = parser.parse(
+            file,
+            resolvedUrl`/static/html-parse-target.html`,
+            new PackageUrlResolver());
         assert.equal(document.url, '/static/html-parse-target.html');
       });
 
       test('can stringify back a well-formed document', () => {
-        const document = parser.parse(file, '/static/html-parse-target.html');
+        const document = parser.parse(
+            file,
+            resolvedUrl`/static/html-parse-target.html`,
+            new PackageUrlResolver());
         assert.deepEqual(document.stringify(), file);
       });
     });
 
-    test('can properly determine the base url of a document', () => {
-      const file = fs.readFileSync(
-          path.resolve(__dirname, '../static/base-href/doc-with-base.html'),
-          'utf8');
+    test('can properly determine the base url of a document', async () => {
+      const analyzer =
+          Analyzer.createForDirectory(path.resolve(fixtureDir, '../'));
+      const resolvedPath =
+          analyzer.resolveUrl(`static/base-href/doc-with-base.html`)!;
+      const file = await analyzer.load(resolvedPath);
       const document =
-          parser.parse(file, '/static/base-href/doc-with-base.html');
-      assert.equal(document.url, '/static/base-href/doc-with-base.html');
-      assert.equal(document.baseUrl, '/static/');
+          parser.parse(file, resolvedPath, new PackageUrlResolver());
+      assert.equal(document.url, resolvedPath);
+      assert.equal(document.baseUrl, analyzer.resolveUrl('static/'));
     });
   });
 });

@@ -34,7 +34,7 @@ explicitly sized parent. By "explicitly sized", we mean it either has an explici
 CSS `height` property set via a class or inline style, or else is sized by other
 layout means (e.g. the `flex` or `fit` classes).
 
-#### Flexbox - [jsbin](http://jsbin.com/kokaki/edit?html,output)
+#### Flexbox - [jsbin](https://jsbin.com/vejoni/edit?html,output)
 
 ```html
 <template is="x-list">
@@ -60,7 +60,7 @@ layout means (e.g. the `flex` or `fit` classes).
   </iron-list>
 </template>
 ```
-#### Explicit size - [jsbin](http://jsbin.com/pibefo/edit?html,output)
+#### Explicit size - [jsbin](https://jsbin.com/vopucus/edit?html,output)
 ```html
 <template is="x-list">
   <style>
@@ -81,7 +81,7 @@ layout means (e.g. the `flex` or `fit` classes).
   </iron-list>
 </template>
 ```
-#### Main document scrolling - [jsbin](http://jsbin.com/cojuli/edit?html,output)
+#### Main document scrolling - [jsbin](https://jsbin.com/wevirow/edit?html,output)
 ```html
 <head>
   <style>
@@ -426,7 +426,7 @@ will only render 20.
 
     /**
      * The ratio of hidden tiles that should remain in the scroll direction.
-     * Recommended value ~0.5, so it will distribute tiles evely in both directions.
+     * Recommended value ~0.5, so it will distribute tiles evenly in both directions.
      */
     _ratio: 0.5,
 
@@ -1066,7 +1066,7 @@ will only render 20.
     },
 
     /**
-     * Called when the items have changed. That is, ressignments
+     * Called when the items have changed. That is, reassignments
      * to `items`, splices or updates to a single item.
      */
     _itemsChanged: function(change) {
@@ -1093,7 +1093,8 @@ will only render 20.
         this._virtualCount = this.items ? this.items.length : 0;
         // Render only if the affected index is rendered.
         var affectedIndexRendered = change.value.indexSplices.some(function(splice) {
-          return this._isIndexRendered(splice.index);
+          return splice.index + splice.addedCount >= this._virtualStart &&
+              splice.index <= this._virtualEnd;
         }, this);
         if (!this._isClientFull() || affectedIndexRendered) {
           this._debounce('_render', this._render, ANIMATION_FRAME);
@@ -1109,23 +1110,26 @@ will only render 20.
       if (dot === 0) {
         dot = path.length;
       }
-      var idx = IS_V2
+      var vidx = IS_V2
           ? parseInt(path.substring(0, dot), 10)
           // Extract `#` from `path`.
           : parseInt(path.substring(1, dot), 10);
       var offscreenItem = this._offscreenFocusedItem;
-      var isIndexRendered = this._isIndexRendered(idx);
+      var isIndexRendered = this._isIndexRendered(vidx);
       var inst;
       var pidx;
 
       if (isIndexRendered) {
-        pidx = this._getPhysicalIndex(idx);
+        pidx = this._getPhysicalIndex(vidx);
         inst = this.modelForElement(this._physicalItems[pidx]);
       } else if (offscreenItem) {
         inst = this.modelForElement(offscreenItem);
       }
-      if (!inst || inst[this.indexAs] !== idx) {
-        return;
+      if (!inst || inst[this.indexAs] !== vidx) {
+        // NOTE: consider valid instance if it has correct __key__ (Polymer 1.x).
+        if (!inst || inst.__key__ !== '#' + vidx) {
+          return;
+        }
       }
       path = path.substring(dot);
       path = this.as + (path ? '.' + path : '');
@@ -1701,8 +1705,10 @@ will only render 20.
       return idx >= this.firstVisibleIndex && idx <= this.lastVisibleIndex;
     },
 
-    _getPhysicalIndex: function(idx) {
-      return (this._physicalStart + (idx - this._virtualStart)) % this._physicalCount;
+    _getPhysicalIndex: function(vidx) {
+      return IS_V2
+        ? (this._physicalStart + (vidx - this._virtualStart)) % this._physicalCount
+        : this._physicalIndexForKey['#' + vidx];
     },
 
     focusItem: function(idx) {

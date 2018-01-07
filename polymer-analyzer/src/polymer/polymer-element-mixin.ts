@@ -11,8 +11,7 @@
  * subject to an additional IP rights grant found at
  * http://polymer.github.io/PATENTS.txt
  */
-import * as dom5 from 'dom5';
-import * as estree from 'estree';
+import * as babel from 'babel-types';
 
 import {Annotation as JsDocAnnotation} from '../javascript/jsdoc';
 import {Class, Document, ElementMixin, Privacy, ScannedElementMixin, ScannedMethod, ScannedReference, SourceRange} from '../model/model';
@@ -28,8 +27,8 @@ export interface Options {
   privacy: Privacy;
   sourceRange: SourceRange;
   mixins: ScannedReference[];
-  astNode: estree.Node;
-  classAstNode?: estree.Node;
+  astNode: babel.Node;
+  classAstNode?: babel.Node;
 }
 
 export class ScannedPolymerElementMixin extends ScannedElementMixin implements
@@ -40,14 +39,10 @@ export class ScannedPolymerElementMixin extends ScannedElementMixin implements
   readonly observers: Observer[] = [];
   readonly listeners: {event: string, handler: string}[] = [];
   readonly behaviorAssignments: ScannedBehaviorAssignment[] = [];
-  // FIXME(rictic): domModule and scriptElement aren't known at a file local
-  //     level. Remove them here, they should only exist on PolymerElement.
-  domModule: dom5.Node|undefined = undefined;
-  scriptElement: dom5.Node|undefined = undefined;
   pseudo: boolean = false;
   readonly abstract: boolean = false;
   readonly sourceRange: SourceRange;
-  classAstNode?: estree.Node;
+  classAstNode?: babel.Node;
 
   constructor({
     name,
@@ -96,32 +91,26 @@ export class PolymerElementMixin extends ElementMixin implements
   readonly observers: Observer[];
   readonly listeners: {event: string, handler: string}[];
   readonly behaviorAssignments: ScannedBehaviorAssignment[] = [];
-  readonly domModule?: dom5.Node;
-  readonly scriptElement?: dom5.Node;
   readonly localIds: LocalId[] = [];
   readonly pseudo: boolean;
 
   constructor(scannedMixin: ScannedPolymerElementMixin, document: Document) {
     super(scannedMixin, document);
     this.kinds.add('polymer-element-mixin');
-    this.domModule = scannedMixin.domModule;
     this.pseudo = scannedMixin.pseudo;
-    this.scriptElement = scannedMixin.scriptElement;
     this.behaviorAssignments = Array.from(scannedMixin.behaviorAssignments);
     this.observers = Array.from(scannedMixin.observers);
   }
 
   emitPropertyMetadata(property: PolymerProperty) {
-    const polymerMetadata:
-        {notify?: boolean, observer?: string, readOnly?: boolean} = {};
-    const polymerMetadataFields: Array<keyof typeof polymerMetadata> =
-        ['notify', 'observer', 'readOnly'];
-    for (const field of polymerMetadataFields) {
-      if (field in property) {
-        polymerMetadata[field] = property[field];
+    return {
+      polymer: {
+        notify: property.notify,
+        observer: property.observer,
+        readOnly: property.readOnly,
+        attributeType: property.attributeType,
       }
-    }
-    return {polymer: polymerMetadata};
+    };
   }
 
   protected _getSuperclassAndMixins(

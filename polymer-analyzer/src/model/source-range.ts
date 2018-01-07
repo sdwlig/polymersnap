@@ -12,6 +12,8 @@
  * http://polymer.github.io/PATENTS.txt
  */
 
+import {ResolvedUrl} from './url';
+
 /**
  * Describes a range of text within a source file.
  *
@@ -21,7 +23,7 @@
  */
 export interface SourceRange {
   /* The resolved path to the file. */
-  readonly file: string;
+  readonly file: ResolvedUrl;
   readonly start: SourcePosition;
   readonly end: SourcePosition;
 }
@@ -41,7 +43,7 @@ export interface LocationOffset {
   /**
    * The url of the source file.
    */
-  readonly filename?: string;
+  readonly filename?: ResolvedUrl;
 }
 
 /**
@@ -104,6 +106,20 @@ export function uncorrectPosition(
     line: line,
     column: position.column - (line === 0 ? locationOffset.col : 0)
   };
+}
+
+/**
+ * Returns -1 if source position `a` comes before source position `b`, returns 0
+ * if they are the same, returns 1 if `a` comes after `b`.
+ */
+export function comparePosition(a: SourcePosition, b: SourcePosition): number {
+  if (a.line !== b.line) {
+    return a.line < b.line ? -1 : 1;
+  }
+  if (a.column !== b.column) {
+    return a.column < b.column ? -1 : 1;
+  }
+  return 0;
 }
 
 /**

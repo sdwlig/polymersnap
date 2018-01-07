@@ -14,9 +14,9 @@
 
 /// <reference path="../../../node_modules/@types/mocha/index.d.ts" />
 
+import * as babel from 'babel-types';
 import {assert, use} from 'chai';
 import * as clone from 'clone';
-import * as estree from 'estree';
 import * as path from 'path';
 import * as shady from 'shady-css-parser';
 
@@ -27,16 +27,17 @@ import {ParsedHtmlDocument} from '../../html/html-document';
 import {HtmlParser} from '../../html/html-parser';
 import {ScriptTagImport} from '../../html/html-script-tag';
 import {JavaScriptDocument} from '../../javascript/javascript-document';
-import {Document, Import, ScannedImport, ScannedInlineDocument, Severity} from '../../model/model';
+import {Document, ScannedImport, ScannedInlineDocument, Severity, Warning} from '../../model/model';
 import {FSUrlLoader} from '../../url-loader/fs-url-loader';
 import {InMemoryOverlayUrlLoader} from '../../url-loader/overlay-loader';
 import {UrlLoader} from '../../url-loader/url-loader';
-
-import {CodeUnderliner, invertPromise} from '../test-utils';
+import {CodeUnderliner, fixtureDir, invertPromise, resolvedUrl} from '../test-utils';
 
 import chaiAsPromised = require('chai-as-promised');
 import chaiSubset = require('chai-subset');
 import stripIndent = require('strip-indent');
+import {ResolvedUrl} from '../../model/url';
+import {PackageUrlResolver} from '../../url-loader/package-url-resolver';
 
 use(chaiSubset);
 use(chaiAsPromised);
@@ -47,7 +48,7 @@ function getOnly<V>(iter: Iterable<V>): V {
   return arr[0]!;
 }
 
-const testDir = path.join(__dirname, '..');
+const testDir = path.join(fixtureDir, '..');
 
 suite('Analyzer', () => {
   let analyzer: Analyzer;
@@ -57,60 +58,51 @@ suite('Analyzer', () => {
   async function analyzeDocument(
       url: string, localAnalyzer?: Analyzer): Promise<Document> {
     localAnalyzer = localAnalyzer || analyzer;
-    const document =
-        (await localAnalyzer.analyze([url])).getDocument(url) as Document;
-    assert.instanceOf(document, Document);
-    return document;
+    const result = (await localAnalyzer.analyze([url])).getDocument(url);
+    if (!result.successful) {
+      throw new Error(`Could not get document for url: ${url}`);
+    }
+    return result.value;
   };
 
   setup(() => {
     const underlyingUrlLoader = new FSUrlLoader(testDir);
     inMemoryOverlay = new InMemoryOverlayUrlLoader(underlyingUrlLoader);
-    analyzer = new Analyzer({urlLoader: inMemoryOverlay});
+    analyzer = new Analyzer({
+      urlLoader: inMemoryOverlay,
+      urlResolver: new PackageUrlResolver({packageDir: testDir})
+    });
     underliner = new CodeUnderliner(inMemoryOverlay);
   });
 
   test('canLoad delegates to the urlLoader canLoad method', () => {
-    assert.isTrue(analyzer.canLoad('/'), '/');
-    assert.isTrue(analyzer.canLoad('/path'), '/path');
-    assert.isFalse(analyzer.canLoad('../path'), '../path');
-    assert.isFalse(analyzer.canLoad('http://host/'), 'http://host/');
-    assert.isFalse(analyzer.canLoad('http://host/path'), 'http://host/path');
-  });
-
-  suite('canResolveUrl()', () => {
-    test('canResolveUrl defaults to not resolving external urls', () => {
-      assert.isTrue(analyzer.canResolveUrl('/path'), '/path');
-      assert.isTrue(analyzer.canResolveUrl('../path'), '../path');
-      assert.isFalse(analyzer.canResolveUrl('http://host'), 'http://host');
-      assert.isFalse(
-          analyzer.canResolveUrl('http://host/path'), 'http://host/path');
-    });
+    assert.isTrue(analyzer.canLoad(resolvedUrl`file:///`));
+    assert.isTrue(analyzer.canLoad(resolvedUrl`file:////path`));
+    assert.isFalse(analyzer.canLoad(resolvedUrl`file://hostname/path`));
+    assert.isFalse(analyzer.canLoad(resolvedUrl`http://host/`));
+    assert.isFalse(analyzer.canLoad(resolvedUrl`http://host/path`));
   });
 
   suite('analyze()', () => {
+    let testName = 'analyzes a document with an inline Polymer element feature';
+    test(testName, async () => {
+      const document =
+          await analyzeDocument('static/analysis/simple/simple-element.html');
+      const elements =
+          Array.from(document.getFeatures({kind: 'element', imported: false}));
+      assert.deepEqual(elements.map((e) => e.tagName), ['simple-element']);
+    });
 
-    test(
-        'analyzes a document with an inline Polymer element feature',
-        async() => {
-          const document = await analyzeDocument(
-              'static/analysis/simple/simple-element.html');
-          const elements = Array.from(
-              document.getFeatures({kind: 'element', imported: false}));
-          assert.deepEqual(elements.map((e) => e.tagName), ['simple-element']);
-        });
+    testName = 'analyzes a document with an external Polymer element feature';
+    test(testName, async () => {
+      const document =
+          await analyzeDocument('static/analysis/separate-js/element.html');
+      const elements =
+          Array.from(document.getFeatures({kind: 'element', imported: true}));
+      assert.deepEqual(elements.map((e) => e.tagName), ['my-element']);
+    });
 
-    test(
-        'analyzes a document with an external Polymer element feature',
-        async() => {
-          const document =
-              await analyzeDocument('static/analysis/separate-js/element.html');
-          const elements = Array.from(
-              document.getFeatures({kind: 'element', imported: true}));
-          assert.deepEqual(elements.map((e) => e.tagName), ['my-element']);
-        });
-
-    test('gets source ranges of documents correct', async() => {
+    test('gets source ranges of documents correct', async () => {
       const document = await analyzeDocument('static/dependencies/root.html');
       assert.deepEqual(await underliner.underline(document.sourceRange), `
 <link rel="import" href="inline-only.html">
@@ -127,7 +119,7 @@ suite('Analyzer', () => {
 `);
     });
 
-    test('analyzes inline scripts correctly', async() => {
+    test('analyzes inline scripts correctly', async () => {
       const document = await analyzeDocument(
           'static/inline-documents/inline-documents.html');
       const jsDocuments = document.getFeatures({kind: 'js-document'});
@@ -144,7 +136,7 @@ suite('Analyzer', () => {
 ~~`);
     });
 
-    test('analyzes inline styles correctly', async() => {
+    test('analyzes inline styles correctly', async () => {
       const document = await analyzeDocument(
           'static/inline-documents/inline-documents.html');
       const cssDocuments = document.getFeatures({kind: 'css-document'});
@@ -164,7 +156,7 @@ suite('Analyzer', () => {
 ~~`);
     });
 
-    test('analyzes a document with an import', async() => {
+    test('analyzes a document with an import', async () => {
       const document =
           await analyzeDocument('static/analysis/behaviors/behavior.html');
       const behaviors =
@@ -174,106 +166,142 @@ suite('Analyzer', () => {
           ['MyNamespace.SubBehavior', 'MyNamespace.SimpleBehavior']);
     });
 
-    test(
-        'creates "missing behavior" warnings on imported documents without elements',
-        async() => {
-          const document = await analyzeDocument(
-              'static/chained-missing-behavior/index.html');
-          const chainedDocument = getOnly(document.getFeatures({
-            kind: 'document',
-            id: 'static/chained-missing-behavior/chained.html',
-            imported: true
-          }));
-          const expectedWarning = {
-            code: 'unknown-polymer-behavior',
-            message:
-                'Unable to resolve behavior `NotFoundBehavior`. Did you import it? Is it annotated with @polymerBehavior?',
-            severity: 1,
-            sourceRange: {
-              end: {column: 55, line: 2},
-              start: {column: 39, line: 2},
-              file: 'static/chained-missing-behavior/chained.html'
-            },
-          };
-          assert.deepEqual(document.getWarnings({imported: false}), []);
-          assert.deepEqual(
-              document.getWarnings({imported: true}).map((w) => w.toJSON()),
-              [expectedWarning]);
-          assert.deepEqual(
-              chainedDocument.getWarnings({imported: false})
-                  .map((w) => w.toJSON()),
-              [expectedWarning]);
-        });
+    testName = `creates "missing behavior" warnings on imported ` +
+        `documents without elements`;
+    test(testName, async () => {
+      const document =
+          await analyzeDocument('static/chained-missing-behavior/index.html');
+      const chainedDocument = getOnly(document.getFeatures({
+        kind: 'document',
+        id: analyzer.resolveUrl('static/chained-missing-behavior/chained.html'),
+        imported: true
+      }));
+      const expectedWarning = {
+        code: 'unknown-polymer-behavior',
+        message:
+            'Unable to resolve behavior `NotFoundBehavior`. Did you import it? Is it annotated with @polymerBehavior?',
+        severity: 1,
+        sourceRange: {
+          end: {column: 55, line: 2},
+          start: {column: 39, line: 2},
+          file: analyzer.resolveUrl(
+              'static/chained-missing-behavior/chained.html')
+        },
+      };
+      assert.deepEqual(document.getWarnings({imported: false}), []);
+      assert.deepEqual(
+          document.getWarnings({imported: true}).map((w) => w.toJSON()),
+          [expectedWarning]);
+      assert.deepEqual(
+          chainedDocument.getWarnings({imported: false}).map((w) => w.toJSON()),
+          [expectedWarning]);
+    });
 
-    test(
-        'an inline document can find features from its container document',
-        async() => {
-          const document =
-              await analyzeDocument('static/analysis/behaviors/behavior.html');
-          const localDocuments =
-              document.getFeatures({kind: 'document', imported: false});
-          assert.equal(localDocuments.size, 2);  // behavior.html and its inline
+    testName =
+        'an inline document can find features from its container document';
+    test(testName, async () => {
+      const document =
+          await analyzeDocument('static/analysis/behaviors/behavior.html');
+      const localDocuments =
+          document.getFeatures({kind: 'document', imported: false});
+      assert.equal(localDocuments.size, 2);  // behavior.html and its inline
 
-          const allDocuments =
-              document.getFeatures({kind: 'document', imported: true});
-          assert.equal(allDocuments.size, 4);
+      const allDocuments =
+          document.getFeatures({kind: 'document', imported: true});
+      assert.equal(allDocuments.size, 4);
 
-          const inlineDocuments =
-              Array.from(document.getFeatures({imported: false}))
-                  .filter(
-                      (d) => d instanceof Document && d.isInline) as Document[];
-          assert.equal(inlineDocuments.length, 1);
+      const inlineDocuments =
+          Array.from(document.getFeatures({kind: 'document', imported: false}))
+              .filter((d) => d instanceof Document && d.isInline);
+      assert.equal(inlineDocuments.length, 1);
 
-          // This is the main purpose of the test: get a feature from
-          // the inline
-          // document that's imported by the container document
-          const behaviorJsDocument = inlineDocuments[0];
-          const subBehavior = getOnly(behaviorJsDocument.getFeatures({
-            kind: 'behavior',
-            id: 'MyNamespace.SubBehavior',
-            imported: true
-          }));
-          assert.equal(subBehavior!.className, 'MyNamespace.SubBehavior');
-        });
+      // This is the main purpose of the test: get a feature from
+      // the inline
+      // document that's imported by the container document
+      const behaviorJsDocument = inlineDocuments[0];
+      const subBehavior = getOnly(behaviorJsDocument.getFeatures(
+          {kind: 'behavior', id: 'MyNamespace.SubBehavior', imported: true}));
+      assert.equal(subBehavior!.className, 'MyNamespace.SubBehavior');
+    });
 
-    test(
-        'an inline script can find features from its container document',
-        async() => {
-          const document = await analyzeDocument(
-              'static/script-tags/inline/test-element.html');
-          const inlineDocuments = Array
-                                      .from(document.getFeatures(
-                                          {kind: 'document', imported: false}))
-                                      .filter((d) => d.isInline);
-          assert.equal(inlineDocuments.length, 1);
-          const inlineJsDocument = inlineDocuments[0];
+    testName = 'an inline script can find features from its container document';
+    test(testName, async () => {
+      const document =
+          await analyzeDocument('static/script-tags/inline/test-element.html');
+      const inlineDocuments =
+          Array.from(document.getFeatures({kind: 'document', imported: false}))
+              .filter((d) => d.isInline);
+      assert.equal(inlineDocuments.length, 1);
+      const inlineJsDocument = inlineDocuments[0];
 
-          // The inline document can find the container's imported
-          // features
-          const subBehavior = getOnly(inlineJsDocument.getFeatures(
-              {kind: 'behavior', id: 'TestBehavior', imported: true}));
-          assert.equal(subBehavior!.className, 'TestBehavior');
-        });
+      // The inline document can find the container's imported
+      // features
+      const subBehavior = getOnly(inlineJsDocument.getFeatures(
+          {kind: 'behavior', id: 'TestBehavior', imported: true}));
+      assert.equal(subBehavior!.className, 'TestBehavior');
+    });
 
-    test(
-        'an external script can find features from its container document',
-        async() => {
-          const document = await analyzeDocument(
-              'static/script-tags/external/test-element.html');
+    testName = 'an inline feature can narrow down its containing document';
+    test(testName, async () => {
+      const url = 'static/script-tags/inline/test-element.html';
+      const result = (await analyzer.analyze([url]));
+      const document = result.getDocument(url);
+      if (!document.successful) {
+        throw new Error(`Could not get document for url: ${url}`);
+      }
+      const inlineDocuments = Array
+                                  .from(document.value.getFeatures(
+                                      {kind: 'document', imported: false}))
+                                  .filter((d) => d.isInline);
+      assert.equal(inlineDocuments.length, 1);
+      const inlineJsDocument = inlineDocuments[0];
 
-          const htmlScriptTags = Array.from(
-              document.getFeatures({kind: 'html-script', imported: false}));
-          assert.equal(htmlScriptTags.length, 1);
+      // The inline document can find the container's imported
+      // features
+      const subBehavior = getOnly(document.value.getFeatures(
+          {kind: 'polymer-element', id: 'test-element', imported: true}));
+      const narrowedDocument =
+          result.getDocumentContaining(subBehavior.sourceRange);
+      assert.equal(narrowedDocument, inlineJsDocument);
+    });
 
-          const htmlScriptTag = htmlScriptTags[0] as ScriptTagImport;
-          const scriptDocument = htmlScriptTag.document;
+    testName = 'a feature in the top level document narrows down to the full document';
+    test(testName, async () => {
+      const url = 'static/script-tags/inline/test-element.html';
+      const result = (await analyzer.analyze([url]));
+      const document = result.getDocument(url);
+      if (!document.successful) {
+        throw new Error(`Could not get document for url: ${url}`);
+      }
 
-          // The inline document can find the container's imported
-          // features
-          const subBehavior = getOnly(scriptDocument.getFeatures(
-              {kind: 'behavior', id: 'TestBehavior', imported: true}))!;
-          assert.equal(subBehavior.className, 'TestBehavior');
-        });
+      // The inline document can find the container's imported
+      // features
+      const HTMLImport = getOnly(document.value.getFeatures(
+          {kind: 'html-import'}));
+      const narrowedDocument =
+          result.getDocumentContaining(HTMLImport.sourceRange);
+      assert.equal(narrowedDocument, document.value);
+    });
+
+    testName =
+        'an external script can find features from its container document';
+    test(testName, async () => {
+      const document = await analyzeDocument(
+          'static/script-tags/external/test-element.html');
+
+      const htmlScriptTags = Array.from(
+          document.getFeatures({kind: 'html-script', imported: false}));
+      assert.equal(htmlScriptTags.length, 1);
+
+      const htmlScriptTag = htmlScriptTags[0] as ScriptTagImport;
+      const scriptDocument = htmlScriptTag.document;
+
+      // The inline document can find the container's imported
+      // features
+      const subBehavior = getOnly(scriptDocument.getFeatures(
+          {kind: 'behavior', id: 'TestBehavior', imported: true}))!;
+      assert.equal(subBehavior.className, 'TestBehavior');
+    });
 
 
     // This test is nearly identical to the previous, but covers a different
@@ -281,38 +309,35 @@ suite('Analyzer', () => {
     // PolymerElement must find behaviors while resolving, and if inline
     // documents don't add a document feature for their container until after
     // resolution, then the element can't find them and throws.
-    test(
-        'an inline document can find behaviors from its container document',
-        async() => {
-          const document = await analyzeDocument(
-              'static/analysis/behaviors/elementdir/element.html');
+    testName =
+        'an inline document can find behaviors from its container document';
+    test(testName, async () => {
+      const document = await analyzeDocument(
+          'static/analysis/behaviors/elementdir/element.html');
 
-          const documents =
-              document.getFeatures({kind: 'document', imported: false});
-          assert.equal(documents.size, 2);
+      const documents =
+          document.getFeatures({kind: 'document', imported: false});
+      assert.equal(documents.size, 2);
 
-          const inlineDocuments = Array.from(documents).filter(
-              (d) => d instanceof Document && d.isInline) as Document[];
-          assert.equal(inlineDocuments.length, 1);
+      const inlineDocuments = Array.from(documents).filter(
+          (d) => d instanceof Document && d.isInline);
+      assert.equal(inlineDocuments.length, 1);
 
-          // This is the main purpose of the test: get a feature
-          // from the inline
-          // document that's imported by the container document
-          const behaviorJsDocument = inlineDocuments[0];
-          const subBehavior = getOnly(behaviorJsDocument.getFeatures({
-            kind: 'behavior',
-            id: 'MyNamespace.SubBehavior',
-            imported: true
-          }));
-          assert.equal(subBehavior.className, 'MyNamespace.SubBehavior');
-        });
+      // This is the main purpose of the test: get a feature
+      // from the inline
+      // document that's imported by the container document
+      const behaviorJsDocument = inlineDocuments[0];
+      const subBehavior = getOnly(behaviorJsDocument.getFeatures(
+          {kind: 'behavior', id: 'MyNamespace.SubBehavior', imported: true}));
+      assert.equal(subBehavior.className, 'MyNamespace.SubBehavior');
+    });
 
-    test('returns a Document with warnings for malformed files', async() => {
+    test('returns a Document with warnings for malformed files', async () => {
       const document = await analyzeDocument('static/malformed.html');
       assert(document.getWarnings({imported: false}).length >= 1);
     });
 
-    test('analyzes transitive dependencies', async() => {
+    test('analyzes transitive dependencies', async () => {
       const root = await analyzeDocument('static/dependencies/root.html');
 
       // If we ask for documents we get every document in evaluation order.
@@ -327,7 +352,7 @@ suite('Analyzer', () => {
         ['static/dependencies/subfolder/in-folder.html', 'html', false],
         ['static/dependencies/subfolder/subfolder-sibling.html', 'html', false],
         ['static/dependencies/inline-and-imports.html', 'css', true],
-      ];
+      ].map(([u, t, i]) => [analyzer.resolveUrl(u as string), t, i]);
 
       // If we ask for documents we get every document in
       // evaluation order.
@@ -341,8 +366,11 @@ suite('Analyzer', () => {
       assert.deepEqual(
           Array.from(root.getFeatures({kind: 'document', imported: true}))
               .map((d) => [d.url, d.parsedDocument.type, d.isInline]),
-          strictlyReachableDocuments.concat(
-              [['static/dependencies/lazy.html', 'html', false]]));
+          strictlyReachableDocuments.concat([[
+            analyzer.resolveUrl('static/dependencies/lazy.html'),
+            'html',
+            false
+          ]]));
 
 
       // If we ask for imports we get the import statements in evaluation order.
@@ -359,11 +387,11 @@ suite('Analyzer', () => {
             'static/dependencies/subfolder/subfolder-sibling.html',
             'static/dependencies/subfolder/in-folder.html',
             'static/dependencies/lazy.html',
-          ]);
+          ].map((u) => analyzer.resolveUrl(u)));
 
       const inlineOnly = getOnly(root.getFeatures({
         kind: 'document',
-        id: 'static/dependencies/inline-only.html',
+        id: analyzer.resolveUrl('static/dependencies/inline-only.html'),
         imported: true
       }));
       assert.deepEqual(
@@ -374,7 +402,7 @@ suite('Analyzer', () => {
 
       const leaf = getOnly(root.getFeatures({
         kind: 'document',
-        id: 'static/dependencies/leaf.html',
+        id: analyzer.resolveUrl('static/dependencies/leaf.html'),
         imported: true
       }));
       assert.deepEqual(
@@ -383,7 +411,7 @@ suite('Analyzer', () => {
 
       const inlineAndImports = getOnly(root.getFeatures({
         kind: 'document',
-        id: 'static/dependencies/inline-and-imports.html',
+        id: analyzer.resolveUrl('static/dependencies/inline-and-imports.html'),
         imported: true
       }));
       assert.deepEqual(
@@ -394,7 +422,7 @@ suite('Analyzer', () => {
           ['html', 'js', 'html', 'html', 'css']);
       const inFolder = getOnly(root.getFeatures({
         kind: 'document',
-        id: 'static/dependencies/subfolder/in-folder.html',
+        id: analyzer.resolveUrl('static/dependencies/subfolder/in-folder.html'),
         imported: true
       }));
       assert.deepEqual(
@@ -403,162 +431,157 @@ suite('Analyzer', () => {
           [
             'static/dependencies/subfolder/in-folder.html',
             'static/dependencies/subfolder/subfolder-sibling.html'
-          ]);
+          ].map((u) => analyzer.resolveUrl(u)));
 
       // check de-duplication
       assert.equal(
           getOnly(inlineAndImports!.getFeatures({
             kind: 'document',
-            id: 'static/dependencies/subfolder/in-folder.html',
+            id: analyzer.resolveUrl(
+                'static/dependencies/subfolder/in-folder.html'),
             imported: true
           })),
           inFolder);
     });
 
-    test(`warns for files that don't exist`, async() => {
+    test(`warns for files that don't exist`, async () => {
       const url = '/static/does_not_exist';
-      const result = await analyzer.analyze([url]);
-      const warning = result.getDocument(url);
-      assert.isFalse(warning instanceof Document);
+      const analysis = await analyzer.analyze([url]);
+      const result = analysis.getDocument(url);
+      if (result.successful) {
+        throw new Error('Expected a failed result from getDocument');
+      }
+      assert.isTrue(result.error instanceof Warning);
     });
 
-    test('handles documents from multiple calls to analyze()', async() => {
+    test('handles documents from multiple calls to analyze()', async () => {
       await analyzer.analyze(['static/caching/file1.html']);
       await analyzer.analyze(['static/caching/file2.html']);
     });
 
-    test('handles mutually recursive documents', async() => {
+    test('handles mutually recursive documents', async () => {
       const document = await analyzeDocument('static/circular/mutual-a.html');
-      const shallowFeatures = document.getFeatures({imported: false});
       assert.deepEqual(
-          Array.from(shallowFeatures)
-              .filter((f) => f.kinds.has('document'))
-              .map((f) => (f as Document).url),
-          ['static/circular/mutual-a.html']);
+          [...document.getFeatures({kind: 'document'})].map((f) => f.url),
+          [analyzer.resolveUrl('static/circular/mutual-a.html')]);
       assert.deepEqual(
-          Array.from(shallowFeatures)
-              .filter((f) => f.kinds.has('import'))
-              .map((f) => (f as Import).url),
-          ['static/circular/mutual-b.html']);
+          [...document.getFeatures({kind: 'import'})].map((f) => f.url),
+          [analyzer.resolveUrl('static/circular/mutual-b.html')]);
 
-      const deepFeatures = document.getFeatures({imported: true});
       assert.deepEqual(
-          Array.from(deepFeatures)
-              .filter((f) => f.kinds.has('document'))
-              .map((f) => (f as Document).url),
-          ['static/circular/mutual-a.html', 'static/circular/mutual-b.html']);
+          [...document.getFeatures({kind: 'document', imported: true})].map(
+              (f) => f.url),
+          ['static/circular/mutual-a.html', 'static/circular/mutual-b.html']
+              .map((u) => analyzer.resolveUrl(u)));
       assert.deepEqual(
-          Array.from(deepFeatures)
-              .filter((f) => f.kinds.has('import'))
-              .map((f) => (f as Import).url),
-          ['static/circular/mutual-b.html', 'static/circular/mutual-a.html']);
+          [...document.getFeatures({kind: 'import', imported: true})].map(
+              (f) => f.url),
+          ['static/circular/mutual-b.html', 'static/circular/mutual-a.html']
+              .map((u) => analyzer.resolveUrl(u)));
     });
 
-    test(
-        'handles parallel analyses of mutually recursive documents',
-        async() => {
-          // At one point this deadlocked, or threw
-          // a _makeDocument error.
-          await Promise.all([
-            analyzer.analyze(['static/circular/mutual-a.html']),
-            analyzer.analyze(['static/circular/mutual-b.html'])
-          ]);
-        });
+    testName = 'handles parallel analyses of mutually recursive documents';
+    test(testName, async () => {
+      // At one point this deadlocked, or threw
+      // a _makeDocument error.
+      await Promise.all([
+        analyzer.analyze(['static/circular/mutual-a.html']),
+        analyzer.analyze(['static/circular/mutual-b.html'])
+      ]);
+    });
 
-    test('handles a document importing itself', async() => {
+    test('handles a document importing itself', async () => {
       const document =
           await analyzeDocument('static/circular/self-import.html');
-      const features = document.getFeatures({imported: true});
       assert.deepEqual(
-          Array.from(features)
-              .filter((f) => f.kinds.has('document'))
-              .map((f) => (f as Document).url),
-          ['static/circular/self-import.html']);
+          [...document.getFeatures({kind: 'document', imported: true})].map(
+              (f) => f.url),
+          ['static/circular/self-import.html'].map(
+              (u) => analyzer.resolveUrl(u)));
       assert.deepEqual(
-          Array.from(features)
-              .filter((f) => f.kinds.has('import'))
-              .map((f) => (f as Import).url),
+          [...document.getFeatures({kind: 'import', imported: true})].map(
+              (f) => f.url),
           [
             'static/circular/self-import.html',
             'static/circular/self-import.html'
-          ]);
+          ].map((u) => analyzer.resolveUrl(u)));
     });
 
     suite('handles documents with spaces in filename', () => {
-
-      test('given a url with unencoded spaces to analyze', async() => {
+      test('given a url with unencoded spaces to analyze', async () => {
         const document = await analyzeDocument('static/spaces in file.html');
-        const features = document.getFeatures({imported: true});
         assert.deepEqual(
-            Array.from(features)
-                .filter((f) => f.kinds.has('document'))
-                .map((f) => (f as Document).url),
+            [...document.getFeatures({kind: 'document', imported: true})].map(
+                (f) => f.url),
             [
-              'static/spaces%20in%20file.html',
-              'static/dependencies/spaces%20in%20import.html'
-            ]);
+              'static/spaces in file.html',
+              'static/dependencies/spaces in import.html'
+            ].map((u) => analyzer.resolveUrl(u)));
         assert.deepEqual(
-            Array.from(features)
-                .filter((f) => f.kinds.has('import'))
-                .map((f) => (f as Import).url),
-            ['static/dependencies/spaces%20in%20import.html']);
+            [...document.getFeatures({kind: 'import', imported: true})].map(
+                (f) => f.url),
+            ['static/dependencies/spaces in import.html'].map(
+                (u) => analyzer.resolveUrl(u)));
       });
 
-      test('given a url with encoded spaces to analyze', async() => {
+      test('given a url with encoded spaces to analyze', async () => {
         const document =
             await analyzeDocument('static/spaces%20in%20file.html');
-        const features = document.getFeatures({imported: true});
         assert.deepEqual(
-            Array.from(features)
-                .filter((f) => f.kinds.has('document'))
-                .map((f) => (f as Document).url),
+            [...document.getFeatures({kind: 'document', imported: true})].map(
+                (f) => f.url),
             [
-              'static/spaces%20in%20file.html',
-              'static/dependencies/spaces%20in%20import.html'
-            ]);
+              'static/spaces in file.html',
+              'static/dependencies/spaces in import.html'
+            ].map((u) => analyzer.resolveUrl(u)));
         assert.deepEqual(
-            Array.from(features)
-                .filter((f) => f.kinds.has('import'))
-                .map((f) => (f as Import).url),
-            ['static/dependencies/spaces%20in%20import.html']);
+            [...document.getFeatures({kind: 'import', imported: true})].map(
+                (f) => f.url),
+            ['static/dependencies/spaces in import.html'].map(
+                (u) => analyzer.resolveUrl(u)));
       });
     });
   });
 
   // TODO: reconsider whether we should test these private methods.
   suite('_parse()', () => {
-
-    test('loads and parses an HTML document', async() => {
+    test('loads and parses an HTML document', async () => {
       const context = await getContext(analyzer);
-      const doc = await context['_parse']('static/html-parse-target.html');
+      const doc = await context['_parse'](
+          analyzer.resolveUrl(`static/html-parse-target.html`)!);
       assert.instanceOf(doc, ParsedHtmlDocument);
-      assert.equal(doc.url, 'static/html-parse-target.html');
+      assert.equal(
+          doc.url, analyzer.resolveUrl(`static/html-parse-target.html`)!);
     });
 
-    test('loads and parses a JavaScript document', async() => {
+    test('loads and parses a JavaScript document', async () => {
       const context = await getContext(analyzer);
-      const doc = await context['_parse']('static/js-elements.js');
+      const doc = await context['_parse'](
+          analyzer.resolveUrl(`static/js-elements.js`)!);
       assert.instanceOf(doc, JavaScriptDocument);
-      assert.equal(doc.url, 'static/js-elements.js');
+      assert.equal(doc.url, analyzer.resolveUrl(`static/js-elements.js`));
     });
 
-    test('returns a Promise that rejects for non-existant files', async() => {
+    test('returns a Promise that rejects for non-existant files', async () => {
       const context = await getContext(analyzer);
-      await invertPromise(context['_parse']('static/not-found'));
+      await invertPromise(
+          context['_parse'](analyzer.resolveUrl(`static/not-found`)!));
     });
   });
 
   suite('_getScannedFeatures()', () => {
-    test('default import scanners', async() => {
+    test('default import scanners', async () => {
       const contents = `<html><head>
           <link rel="import" href="polymer.html">
           <script src="foo.js"></script>
           <link rel="stylesheet" href="foo.css"></link>
         </head></html>`;
-      const document = new HtmlParser().parse(contents, 'test.html');
+      const document = new HtmlParser().parse(
+          contents, resolvedUrl`test.html`, new PackageUrlResolver());
       const context = await getContext(analyzer);
-      const features = ((await context['_getScannedFeatures'](document))
-                            .features as ScannedImport[]);
+      const features =
+          ((await context['_getScannedFeatures'](document)).features as
+           ScannedImport[]);
       assert.deepEqual(
           features.map((e) => e.type),
           ['html-import', 'html-script', 'html-style']);
@@ -567,7 +590,7 @@ suite('Analyzer', () => {
           ['polymer.html', 'foo.js', 'foo.css']);
     });
 
-    test('polymer css import scanner', async() => {
+    test('polymer css import scanner', async () => {
       const contents = `<html><head>
           <link rel="import" type="css" href="foo.css">
         </head>
@@ -576,26 +599,29 @@ suite('Analyzer', () => {
             <link rel="import" type="css" href="bar.css">
           </dom-module>
         </body></html>`;
-      const document = new HtmlParser().parse(contents, 'test.html');
+      const document = new HtmlParser().parse(
+          contents, resolvedUrl`test.html`, new PackageUrlResolver());
       const context = await getContext(analyzer);
       const features =
           (await context['_getScannedFeatures'](document))
-              .features.filter(
-                  (e) => e instanceof ScannedImport) as ScannedImport[];
+              .features.filter((e) => e instanceof ScannedImport) as
+          ScannedImport[];
       assert.equal(features.length, 1);
       assert.equal(features[0].type, 'css-import');
       assert.equal(features[0].url, 'bar.css');
     });
 
-    test('HTML inline document scanners', async() => {
+    test('HTML inline document scanners', async () => {
       const contents = `<html><head>
           <script>console.log('hi')</script>
           <style>body { color: red; }</style>
         </head></html>`;
       const context = await getContext(analyzer);
-      const document = new HtmlParser().parse(contents, 'test.html');
-      const features = ((await context['_getScannedFeatures'](document))
-                            .features) as ScannedInlineDocument[];
+      const document = new HtmlParser().parse(
+          contents, resolvedUrl`test.html`, new PackageUrlResolver());
+      const features =
+          ((await context['_getScannedFeatures'](document)).features) as
+          ScannedInlineDocument[];
 
       assert.equal(features.length, 2);
       assert.instanceOf(features[0], ScannedInlineDocument);
@@ -604,7 +630,7 @@ suite('Analyzer', () => {
 
     const testName =
         'HTML inline documents can be cloned, modified, and stringified';
-    test(testName, async() => {
+    test(testName, async () => {
       const contents = stripIndent(`
         <div>
           <script>
@@ -629,7 +655,8 @@ suite('Analyzer', () => {
           </style>
         </div>
       `).trim();
-      inMemoryOverlay.urlContentsMap.set('test-doc.html', contents);
+      inMemoryOverlay.urlContentsMap.set(
+          analyzer.resolveUrl('test-doc.html')!, contents);
       const origDocument = await analyzeDocument('test-doc.html');
       const document = clone(origDocument);
 
@@ -641,9 +668,9 @@ suite('Analyzer', () => {
       assert.equal(1, jsDocs.size);
       const jsDoc = getOnly(jsDocs);
       (jsDoc.parsedDocument as JavaScriptDocument).visit([{
-        enterCallExpression(node: estree.CallExpression) {
+        enterCallExpression(node: babel.CallExpression) {
           node.arguments =
-              [{type: 'Literal', value: 'bar', raw: 'bar'}] as estree.Literal[];
+              [{type: 'StringLiteral', value: 'bar'}] as babel.StringLiteral[];
         }
       }]);
 
@@ -667,7 +694,7 @@ suite('Analyzer', () => {
   });
 
   suite('documentation extraction', () => {
-    test('we get the wrong description for paper-input', async() => {
+    test('we get the wrong description for paper-input', async () => {
       const document = await analyzeDocument('static/paper-input.html');
       const [element] =
           document.getFeatures({kind: 'element', id: 'paper-input'});
@@ -680,11 +707,8 @@ suite('Analyzer', () => {
     });
   });
 
-  test('analyzes a document with a namespace', async() => {
+  test('analyzes a document with a namespace', async () => {
     const document = await analyzeDocument('static/namespaces/import-all.html');
-    if (!(document instanceof Document)) {
-      throw new Error(`Expected Document, got ${document}`);
-    }
 
     const namespaces =
         Array.from(document.getFeatures({kind: 'namespace', imported: true}));
@@ -704,43 +728,43 @@ suite('Analyzer', () => {
 
   // TODO(rictic): move duplicate checks into scopes/analysis results.
   //     No where else has reliable knowledge of the clash.
-  test.skip(
-      'creates warnings when duplicate namespaces are analyzed', async() => {
-        const document = await analyzer.analyze(
-            ['static/namespaces/import-duplicates.html']);
-        const namespaces =
-            Array.from(document.getFeatures({kind: 'namespace'}));
-        assert.deepEqual(namespaces.map((b) => b.name), [
-          'ExplicitlyNamedNamespace',
-          'ExplicitlyNamedNamespace.NestedNamespace',
-        ]);
-        const warnings = document.getWarnings();
-        assert.containSubset(warnings, [
-          {
-            message:
-                'Found more than one namespace named ExplicitlyNamedNamespace.',
-            severity: Severity.WARNING,
-            code: 'multiple-javascript-namespaces',
-          }
-        ]);
-        assert.deepEqual(await underliner.underline(warnings), [`
+  const testName = 'creates warnings when duplicate namespaces are analyzed';
+  test.skip(testName, async () => {
+    const document =
+        await analyzer.analyze(['static/namespaces/import-duplicates.html']);
+    const namespaces = Array.from(document.getFeatures({kind: 'namespace'}));
+    assert.deepEqual(namespaces.map((b) => b.name), [
+      'ExplicitlyNamedNamespace',
+      'ExplicitlyNamedNamespace.NestedNamespace',
+    ]);
+    const warnings = document.getWarnings();
+    assert.containSubset(
+        warnings, [{
+          message:
+              'Found more than one namespace named ExplicitlyNamedNamespace.',
+          severity: Severity.WARNING,
+          code: 'multiple-javascript-namespaces',
+        }]);
+    assert.deepEqual(await underliner.underline(warnings), [`
 var DuplicateNamespace = {};
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~`]);
-      });
+  });
 
   suite('analyzePackage', () => {
-
-    test('produces a package with the right documents', async() => {
-      const analyzer = new Analyzer({
-        urlLoader: new FSUrlLoader(path.join(testDir, 'static', 'project'))
-      });
+    test('produces a package with the right documents', async () => {
+      const analyzer =
+          Analyzer.createForDirectory(path.join(fixtureDir, 'project'));
       const pckage = await analyzer.analyzePackage();
 
       // The root documents of the package are a minimal set of documents whose
       // imports touch every document in the package.
       assert.deepEqual(
-          Array.from(pckage['_searchRoots']).map((d) => d.url).sort(),
-          ['cyclic-a.html', 'root.html', 'subdir/root-in-subdir.html'].sort());
+          Array.from(pckage['_searchRoots']).map((d) => d.url).sort(), [
+            'build/output.html',
+            'cyclic-a.html',
+            'root.html',
+            'subdir/root-in-subdir.html'
+          ].map((u) => analyzer.resolveUrl(u)).sort());
 
       // Note that this does not contain the bower_components/ files
       assert.deepEqual(
@@ -749,13 +773,15 @@ var DuplicateNamespace = {};
               .map((d) => d.url)
               .sort(),
           [
+            'build/output.html',
             'cyclic-a.html',
             'cyclic-b.html',
             'root.html',
             'leaf.html',
             'subdir/subdir-leaf.html',
             'subdir/root-in-subdir.html'
-          ].sort());
+          ].map((u) => analyzer.resolveUrl(u))
+              .sort());
 
       // And this does contain the one imported file in bower_components/
       assert.deepEqual(
@@ -766,6 +792,7 @@ var DuplicateNamespace = {};
               .map((d) => d.url)
               .sort(),
           [
+            'build/output.html',
             'cyclic-a.html',
             'cyclic-b.html',
             'root.html',
@@ -773,9 +800,11 @@ var DuplicateNamespace = {};
             'subdir/subdir-leaf.html',
             'subdir/root-in-subdir.html',
             'bower_components/imported.html',
-          ].sort());
+          ].map((u) => analyzer.resolveUrl(u))
+              .sort());
 
       const packageElements = [
+        'build-output',
         'root-root',
         'leaf-leaf',
         'cyclic-a',
@@ -803,38 +832,47 @@ var DuplicateNamespace = {};
           packageElements.concat(['imported-dependency']).sort());
     });
 
-    test('can get warnings from within and without the package', async() => {
-      const analyzer = new Analyzer({
-        urlLoader:
-            new FSUrlLoader(path.join(testDir, 'static', 'project-with-errors'))
-      });
+    test('can get warnings from within and without the package', async () => {
+      const analyzer = Analyzer.createForDirectory(
+          path.join(fixtureDir, 'project-with-errors'));
       const pckage = await analyzer.analyzePackage();
       assert.deepEqual(
-          Array.from(pckage['_searchRoots']).map((d) => d.url), ['index.html']);
-      assert.deepEqual(
-          pckage.getWarnings().map((w) => w.sourceRange.file), ['index.html']);
+          Array.from(pckage['_searchRoots']).map((d) => d.url),
+          ['index.html', 'build/output.html'].map(
+              (u) => analyzer.resolveUrl(u)));
+      assert.deepEqual(pckage.getWarnings().map((w) => w.sourceRange.file), [
+        analyzer.resolveUrl('index.html'),
+        analyzer.resolveUrl('build/output.html')
+      ]);
       assert.deepEqual(
           pckage.getWarnings({externalPackages: true})
               .map((w) => w.sourceRange.file)
               .sort(),
-          ['bower_components/external-with-warnings.html', 'index.html']);
+          [
+            'bower_components/external-with-warnings.html',
+            'build/output.html',
+            'index.html',
+          ].map((u) => analyzer.resolveUrl(u)));
     });
   });
 
   suite('_fork', () => {
-    test('returns an independent copy of Analyzer', async() => {
-      inMemoryOverlay.urlContentsMap.set('a.html', 'a is shared');
+    test('returns an independent copy of Analyzer', async () => {
+      inMemoryOverlay.urlContentsMap.set(
+          analyzer.resolveUrl('a.html')!, 'a is shared');
       await analyzer.analyze(['a.html']);
       // Unmap a.html so that future reads of it will fail, thus testing the
       // cache.
-      inMemoryOverlay.urlContentsMap.delete('a.html');
+      inMemoryOverlay.urlContentsMap.delete(analyzer.resolveUrl('a.html')!);
 
       const analyzer2 = await analyzer._fork();
-      inMemoryOverlay.urlContentsMap.set('b.html', 'b for analyzer');
+      inMemoryOverlay.urlContentsMap.set(
+          analyzer.resolveUrl('b.html')!, 'b for analyzer');
       await analyzer.analyze(['b.html']);
-      inMemoryOverlay.urlContentsMap.set('b.html', 'b for analyzer2');
+      inMemoryOverlay.urlContentsMap.set(
+          analyzer.resolveUrl('b.html')!, 'b for analyzer2');
       await analyzer2.analyze(['b.html']);
-      inMemoryOverlay.urlContentsMap.delete('b.html');
+      inMemoryOverlay.urlContentsMap.delete(analyzer.resolveUrl('b.html')!);
 
       const a1 = await analyzeDocument('a.html', analyzer);
       const a2 = await analyzeDocument('a.html', analyzer2);
@@ -847,9 +885,15 @@ var DuplicateNamespace = {};
       assert.equal(b2.parsedDocument.contents, 'b for analyzer2');
     });
 
-    test('supports overriding of urlLoader', async() => {
-      const loader1 = {canLoad: () => true, load: async(u: string) => `${u} 1`};
-      const loader2 = {canLoad: () => true, load: async(u: string) => `${u} 2`};
+    test('supports overriding of urlLoader', async () => {
+      const loader1 = {
+        canLoad: () => true,
+        load: async (u: string) => `${u} 1`
+      };
+      const loader2 = {
+        canLoad: () => true,
+        load: async (u: string) => `${u} 2`
+      };
       const analyzer1 = new Analyzer({urlLoader: loader1});
       const a1 = await analyzeDocument('a.html', analyzer1);
       const analyzer2 = await analyzer1._fork({urlLoader: loader2});
@@ -857,26 +901,30 @@ var DuplicateNamespace = {};
       const b1 = await analyzeDocument('b.html', analyzer1);
       const b2 = await analyzeDocument('b.html', analyzer2);
 
-      assert.equal(a1.parsedDocument.contents, 'a.html 1', 'a.html, loader 1');
-      assert.equal(a2.parsedDocument.contents, 'a.html 1', 'a.html, in cache');
-      assert.equal(b1.parsedDocument.contents, 'b.html 1', 'b.html, loader 1');
-      assert.equal(b2.parsedDocument.contents, 'b.html 2', 'b.html, loader 2');
+      assert.isTrue(
+          a1.parsedDocument.contents.endsWith('a.html 1'), 'a.html, loader 1');
+      assert.isTrue(
+          a2.parsedDocument.contents.endsWith('a.html 1'), 'a.html, in cache');
+      assert.isTrue(
+          b1.parsedDocument.contents.endsWith('b.html 1'), 'b.html, loader 1');
+      assert.isTrue(
+          b2.parsedDocument.contents.endsWith('b.html 2'), 'b.html, loader 2');
     });
   });
 
   suite('race conditions and caching', () => {
-    test('maintain caches across multiple edits', async() => {
+    test('maintain caches across multiple edits', async () => {
       // This is a regression test of a scenario where changing a dependency
       // did not properly update warnings of a file. The bug turned out to
       // be in the dependency graph, but this test seems useful enough to
       // keep around.
       // The specific warning is renaming a superclass without updating the
       // class which extends it.
-      inMemoryOverlay.urlContentsMap.set('base.js', `
+      inMemoryOverlay.urlContentsMap.set(analyzer.resolveUrl('base.js')!, `
         class BaseElement extends HTMLElement {}
         customElements.define('base-elem', BaseElement);
       `);
-      inMemoryOverlay.urlContentsMap.set('user.html', `
+      inMemoryOverlay.urlContentsMap.set(analyzer.resolveUrl('user.html')!, `
         <script src="./base.js"></script>
         <script>
           class UserElem extends BaseElement {}
@@ -888,7 +936,7 @@ var DuplicateNamespace = {};
       const u1Doc = await analyzer.analyze(['user.html']);
       assert.deepEqual(u1Doc.getWarnings(), []);
 
-      inMemoryOverlay.urlContentsMap.set('base.js', `
+      inMemoryOverlay.urlContentsMap.set(analyzer.resolveUrl('base.js')!, `
         class NewSpelling extends HTMLElement {}
         customElements.define('base-elem', NewSpelling);
       `);
@@ -901,7 +949,7 @@ var DuplicateNamespace = {};
           u2Doc.getWarnings()[0].message,
           'Unable to resolve superclass BaseElement');
 
-      inMemoryOverlay.urlContentsMap.set('base.js', `
+      inMemoryOverlay.urlContentsMap.set(analyzer.resolveUrl('base.js')!, `
         class BaseElement extends HTMLElement {}
         customElements.define('base-elem', BaseElement);
       `);
@@ -930,14 +978,15 @@ var DuplicateNamespace = {};
       }
     }
 
-    const editorSimulator = async(waitFn: () => Promise<void>) => {
+    const editorSimulator = async (waitFn: () => Promise<void>) => {
       // Here we're simulating a lot of noop-changes to base.html,
       // which has
       // two imports, which mutually import a common dep. This
       // stresses the
       // analyzer's caching.
 
-      const contentsMap = new Map<string, string>([
+      const urlResolver = new PackageUrlResolver();
+      const entries: [string, string][] = [
         [
           'base.html',
           `<link rel="import" href="a.html">\n<link rel="import" href="b.html">`
@@ -945,9 +994,13 @@ var DuplicateNamespace = {};
         ['a.html', `<link rel="import" href="common.html">`],
         ['b.html', `<link rel="import" href="common.html">`],
         ['common.html', `<custom-el></custom-el>`],
-      ]);
-      const analyzer =
-          new Analyzer({urlLoader: new RacyUrlLoader(contentsMap, waitFn)});
+      ];
+      const contentsMap = new Map<ResolvedUrl, string>();
+      const analyzer = new Analyzer(
+          {urlLoader: new RacyUrlLoader(contentsMap, waitFn), urlResolver});
+      for (const [key, value] of entries) {
+        contentsMap.set(analyzer.resolveUrl(key)!, value);
+      }
       const promises: Promise<Document>[] = [];
       const intermediatePromises: Promise<void>[] = [];
       for (let i = 0; i < 1; i++) {
@@ -962,11 +1015,12 @@ var DuplicateNamespace = {};
               analyzer.filesChanged([path]);
               const p = analyzer.analyze([path]);
               const cacheContext = await getContext(analyzer);
-              intermediatePromises.push((async() => {
+              intermediatePromises.push((async () => {
                 await p;
                 const docs = Array.from(
                     cacheContext['_cache'].analyzedDocuments.values());
-                assert.isTrue(new Set(docs.map((d) => d.url).sort()).has(path));
+                assert.isTrue(new Set(docs.map((d) => d.url).sort())
+                                  .has(path as ResolvedUrl));
               })());
             }
           }
@@ -985,18 +1039,15 @@ var DuplicateNamespace = {};
       // results.
       const documents = await Promise.all(promises);
       for (const document of documents) {
-        assert.deepEqual(document.url, 'base.html');
+        assert.deepEqual(document.url, analyzer.resolveUrl('base.html'));
         const localFeatures = document.getFeatures({imported: false});
         const kinds = Array.from(localFeatures).map((f) => Array.from(f.kinds));
-        const message =
-            `localFeatures: ${
-                              JSON.stringify(
-                                  Array.from(localFeatures)
-                                      .map((f) => ({
-                                             kinds: Array.from(f.kinds),
-                                             ids: Array.from(f.identifiers)
-                                           })))
-                            }`;
+        const message = `localFeatures: ${
+            JSON.stringify(
+                Array.from(localFeatures).map((f) => ({
+                                                kinds: Array.from(f.kinds),
+                                                ids: Array.from(f.identifiers)
+                                              })))}`;
         assert.deepEqual(
             kinds,
             [
@@ -1009,19 +1060,21 @@ var DuplicateNamespace = {};
             Array.from(document.getFeatures({kind: 'import', imported: true}));
         assert.sameMembers(
             imports.map((m) => m.url),
-            ['a.html', 'b.html', 'common.html', 'common.html']);
+            ['a.html', 'b.html', 'common.html', 'common.html'].map(
+                (u) => analyzer.resolveUrl(u)));
         const docs = Array.from(
             document.getFeatures({kind: 'document', imported: true}));
         assert.sameMembers(
             docs.map((d) => d.url),
-            ['a.html', 'b.html', 'base.html', 'common.html']);
+            ['a.html', 'b.html', 'base.html', 'common.html'].map(
+                (u) => analyzer.resolveUrl(u)));
         const refs = Array.from(
             document.getFeatures({kind: 'element-reference', imported: true}));
         assert.sameMembers(refs.map((ref) => ref.tagName), ['custom-el']);
       }
     };
 
-    test('editor simulator of imports that import a common dep', async() => {
+    test('editor simulator of imports that import a common dep', async () => {
       const waitTimes: number[] = [];
       const randomWait = () => new Promise<void>((resolve) => {
         const waitTime = Math.random() * 30;
@@ -1054,7 +1107,7 @@ var DuplicateNamespace = {};
      * end
      * up being very useful. If it isn't, we should delete it.
      */
-    test.skip('somewhat more reproducable editor simulator', async() => {
+    test.skip('somewhat more reproducable editor simulator', async () => {
       // Replace waitTimes' value with the array of wait times
       // that's logged
       // to the console when the random editor test fails.
@@ -1134,12 +1187,12 @@ var DuplicateNamespace = {};
       }
 
       class DeterministicUrlLoader implements UrlLoader {
-        queue = new KeyedQueue<string, string>();
-        canLoad(_url: string) {
+        queue = new KeyedQueue<ResolvedUrl, string>();
+        canLoad(_url: ResolvedUrl) {
           return true;
         }
 
-        async load(url: string) {
+        async load(url: ResolvedUrl) {
           return this.queue.request(url);
         }
       }
@@ -1164,32 +1217,38 @@ var DuplicateNamespace = {};
        * This test came out of debugging this issue:
        *     https://github.com/Polymer/polymer-analyzer/issues/406
        */
-      test('two edits of the same file back to back', async() => {
+      test('two edits of the same file back to back', async () => {
         const overlay = new InMemoryOverlayUrlLoader(new NoopUrlLoader);
         const analyzer = new Analyzer({urlLoader: overlay});
 
-        overlay.urlContentsMap.set('leaf.html', 'Hello');
+        overlay.urlContentsMap.set(analyzer.resolveUrl('leaf.html')!, 'Hello');
         const p1 = analyzer.analyze(['leaf.html']);
-        overlay.urlContentsMap.set('leaf.html', 'World');
+        overlay.urlContentsMap.set(analyzer.resolveUrl('leaf.html')!, 'World');
         analyzer.filesChanged(['leaf.html']);
         const p2 = analyzer.analyze(['leaf.html']);
         await Promise.all([p1, p2]);
       });
 
-      test('handles a shared dependency', async() => {
+      test('handles a shared dependency', async () => {
         const initialPaths =
             ['static/diamond/a.html', 'static/diamond/root.html'];
         let result = await analyzer.analyze(initialPaths);
 
-        const documentA = result.getDocument(initialPaths[0]) as Document;
+        const resultA = result.getDocument(initialPaths[0]);
+        if (!resultA.successful) {
+          throw new Error(`Could not get document a`);
+        }
         inMemoryOverlay.urlContentsMap.set(
-            'static/diamond/a.html', documentA.parsedDocument.contents);
+            analyzer.resolveUrl('static/diamond/a.html')!,
+            resultA.value.parsedDocument.contents);
         await analyzer.filesChanged(['static/diamond/a.html']);
         result = await analyzer.analyze(initialPaths);
 
-        const root = result.getDocument(initialPaths[1]) as Document;
-
-        const localFeatures = root.getFeatures({imported: false});
+        const rootResult = result.getDocument(initialPaths[1]);
+        if (!rootResult.successful) {
+          throw new Error(`Could not get root document`);
+        }
+        const localFeatures = rootResult.value.getFeatures({imported: false});
         const kinds = Array.from(localFeatures).map((f) => Array.from(f.kinds));
         assert.deepEqual(kinds, [
           ['document', 'html-document'],
@@ -1198,15 +1257,18 @@ var DuplicateNamespace = {};
         ]);
       });
 
-      test('all files in a cycle wait for the whole cycle', async() => {
+      test('all files in a cycle wait for the whole cycle', async () => {
         const loader = new DeterministicUrlLoader();
         const analyzer = new Analyzer({urlLoader: loader});
         const aAnalyzed = analyzer.analyze(['a.html']);
         const bAnalyzed = analyzer.analyze(['b.html']);
 
-        loader.queue.resolve('a.html', `<link rel="import" href="b.html">
+        loader.queue.resolve(
+            analyzer.resolveUrl('a.html')!, `<link rel="import" href="b.html">
             <link rel="import" href="c.html">`);
-        loader.queue.resolve('b.html', `<link rel="import" href="a.html">`);
+        loader.queue.resolve(
+            analyzer.resolveUrl('b.html')!,
+            `<link rel="import" href="a.html">`);
 
         let cResolved = false;
         // Analysis shouldn't finish without c.html resolving
@@ -1219,12 +1281,12 @@ var DuplicateNamespace = {};
         // flush the microtask queue
         await Promise.resolve();
         cResolved = true;
-        loader.queue.resolve('c.html', '');
+        loader.queue.resolve(analyzer.resolveUrl('c.html')!, '');
         // wait for the callback above to complete
         await Promise.all([aAnalyzedDone, bAnalyzedDone]);
       });
 
-      test('analyzes multiple imports of the same behavior', async() => {
+      test('analyzes multiple imports of the same behavior', async () => {
         const documentA = await analyzer.analyze(
             ['static/multiple-behavior-imports/element-a.html']);
         const documentB = await analyzer.analyze(
@@ -1233,20 +1295,18 @@ var DuplicateNamespace = {};
         assert.deepEqual(documentB.getWarnings({imported: true}), []);
       });
 
-      test(
-          'analyzes multiple imports of the same behavior simultaneously',
-          async() => {
-            const result = await Promise.all([
-              analyzer.analyze(
-                  ['static/multiple-behavior-imports/element-a.html']),
-              analyzer.analyze(
-                  ['static/multiple-behavior-imports/element-b.html'])
-            ]);
-            const documentA = result[0];
-            const documentB = result[1];
-            assert.deepEqual(documentA.getWarnings({imported: true}), []);
-            assert.deepEqual(documentB.getWarnings({imported: true}), []);
-          });
+      const testName =
+          'analyzes multiple imports of the same behavior simultaneously';
+      test(testName, async () => {
+        const result = await Promise.all([
+          analyzer.analyze(['static/multiple-behavior-imports/element-a.html']),
+          analyzer.analyze(['static/multiple-behavior-imports/element-b.html'])
+        ]);
+        const documentA = result[0];
+        const documentB = result[1];
+        assert.deepEqual(documentA.getWarnings({imported: true}), []);
+        assert.deepEqual(documentB.getWarnings({imported: true}), []);
+      });
     });
   });
 });

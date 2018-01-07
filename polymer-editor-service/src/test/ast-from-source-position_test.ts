@@ -12,10 +12,10 @@
  */
 
 import {assert} from 'chai';
-import {SourcePosition} from 'polymer-analyzer';
+import {PackageUrlResolver, ResolvedUrl, SourcePosition} from 'polymer-analyzer';
 import {HtmlParser} from 'polymer-analyzer/lib/html/html-parser';
 
-import {getAstLocationForPosition} from '../ast-from-source-position';
+import {getHtmlAstLocationForPosition} from '../ast-from-source-position';
 
 suite('getLocationInfoForPosition', () => {
   const parser = new HtmlParser();
@@ -165,9 +165,11 @@ suite('getLocationInfoForPosition', () => {
    * documents you can write a regexp to express your assertion.
    */
   function getAllKindsSpaceSeparated(text: string) {
-    const doc = parser.parse(text, 'uninteresting file name.html');
+    const doc = parser.parse(
+        text, 'uninteresting file name.html' as ResolvedUrl,
+        new PackageUrlResolver());
     return getEveryPosition(text)
-        .map(pos => getAstLocationForPosition(doc, pos).kind)
+        .map(pos => getHtmlAstLocationForPosition(doc, pos).kind)
         .join(' ');
   }
 });
@@ -178,7 +180,6 @@ function getEveryPosition(source: string): SourcePosition[] {
   for (const line of source.split('\n')) {
     let columnNum = 0;
     for (const _ of line) {
-      _.big;  // TODO(rictic): tsc complains about unused _
       results.push({line: lineNum, column: columnNum});
       columnNum++;
     }

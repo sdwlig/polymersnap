@@ -1,5 +1,18 @@
 # Change Log
 
+## [0.2.2] - 2017-10-17
+### Fixed
+* Don't distribute development git submodule
+
+## [0.2.1] - 2017-10-17
+### Fixed
+* Removed broken package-lock.json that was breaking tests
+
+## [0.2.0] - 2017-10-17
+### Fixed
+* Fix selectors of the form `html:not([foo]) *`
+* Support the `:dir()` selector
+
 ## [0.1.1] - 2017-05-23
 ### Fixed
 * Fix `--no-inline-includes` to collect includes when collating styles

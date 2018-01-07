@@ -30,8 +30,33 @@
 <vaadin-text-area label="Description"></vaadin-text-area>
 ```
 
-[<img src="https://raw.githubusercontent.com/vaadin/vaadin-text-field/master/screenshot.png" width="200" alt="Screenshot of vaadin-text-field">](https://vaadin.com/elements/-/element/vaadin-text-field)
+[<img src="https://raw.githubusercontent.com/vaadin/vaadin-text-field/master/screenshot.png" width="710" alt="Screenshot of vaadin-text-field">](https://vaadin.com/elements/vaadin-text-field)
 
+## Getting Started
+
+Vaadin Elements use the Valo theme by default.
+
+## The file structure for Vaadin Elements
+
+- `src/vaadin-text-field.html`
+- `src/vaadin-text-area.html`
+- `src/vaadin-password-field.html`
+
+  Unstyled elements.
+
+- `theme/valo/vaadin-text-field.html`
+- `theme/valo/vaadin-text-area.html`
+- `theme/valo/vaadin-password-field.html`
+
+  Elements with Valo theme.
+
+- `vaadin-text-field.html`
+- `vaadin-text-area.html`
+- `vaadin-password-field.html`
+
+  Aliases for theme/valo/vaadin-text-field.html
+  theme/valo/vaadin-text-area.html
+  theme/valo/vaadin-password-field.html
 
 ## Running demos and tests in browser
 
@@ -70,3 +95,5 @@ We are using [ESLint](http://eslint.org/) for linting JavaScript code. You can c
 ## License
 
 Apache License 2.0
+
+Vaadin collects development time usage statistics to improve this product. For details and to opt-out, see https://github.com/vaadin/vaadin-usage-statistics.

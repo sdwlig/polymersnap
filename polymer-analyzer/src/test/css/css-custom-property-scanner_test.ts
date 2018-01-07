@@ -13,26 +13,21 @@
  */
 
 import {assert} from 'chai';
-import * as path from 'path';
 
 import {Analyzer} from '../../core/analyzer';
-import {FSUrlLoader} from '../../url-loader/fs-url-loader';
 
-import {CodeUnderliner} from '../test-utils';
-
-const testDir = path.join(__dirname, '..', 'static');
+import {CodeUnderliner, fixtureDir} from '../test-utils';
 
 suite('CssCustomPropertyScanner', () => {
   let analyzer: Analyzer;
   let underliner: CodeUnderliner;
 
   setup(() => {
-    const urlLoader = new FSUrlLoader(testDir);
-    analyzer = new Analyzer({urlLoader});
-    underliner = new CodeUnderliner(urlLoader);
+    analyzer = Analyzer.createForDirectory(fixtureDir);
+    underliner = new CodeUnderliner(analyzer);
   });
 
-  test('finds custom property assignments', async() => {
+  test('finds custom property assignments', async () => {
     const result = await analyzer.analyze(['some-styles.html']);
     const assignments =
         [...result.getFeatures({kind: 'css-custom-property-assignment'})];
@@ -42,13 +37,13 @@ suite('CssCustomPropertyScanner', () => {
         [
           `
       --primary-text-color: var(--light-theme-text-color);
-      ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~`,
+      ~~~~~~~~~~~~~~~~~~~~`,
           `
       --primary-background-color: var(--light-theme-background-color, --orange);
-      ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~`,
+      ~~~~~~~~~~~~~~~~~~~~~~~~~~`,
           `
       --light-theme-background-color: #ffffff;
-      ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~`
+      ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~`
 
         ]);
     assert.deepEqual(assignments.map((a) => a.name), [
@@ -58,7 +53,7 @@ suite('CssCustomPropertyScanner', () => {
     ]);
   });
 
-  test('finds custom property uses', async() => {
+  test('finds custom property uses', async () => {
     const result = await analyzer.analyze(['some-styles.html']);
     const assignments =
         [...result.getFeatures({kind: 'css-custom-property-use'})];

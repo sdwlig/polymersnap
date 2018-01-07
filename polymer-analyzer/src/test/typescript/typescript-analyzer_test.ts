@@ -16,38 +16,42 @@ import {assert} from 'chai';
 import * as ts from 'typescript';
 
 import {AnalysisContext} from '../../core/analysis-context';
+import {PackageRelativeUrl} from '../../index';
+import {ResolvedUrl} from '../../model/url';
 import {TypeScriptAnalyzer} from '../../typescript/typescript-analyzer';
 import {TypeScriptPreparser} from '../../typescript/typescript-preparser';
 import {InMemoryOverlayUrlLoader} from '../../url-loader/overlay-loader';
 import {PackageUrlResolver} from '../../url-loader/package-url-resolver';
 
-async function getTypeScriptAnalyzer(files: {[url: string]: string}) {
+async function getTypeScriptAnalyzer(files: Map<PackageRelativeUrl, string>) {
   const urlLoader = new InMemoryOverlayUrlLoader();
-  for (const url of Object.keys(files)) {
-    urlLoader.urlContentsMap.set(url, files[url]!);
-  }
   const urlResolver = new PackageUrlResolver();
+  for (const [url, contents] of files) {
+    urlLoader.urlContentsMap.set(
+        urlResolver.resolve('' as any, url as any)!, contents);
+  }
   const analysisContext = new AnalysisContext({
     parsers: new Map([['ts', new TypeScriptPreparser()]]),
     urlLoader,
     urlResolver
   });
   // This puts documents into the scanned document cache
-  await Promise.all(Object.keys(files).map((url) => analysisContext.scan(url)));
+  await Promise.all(Object.keys(files).map(
+      (url) => analysisContext.scan(url as ResolvedUrl)));
   return new TypeScriptAnalyzer(analysisContext);
 }
 
 suite('TypeScriptParser', () => {
   suite('parse()', () => {
-
-    test('parses classes', async() => {
-      const fileName = '/typescript/test.ts';
-      const typescriptAnalyzer = await getTypeScriptAnalyzer({
-        [fileName]: `
+    test('parses classes', async () => {
+      const fileName = 'typescript/test.ts' as PackageRelativeUrl;
+      const typescriptAnalyzer = await getTypeScriptAnalyzer(new Map([[
+        fileName,
+        `
           class A extends HTMLElement {
             foo() { return 'bar'; }
           }`
-      });
+      ]]));
       const program = typescriptAnalyzer.analyze(fileName);
       const checker = program.getTypeChecker();
 
@@ -84,5 +88,4 @@ suite('TypeScriptParser', () => {
       });
     });
   });
-
 });

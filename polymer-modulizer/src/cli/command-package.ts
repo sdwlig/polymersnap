@@ -11,24 +11,26 @@
  * subject to an additional IP rights grant found at
  * http://polymer.github.io/PATENTS.txt
  */
-
-import * as chalk from 'chalk';
 import * as inquirer from 'inquirer';
+import * as path from 'path';
 import * as semver from 'semver';
 
 import {CliOptions} from '../cli';
-import {convertPackage} from '../convert-package';
+import convertPackage from '../convert-package';
 import {readJson} from '../manifest-converter';
+import {exec, logStep} from '../util';
 
 export default async function run(options: CliOptions) {
+  const inDir = path.resolve(options.in || process.cwd());
+  const outDir = path.resolve(options.out);
+
   // Ok, we're updating a package in a directory not under our control.
-  // We need to be sure it's safe. In a future PR let's check with git, but
-  // for now, we'll ask the user to pass in a --force flag.
-  if (!options.force) {
+  // We need to be sure it's safe.
+  const {stdout, stderr} = await exec(inDir, 'git', ['status', '-s']);
+  if (!options.force && (stdout || stderr)) {
     console.error(
-        `When running modulizer on an existing directory, ` +
-        `be sure that all changes are checked into source control. ` +
-        `Run with --force once you've verified.`);
+        `Git repo is dirty. Check all changes in to source control and ` +
+        `then try again.`);
     process.exit(1);
   }
 
@@ -37,19 +39,19 @@ export default async function run(options: CliOptions) {
   let inPackageJson: {name: string, version: string}|undefined;
   let outPackageJson: {name: string, version: string}|undefined;
   try {
-    outPackageJson = readJson(options.out, 'package.json');
+    outPackageJson = readJson(outDir, 'package.json');
   } catch (e) {
     // do nothing
   }
   try {
     if (options.in) {
-      inPackageJson = readJson(options.in, 'package.json');
+      inPackageJson = readJson(inDir, 'package.json');
     }
   } catch (e) {
     // do nothing
   }
   try {
-    inBowerJson = readJson('bower.json');
+    inBowerJson = readJson(inDir, 'bower.json');
   } catch (e) {
     // do nothing
   }
@@ -60,15 +62,6 @@ export default async function run(options: CliOptions) {
   let npmPackageVersion = options['npm-version'] ||
       inPackageJson && inPackageJson.version ||
       outPackageJson && outPackageJson.version;
-
-  let bowerMainAny = (inBowerJson && inBowerJson.main) || [];
-  if (!Array.isArray(bowerMainAny)) {
-    bowerMainAny = [bowerMainAny];
-  }
-  const bowerMain: string[] =
-      bowerMainAny.filter((m: any) => typeof m === 'string');
-
-  const mainFiles = [...bowerMain, ...options.include];
 
   // Prompt user for new package name & version if none exists
   // TODO(fks) 07-19-2017: Add option to suppress prompts
@@ -91,20 +84,19 @@ export default async function run(options: CliOptions) {
         }]))['npm-version'] as string;
   }
 
-  console.log(
-      chalk.dim('[1/2]') + ' 🌀  ' + chalk.magenta(`Converting Package...`));
-
+  logStep(1, 2, '🌀', `Converting Package...`);
+  console.log(`Out directory: ${outDir}`);
   await convertPackage({
-    inDir: options.in,
-    outDir: options.out,
+    inDir: inDir,
+    outDir: outDir,
     excludes: options.exclude,
     namespaces: options.namespace,
+    npmImportStyle: options['import-style'],
     packageName: npmPackageName.toLowerCase(),
     packageVersion: npmPackageVersion,
-    cleanOutDir: options.clean,
-    mainFiles
+    cleanOutDir: options.clean!!,
+    addImportPath: options['add-import-path'],
   });
 
-  console.log(
-      chalk.dim('[2/2]') + ' 🎉  ' + chalk.magenta(`Conversion Complete!`));
+  logStep(2, 2, '🎉', `Conversion Complete!`);
 }

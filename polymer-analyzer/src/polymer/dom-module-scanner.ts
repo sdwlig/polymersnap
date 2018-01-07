@@ -118,8 +118,9 @@ export class DomModuleScanner implements HtmlScanner {
     await visit((node) => {
       if (isDomModule(node)) {
         const children = dom5.defaultChildNodes(node) || [];
-        const template = children.find(
-            dom5.predicates.hasTagName('template')) as (Template | undefined);
+        const template =
+            children.find(dom5.predicates.hasTagName('template')) as
+            (Template | undefined);
         let slots: Slot[] = [];
         let localIds: LocalId[] = [];
         let databindings: HtmlDatabindingExpression[] = [];
@@ -132,7 +133,8 @@ export class DomModuleScanner implements HtmlScanner {
                   .map(
                       (s) => new Slot(
                           dom5.getAttribute(s, 'name') || '',
-                          document.sourceRangeForNode(s)!));
+                          document.sourceRangeForNode(s)!,
+                          s));
           localIds =
               dom5.queryAll(templateContent, dom5.predicates.hasAttr('id'))
                   .map(

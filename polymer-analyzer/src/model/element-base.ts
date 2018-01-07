@@ -12,7 +12,9 @@
  * http://polymer.github.io/PATENTS.txt
  */
 
-import * as estree from 'estree';
+import * as babel from 'babel-types';
+import * as dom5 from 'dom5';
+import {ASTNode} from 'parse5';
 
 import * as jsdoc from '../javascript/jsdoc';
 import {ParsedDocument} from '../parser/document';
@@ -22,6 +24,7 @@ import {Privacy} from './feature';
 import {ImmutableArray} from './immutable';
 import {ScannedMethod} from './method';
 import {Attribute, Document, Event, Feature, Resolvable, ScannedAttribute, ScannedEvent, ScannedProperty, ScannedReference, SourceRange, Warning} from './model';
+import {FileRelativeUrl} from './url';
 import {Severity} from './warning';
 
 export {Visitor} from '../javascript/estree-visitor';
@@ -34,12 +37,12 @@ export abstract class ScannedElementBase implements Resolvable {
   attributes = new Map<string, ScannedAttribute>();
   description = '';
   summary = '';
-  demos: {desc?: string; path: string}[] = [];
+  demos: Demo[] = [];
   events: Map<string, ScannedEvent> = new Map();
   sourceRange: SourceRange|undefined;
   staticMethods: Map<string, ScannedMethod>;
   methods: Map<string, ScannedMethod>;
-  astNode: estree.Node|null;
+  astNode: babel.Node|null;
   warnings: Warning[] = [];
   jsdoc?: jsdoc.Annotation;
   'slots': Slot[] = [];
@@ -83,16 +86,18 @@ export abstract class ScannedElementBase implements Resolvable {
 export class Slot {
   name: string;
   range: SourceRange;
+  astNode?: dom5.Node;
 
-  constructor(name: string, range: SourceRange) {
+  constructor(name: string, range: SourceRange, astNode: dom5.Node|undefined) {
     this.name = name;
     this.range = range;
+    this.astNode = astNode;
   }
 }
 
 export interface Demo {
   desc?: string;
-  path: string;
+  path: FileRelativeUrl;
 }
 
 export interface ElementBaseInit extends ClassInit {
@@ -100,6 +105,25 @@ export interface ElementBaseInit extends ClassInit {
   readonly attributes?: Map<string, Attribute>;
   readonly slots?: Slot[];
 }
+
+/**
+ * The element's runtime contents.
+ */
+export type ElementTemplate = {
+  /**
+   * HTML that is stamped out without data binding or other
+   * interpretation beyond normal HTML semantics.
+   */
+  kind: 'html',
+  contents: ASTNode,
+}|{
+  /**
+   * HTML that's interpreted with the polymer databinding
+   * system.
+   */
+  kind: 'polymer-databinding',
+  contents: ASTNode,
+};
 
 /**
  * Base class for Element and ElementMixin.
@@ -156,4 +180,6 @@ export abstract class ElementBase extends Class implements Feature {
   emitEventMetadata(_event: Event): Object {
     return {};
   }
+
+  template: undefined|ElementTemplate = undefined;
 }

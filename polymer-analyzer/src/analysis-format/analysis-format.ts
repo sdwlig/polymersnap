@@ -94,7 +94,7 @@ export interface Position {
   column: number;
 }
 
-export type Privacy = 'public' | 'private' | 'protected';
+export type Privacy = 'public'|'private'|'protected';
 
 export interface Function extends Feature {
   /**
@@ -140,7 +140,7 @@ export interface Class extends Feature {
    * e.g. `paper-input.html` or `app-toolbar/app-toolbar.html` (given that
    * app-toolbar lives in the app-layout package).
    */
-  path: string;
+  path: string|undefined;
 
   /** A markdown description. */
   description: string;

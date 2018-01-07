@@ -17,8 +17,11 @@
 import * as path from 'path';
 
 import {Analysis, Document, Warning} from '../model/model';
+import {PackageRelativeUrl, ResolvedUrl} from '../model/url';
 import {Parser} from '../parser/parser';
 import {Scanner} from '../scanning/scanner';
+import {FSUrlLoader} from '../url-loader/fs-url-loader';
+import {PackageUrlResolver} from '../url-loader/package-url-resolver';
 import {UrlLoader} from '../url-loader/url-loader';
 import {UrlResolver} from '../url-loader/url-resolver';
 
@@ -48,7 +51,7 @@ export interface ForkOptions { urlLoader?: UrlLoader; }
 export class NoKnownParserError extends Error {};
 
 export type ScannerTable = Map<string, Scanner<any, any, any>[]>;
-export type LazyEdgeMap = Map<string, string[]>;
+export type LazyEdgeMap = Map<ResolvedUrl, PackageRelativeUrl[]>;
 
 /**
  * A static analyzer for web projects.
@@ -60,20 +63,34 @@ export type LazyEdgeMap = Map<string, string[]>;
  */
 export class Analyzer {
   private _analysisComplete: Promise<AnalysisContext>;
-  private readonly _urlResolver: UrlResolver;
+  readonly urlResolver: UrlResolver;
   private readonly _urlLoader: UrlLoader;
 
   constructor(options: Options) {
     if (options.__contextPromise) {
       this._urlLoader = options.urlLoader;
-      this._urlResolver = options.urlResolver!;
+      this.urlResolver = options.urlResolver!;
       this._analysisComplete = options.__contextPromise;
     } else {
       const context = new AnalysisContext(options);
-      this._urlResolver = context.resolver;
+      this.urlResolver = context.resolver;
       this._urlLoader = context.loader;
       this._analysisComplete = Promise.resolve(context);
     }
+  }
+
+  /**
+   * Returns an analyzer with configuration inferred for the given directory.
+   *
+   * Currently this just creates a simple analyzer with a FS loader rooted
+   * at the given directory, but in the future it may take configuration from
+   * files including polymer.json or similar.
+   */
+  static createForDirectory(dirname: string): Analyzer {
+    return new Analyzer({
+      urlLoader: new FSUrlLoader(dirname),
+      urlResolver: new PackageUrlResolver({packageDir: dirname})
+    });
   }
 
   /**
@@ -82,28 +99,28 @@ export class Analyzer {
    */
   async analyze(urls: string[]): Promise<Analysis> {
     const previousAnalysisComplete = this._analysisComplete;
-    this._analysisComplete = (async() => {
+    const uiUrls = this.brandUserInputUrls(urls);
+    this._analysisComplete = (async () => {
       const previousContext = await previousAnalysisComplete;
-      return await previousContext.analyze(urls);
+      return await previousContext.analyze(uiUrls);
     })();
     const context = await this._analysisComplete;
-    const results = new Map(urls.map(
-        (url) => [url, context.getDocument(url)] as
-            [string, Document | Warning]));
-    return new Analysis(results);
+    const resolvedUrls = context.resolveUserInputUrls(uiUrls);
+    return this._constructAnalysis(context, resolvedUrls);
   }
 
   async analyzePackage(): Promise<Analysis> {
     const previousAnalysisComplete = this._analysisComplete;
-    let _package: Analysis|null = null;
-    this._analysisComplete = (async() => {
+    let analysis: Analysis;
+    this._analysisComplete = (async () => {
       const previousContext = await previousAnalysisComplete;
       if (!previousContext.loader.readDirectory) {
         throw new Error(
             `This analyzer doesn't support analyzerPackage, ` +
             `the urlLoader can't list the files in a directory.`);
       }
-      const allFiles = await previousContext.loader.readDirectory('', true);
+      const allFiles =
+          await previousContext.loader.readDirectory('' as ResolvedUrl, true);
       // TODO(rictic): parameterize this, perhaps with polymer.json.
       const filesInPackage =
           allFiles.filter((file) => !Analysis.isExternal(file));
@@ -112,15 +129,21 @@ export class Analyzer {
           (fn) => extensions.has(path.extname(fn).substring(1)));
 
       const newContext = await previousContext.analyze(filesWithParsers);
-
-      const documentsOrWarnings = new Map(filesWithParsers.map(
-          (url) => [url, newContext.getDocument(url)] as
-              [string, Document | Warning]));
-      _package = new Analysis(documentsOrWarnings);
+      const resolvedFilesWithParsers =
+          newContext.resolveUserInputUrls(filesWithParsers);
+      analysis = this._constructAnalysis(newContext, resolvedFilesWithParsers);
       return newContext;
     })();
     await this._analysisComplete;
-    return _package!;
+    return analysis!;
+  }
+
+  private _constructAnalysis(
+      context: AnalysisContext, urls: ReadonlyArray<ResolvedUrl>) {
+    const getUrlResultPair:
+        (url: ResolvedUrl) => [ResolvedUrl, Document | Warning] =
+            (url) => [url, context.getDocument(url)];
+    return new Analysis(new Map(urls.map(getUrlResultPair)), context);
   }
 
   /**
@@ -134,9 +157,9 @@ export class Analyzer {
    */
   async filesChanged(urls: string[]): Promise<void> {
     const previousAnalysisComplete = this._analysisComplete;
-    this._analysisComplete = (async() => {
+    this._analysisComplete = (async () => {
       const previousContext = await previousAnalysisComplete;
-      return await previousContext.filesChanged(urls);
+      return await previousContext.filesChanged(this.brandUserInputUrls(urls));
     })();
     await this._analysisComplete;
   }
@@ -150,7 +173,7 @@ export class Analyzer {
    */
   async clearCaches(): Promise<void> {
     const previousAnalysisComplete = this._analysisComplete;
-    this._analysisComplete = (async() => {
+    this._analysisComplete = (async () => {
       const previousContext = await previousAnalysisComplete;
       return await previousContext.clearCaches();
     })();
@@ -171,14 +194,14 @@ export class Analyzer {
    *     it.
    */
   _fork(options?: ForkOptions): Analyzer {
-    const contextPromise = (async() => {
+    const contextPromise = (async () => {
       return options ?
           (await this._analysisComplete)._fork(undefined, options) :
           (await this._analysisComplete);
     })();
     return new Analyzer({
       urlLoader: this._urlLoader,
-      urlResolver: this._urlResolver,
+      urlResolver: this.urlResolver,
       __contextPromise: contextPromise
     });
   }
@@ -188,7 +211,7 @@ export class Analyzer {
    * semantics defined by `UrlLoader` and should only be used to check
    * resolved URLs.
    */
-  canLoad(resolvedUrl: string): boolean {
+  canLoad(resolvedUrl: ResolvedUrl): boolean {
     return this._urlLoader.canLoad(resolvedUrl);
   }
 
@@ -197,21 +220,19 @@ export class Analyzer {
    * defined by `UrlLoader` and should only be used to attempt to load resolved
    * URLs.
    */
-  async load(resolvedUrl: string) {
+  async load(resolvedUrl: ResolvedUrl) {
     return (await this._analysisComplete).load(resolvedUrl);
-  }
-
-  /**
-   * Returns `true` if the given `url` can be resolved.
-   */
-  canResolveUrl(url: string): boolean {
-    return this._urlResolver.canResolve(url);
   }
 
   /**
    * Resoves `url` to a new location.
    */
-  resolveUrl(url: string): string {
-    return this._urlResolver.resolve(url);
+  resolveUrl(url: string): ResolvedUrl|undefined {
+    return this.urlResolver.resolve(url as PackageRelativeUrl);
+  }
+
+  // Urls from the user are assumed to be package relative
+  private brandUserInputUrls(urls: string[]): PackageRelativeUrl[] {
+    return urls as PackageRelativeUrl[];
   }
 }

@@ -15,56 +15,92 @@
  * limitations under the License.
  */
 
-const hbs = require('handlebars');
-const path = require('path');
-const fs = require('fs');
-const marked = require('marked');
-const libraryMap = {'angular': 'Angular', 'angularjs': 'AngularJS (1.x)', 'canjs': 'CanJS', 'dojo2': 'Dojo 2', 'hyperhtml': 'hyperHTML', 'preact': 'Preact', 'react': 'React', 'vue': 'Vue'};
+const hbs = require("handlebars");
+const path = require("path");
+const fs = require("fs");
+const marked = require("marked");
+const libraryMap = {
+  angular: "Angular",
+  angularjs: "AngularJS (1.x)",
+  canjs: "CanJS",
+  dio: 'DIO',
+  dojo2: "Dojo 2",
+  hyperhtml: "hyperHTML",
+  polymer: "Polymer",
+  preact: "Preact",
+  react: "React",
+  skate: "Skate w/ Preact",
+  vue: "Vue"
+};
 const libraries = Object.keys(libraryMap);
 
-hbs.registerPartial('octocat',
-  fs.readFileSync(path.join(__dirname, '/partials/octocat.handlebars'),
-  'utf8'));
+hbs.registerPartial(
+  "octocat",
+  fs.readFileSync(path.join(__dirname, "/partials/octocat.handlebars"), "utf8")
+);
 
-const tmpl = fs.readFileSync(path.join(__dirname, 'index.handlebars'), 'utf8');
+// Helper to color progress bar based on test scores
+// https://bulma.io/documentation/elements/progress/#colors
+hbs.registerHelper("warning-level", function(score) {
+  if (score > 75) {
+    return "is-primary";
+  } else if (score > 50) {
+    return "is-warning";
+  } else {
+    return "is-danger";
+  }
+});
+
+const tmpl = fs.readFileSync(path.join(__dirname, "index.handlebars"), "utf8");
 const render = hbs.compile(tmpl);
 const out = render({ libraries: buildContext(libraries) });
 
 function buildContext(libraries) {
   return libraries.map(library => {
-    return Object.assign({ name: library, fullName: libraryMap[library] }, {
-      results: getTestResults(library),
-      issues: getIssues(library),
-      summary: getSummary(library)
-    });
+    return Object.assign(
+      { name: library, fullName: libraryMap[library] },
+      {
+        results: getTestResults(library),
+        issues: getIssues(library),
+        summary: getSummary(library)
+      }
+    );
   });
 }
 
 // Collect important test data like number of successes, fails, totals, etc.
 function getTestResults(library) {
-  const json = require(
-    path.resolve(__dirname, 'libraries', library, 'results/results.json'));
+  const json = require(path.resolve(
+    __dirname,
+    "libraries",
+    library,
+    "results/results.json"
+  ));
   const libraryVersion = json.library.version;
-  const success = json.summary.success;
-  const failed = json.summary.failed;
-  const total = success + failed
-  const percent = success / total * 100;
+  const summary = json.summary;
 
-  return {libraryVersion, success, failed, total, percent};
+  return { libraryVersion, summary };
 }
 
 // Collect any relevant GitHub issues
 function getIssues(library) {
-  return require(path.resolve(__dirname, 'libraries', library, 'meta/issues.json'));
+  return require(path.resolve(
+    __dirname,
+    "libraries",
+    library,
+    "meta/issues.json"
+  ));
 }
 
 // Collect markdown summary of library, process markdown, and return as string.
 function getSummary(library) {
   const md = fs.readFileSync(
-    path.resolve(__dirname, 'libraries', library, 'meta/summary.md'), 'utf8');
+    path.resolve(__dirname, "libraries", library, "meta/summary.md"),
+    "utf8"
+  );
   const content = marked(md);
 
-  return {content};
+  return { content };
 }
 
 // npm build script writes this output to index.html

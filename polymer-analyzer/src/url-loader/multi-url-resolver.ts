@@ -12,31 +12,40 @@
  * http://polymer.github.io/PATENTS.txt
  */
 
+import {PackageRelativeUrl} from '../index';
+import {FileRelativeUrl, ResolvedUrl, ScannedImport} from '../model/model';
+
 import {UrlResolver} from './url-resolver';
 
 /**
  * Resolves a URL using multiple resolvers.
  */
-export class MultiUrlResolver implements UrlResolver {
-  constructor(private _resolvers: Array<UrlResolver>) {
-    if (!this._resolvers) {
-      this._resolvers = [];
-    }
+export class MultiUrlResolver extends UrlResolver {
+  constructor(private _resolvers: ReadonlyArray<UrlResolver>) {
+    super();
   }
 
-  canResolve(url: string): boolean {
-    return this._resolvers.some((resolver) => {
-      return resolver.canResolve(url);
-    });
-  }
-
-  resolve(url: string): string {
-    for (let i = 0; i < this._resolvers.length; i++) {
-      const resolver = this._resolvers[i];
-      if (resolver.canResolve(url)) {
-        return resolver.resolve(url);
+  resolve(
+      firstUrl: ResolvedUrl|PackageRelativeUrl, secondUrl?: FileRelativeUrl,
+      import_?: ScannedImport): ResolvedUrl|undefined {
+    for (const resolver of this._resolvers) {
+      const resolved = secondUrl === undefined ?
+          resolver.resolve(firstUrl as PackageRelativeUrl) :
+          resolver.resolve(
+              firstUrl as ResolvedUrl, secondUrl as FileRelativeUrl, import_);
+      if (resolved !== undefined) {
+        return resolved;
       }
     }
-    throw new Error('No resolver can resolve: ' + url);
+    return undefined;
+  }
+
+  relative(fromOrTo: ResolvedUrl, maybeTo?: ResolvedUrl, kind?: string):
+      FileRelativeUrl {
+    for (const resolver of this._resolvers) {
+      return resolver.relative(fromOrTo, maybeTo, kind);
+    }
+    throw new Error(
+        `Could not get relative url, with no configured url resolvers`);
   }
 }

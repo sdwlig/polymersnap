@@ -18,27 +18,26 @@ import * as path from 'path';
 
 import {Analyzer} from '../../core/analyzer';
 import {ClassScanner} from '../../javascript/class-scanner';
-import {Document} from '../../model/model';
 import {PolymerElement} from '../../polymer/polymer-element';
 import {FSUrlLoader} from '../../url-loader/fs-url-loader';
+import {PackageUrlResolver} from '../../url-loader/package-url-resolver';
+import {fixtureDir} from '../test-utils';
 
 suite('PolymerElement with old jsdoc annotations', () => {
-  const testFilesDir = path.resolve(__dirname, '../static/polymer2-old-jsdoc/');
+  const testFilesDir = path.resolve(fixtureDir, 'polymer2-old-jsdoc/');
   const urlLoader = new FSUrlLoader(testFilesDir);
   const analyzer = new Analyzer({
     urlLoader: urlLoader,
-    scanners: new Map([[
-      'js',
-      [
-        new ClassScanner(),
-      ]
-    ]])
+    urlResolver: new PackageUrlResolver({packageDir: testFilesDir}),
+    scanners: new Map([['js', [new ClassScanner()]]])
   });
 
   async function getElements(filename: string): Promise<Set<PolymerElement>> {
-    const document =
-        (await analyzer.analyze([filename])).getDocument(filename) as Document;
-    const elements = document.getFeatures({kind: 'polymer-element'});
+    const result = (await analyzer.analyze([filename])).getDocument(filename);
+    if (!result.successful) {
+      throw new Error(`failed to get document with filename ${filename}`);
+    }
+    const elements = result.value.getFeatures({kind: 'polymer-element'});
     return elements;
   };
 
@@ -57,16 +56,17 @@ suite('PolymerElement with old jsdoc annotations', () => {
       attributes: Array.from(element.attributes.values()).map((a) => ({
                                                                 name: a.name,
                                                               })),
-      methods: Array.from(element.methods.values())
-                   .map((m) => ({
-                          name: m.name,
-                          params: m.params, return: m.return,
-                          inheritedFrom: m.inheritedFrom
-                        })),
+      methods: Array.from(element.methods.values()).map((m) => ({
+                                                          name: m.name,
+                                                          params: m.params,
+                                                          return: m.return,
+                                                          inheritedFrom:
+                                                              m.inheritedFrom
+                                                        })),
     };
   }
 
-  test('Scans and resolves base and sub-class', async() => {
+  test('Scans and resolves base and sub-class', async () => {
     const elements = await getElements('test-element-3.js');
     const elementData = Array.from(elements).map(getTestProps);
     assert.deepEqual(elementData, [
@@ -112,7 +112,7 @@ suite('PolymerElement with old jsdoc annotations', () => {
     ]);
   });
 
-  test('Elements inherit from mixins and base classes', async() => {
+  test('Elements inherit from mixins and base classes', async () => {
     const elements = await getElements('test-element-7.js');
     const elementData = Array.from(elements).map(getTestProps);
     assert.deepEqual(elementData, [
@@ -141,7 +141,8 @@ suite('PolymerElement with old jsdoc annotations', () => {
         ],
         methods: [{
           name: 'customMethodOnBaseElement',
-          params: [], return: undefined,
+          params: [],
+          return: undefined,
           inheritedFrom: undefined
         }],
       },
@@ -192,17 +193,20 @@ suite('PolymerElement with old jsdoc annotations', () => {
         methods: [
           {
             name: 'customMethodOnBaseElement',
-            params: [], return: undefined,
+            params: [],
+            return: undefined,
             inheritedFrom: 'BaseElement'
           },
           {
             name: 'customMethodOnMixin',
-            params: [], return: undefined,
+            params: [],
+            return: undefined,
             inheritedFrom: 'Mixin'
           },
           {
             name: 'customMethodOnSubElement',
-            params: [], return: undefined,
+            params: [],
+            return: undefined,
             inheritedFrom: undefined
           },
         ],

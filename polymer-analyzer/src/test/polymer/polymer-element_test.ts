@@ -17,20 +17,20 @@ import {assert} from 'chai';
 import * as path from 'path';
 
 import {Analyzer} from '../../core/analyzer';
-import {Document, Severity, Warning} from '../../model/model';
+import {Severity, Warning} from '../../model/model';
 import {PolymerElement} from '../../polymer/polymer-element';
-import {FSUrlLoader} from '../../url-loader/fs-url-loader';
+import {fixtureDir} from '../test-utils';
 
 suite('PolymerElement', () => {
-  const testFilesDir = path.resolve(__dirname, '../static/polymer2/');
-  const urlLoader = new FSUrlLoader(testFilesDir);
-  const analyzer = new Analyzer({
-    urlLoader: urlLoader,
-  });
+  const analyzer =
+      Analyzer.createForDirectory(path.resolve(fixtureDir, 'polymer2/'));
 
   async function getElements(filename: string): Promise<Set<PolymerElement>> {
-    const document =
-        (await analyzer.analyze([filename])).getDocument(filename) as Document;
+    const result = (await analyzer.analyze([filename])).getDocument(filename);
+    if (!result.successful) {
+      throw new Error(`Could not get filename: ${filename}`);
+    }
+    const document = result.value;
     const elements = document.getFeatures({kind: 'polymer-element'});
     return elements;
   };
@@ -259,7 +259,6 @@ suite('PolymerElement', () => {
   });
 
   suite('multiple-doc-comments', () => {
-
     async function getElement(filename: string) {
       const elements = await getElements(filename);
       assert.equal(

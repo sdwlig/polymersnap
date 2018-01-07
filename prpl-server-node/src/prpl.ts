@@ -13,18 +13,48 @@
  */
 
 import * as capabilities from 'browser-capabilities';
+import * as express from 'express';
 import * as fs from 'fs';
 import * as http from 'http';
+import * as httpErrors from 'http-errors';
 import * as path from 'path';
 import * as send from 'send';
+import * as statuses from 'statuses';
 import * as url from 'url';
 
 import * as push from './push';
 
 export interface Config {
   // The Cache-Control header to send for all requests except the entrypoint.
+  //
   // Defaults to `max-age=60`.
   cacheControl?: string;
+
+  // If `true`, when a 404 or other HTTP error occurs, the Express `next`
+  // function will be called with the error, so that it can be handled by
+  // downstream error handling middleware.
+  //
+  // If `false` (or if there was no `next` function because Express is not
+  // being used), a minimal `text/plain` error will be returned.
+  //
+  // Defaults to `false`.
+  forwardErrors?: boolean;
+
+  // Serves a tiny self-unregistering service worker for any request path
+  // ending with `service-worker.js` that would otherwise have had a 404 Not
+  // Found response.
+  //
+  // This can be useful when the location of a service worker has changed, as
+  // it will prevent clients from getting stuck with an old service worker
+  // indefinitely.
+  //
+  // This problem arises because when a service worker updates, a 404 is
+  // treated as a failed update. It does not cause the service worker to be
+  // unregistered. See https://github.com/w3c/ServiceWorker/issues/204 for more
+  // discussion of this problem.
+  //
+  // Defaults to `true`.
+  unregisterMissingServiceWorkers?: boolean;
 
   // Below is the subset of the polymer.json specification that we care about
   // for serving. https://www.polymer-project.org/2.0/docs/tools/polymer-json
@@ -46,26 +76,42 @@ const isServiceWorker = /service-worker.js$/;
  * Return a new HTTP handler to serve a PRPL-style application.
  */
 export function makeHandler(root?: string, config?: Config): (
-    request: http.IncomingMessage, response: http.ServerResponse) => void {
+    request: http.IncomingMessage,
+    response: http.ServerResponse,
+    next?: express.NextFunction) => void {
   const absRoot = path.resolve(root || '.');
   console.info(`Serving files from "${absRoot}".`);
-  const builds = loadBuilds(absRoot, config);
-  const cacheControl = (config && config.cacheControl) || 'max-age=60';
 
-  return function prplHandler(request, response) {
+  const builds = loadBuilds(absRoot, config);
+
+  const cacheControl = (config && config.cacheControl) || 'max-age=60';
+  const unregisterMissingServiceWorkers =
+      (config && config.unregisterMissingServiceWorkers != undefined) ?
+      config.unregisterMissingServiceWorkers :
+      true;
+  const forwardErrors = config && config.forwardErrors;
+
+  return async function prplHandler(request, response, next) {
+    const handleError = (err: httpErrors.HttpError) => {
+      if (forwardErrors && next) {
+        next(err);
+      } else {
+        writePlainTextError(response, err);
+      }
+    };
+
     const urlPath = url.parse(request.url || '/').pathname || '/';
 
     // Let's be extra careful about directory traversal attacks, even though
     // the `send` library should already ensure we don't serve any file outside
-    // our root. This should also prevent the `fs.existsSync` check we do next
+    // our root. This should also prevent the file existence check we do next
     // from leaking any file existence information (whether you got the
     // entrypoint or a 403 from `send` might tell you if a file outside our
     // root exists). Add the trailing path separator because otherwise "/foo"
     // is a prefix of "/foo-secrets".
     const absFilepath = path.normalize(path.join(absRoot, urlPath));
     if (!absFilepath.startsWith(addTrailingPathSep(absRoot))) {
-      response.writeHead(403);
-      response.end('Forbidden');
+      handleError(httpErrors(403, 'Forbidden'));
       return;
     }
 
@@ -75,11 +121,11 @@ export function makeHandler(root?: string, config?: Config): (
     // likely to be not-found static resources rather than application
     // routes.
     const serveEntrypoint = urlPath === '/' ||
-        (!hasFileExtension.test(urlPath) && !fs.existsSync(absFilepath));
+        (!hasFileExtension.test(urlPath) && !(await fileExists(absFilepath)));
 
     // Find the highest ranked build suitable for this user agent.
-    const clientCapabilities =
-        capabilities.browserCapabilities(request.headers['user-agent']);
+    const clientCapabilities = capabilities.browserCapabilities(
+        request.headers['user-agent'] as string);
     const build = builds.find((b) => b.canServe(clientCapabilities));
 
     // We warned about this at startup. You should probably provide a fallback
@@ -87,18 +133,28 @@ export function makeHandler(root?: string, config?: Config): (
     // that we only return this error for the entrypoint; we always serve fully
     // qualified static resources.
     if (!build && serveEntrypoint) {
-      response.writeHead(500);
-      response.end('This browser is not supported.');
+      handleError(httpErrors(500, 'This browser is not supported.'));
       return;
     }
 
     const fileToSend = (build && serveEntrypoint) ? build.entrypoint : urlPath;
 
-    // A service worker may only register with a scope above its own path if
-    // permitted by this header.
-    // https://www.w3.org/TR/service-workers-1/#service-worker-allowed
     if (isServiceWorker.test(fileToSend)) {
+      // A service worker may only register with a scope above its own path if
+      // permitted by this header.
+      // https://www.w3.org/TR/service-workers-1/#service-worker-allowed
       response.setHeader('Service-Worker-Allowed', '/');
+
+      // Automatically unregister service workers that no longer exist to
+      // prevent clients getting stuck with old service workers indefinitely.
+      if (unregisterMissingServiceWorkers && !(await fileExists(absFilepath))) {
+        response.setHeader('Content-Type', 'application/javascript');
+        response.writeHead(200);
+        response.end(
+            `self.addEventListener('install', () => self.skipWaiting());
+self.addEventListener('activate', () => self.registration.unregister());`);
+        return;
+      }
     }
 
     // Don't set the Cache-Control header if it's already set. This way another
@@ -125,8 +181,34 @@ export function makeHandler(root?: string, config?: Config): (
       // We handle the caching header ourselves.
       cacheControl: false,
     };
-    send(request, fileToSend, sendOpts).pipe(response);
+    send(request, fileToSend, sendOpts)
+        .on('error',
+            (err: httpErrors.HttpError) => {
+              // `send` puts a lot of detail in the error message, like the
+              // absolute system path of the missing file for a 404. We don't
+              // want that to leak out, so let's use a generic message instead.
+              err.message = statuses[err.status] || String(err.status);
+              handleError(err);
+            })
+        .pipe(response);
   };
+}
+
+/**
+ * Return a promise for the existence of a file.
+ */
+function fileExists(filepath: string): Promise<boolean> {
+  return new Promise((resolve) => fs.access(filepath, (err) => resolve(!err)));
+}
+
+/**
+ * Write a plain text HTTP error response.
+ */
+function writePlainTextError(
+    response: http.ServerResponse, error: httpErrors.HttpError) {
+  response.statusCode = error.status;
+  response.setHeader('Content-Type', 'text/plain');
+  response.end(error.message);
 }
 
 function addTrailingPathSep(p: string): string {

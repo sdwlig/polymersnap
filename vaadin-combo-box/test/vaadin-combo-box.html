@@ -12,6 +12,14 @@
 
 <body>
 
+  <test-fixture id="combobox-in-flexbox">
+    <template>
+      <div style="display: flex; flex-direction: column; width:500px;">
+        <vaadin-combo-box></vaadin-combo-box>
+      </div>
+    </template>
+  </test-fixture>
+
   <test-fixture id="combobox">
     <template>
       <vaadin-combo-box></vaadin-combo-box>
@@ -37,6 +45,15 @@
         if (comboBox._bindableInput._initSlottedInput) {
           comboBox._bindableInput._initSlottedInput();
         }
+      });
+
+      describe('Inside flexbox', () => {
+        it('combo-box should stretch to fit the flex container', () => {
+          const container = fixture('combobox-in-flexbox');
+          const combobox = container.querySelector('vaadin-combo-box');
+          expect(window.getComputedStyle(container).width).to.eql('500px');
+          expect(window.getComputedStyle(combobox).width).to.eql('500px');
+        });
       });
 
       describe('items property', () => {
@@ -98,16 +115,19 @@
         });
       });
 
-      describe('hasValue property', () => {
-        it('should be readOnly', () => {
-          expect(comboBox.hasValue).to.be.false;
-          comboBox.hasValue = true;
-          expect(comboBox.hasValue).to.be.false;
+      describe('pattern property', () => {
+        it('should work with the allowed pattern', () => {
+          comboBox.pattern = '[0-9]*';
+          comboBox.allowCustomValue = true;
+          comboBox.value = 'foo';
+          expect(comboBox.validate()).to.be.false;
         });
+      });
 
+      describe('has-value attribute', () => {
         it('should be updated when setting the value', () => {
           comboBox.value = 'foo';
-          expect(comboBox.hasValue).to.be.true;
+          expect(comboBox.hasAttribute('has-value')).to.be.true;
         });
       });
 
@@ -221,15 +241,7 @@
       });
 
       describe('focus API', () => {
-        it('should have readOnly focused property', () => {
-          comboBox.focused = true;
-
-          expect(comboBox.focused).to.be.false;
-          expect(comboBox.hasAttribute('focused')).to.be.false;
-        });
-
         it('should not be focused by default', () => {
-          expect(comboBox.focused).to.be.false;
           expect(comboBox.hasAttribute('focused')).to.be.false;
         });
 
@@ -237,7 +249,6 @@
           it('should focus the input with focus method', () => {
             comboBox.focus();
 
-            expect(comboBox.focused).to.be.true;
             expect(comboBox.hasAttribute('focused')).to.be.true;
           });
 
@@ -245,7 +256,6 @@
             comboBox.focus();
             comboBox.blur();
 
-            expect(comboBox.focused).to.be.false;
             expect(comboBox.hasAttribute('focused')).to.be.false;
           });
         });

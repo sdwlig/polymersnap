@@ -14,7 +14,12 @@
 import * as dom5 from 'dom5';
 
 import {AnalysisContext} from '../core/analysis-context';
+import {ParsedCssDocument} from '../css/css-document';
+import {ParsedHtmlDocument} from '../html/html-document';
+import {JavaScriptDocument} from '../javascript/javascript-document';
+import {ParsedJsonDocument} from '../json/json-document';
 import {ParsedDocument} from '../parser/document';
+import {ParsedTypeScriptDocument} from '../typescript/typescript-document';
 
 import {Analysis} from './analysis';
 import {Feature, ScannedFeature} from './feature';
@@ -24,6 +29,7 @@ import {ScannedInlineDocument} from './inline-document';
 import {DocumentQuery as Query, DocumentQueryWithKind as QueryWithKind, FeatureKind, FeatureKindMap, Queryable} from './queryable';
 import {isResolvable} from './resolvable';
 import {SourceRange} from './source-range';
+import {ResolvedUrl} from './url';
 import {Warning} from './warning';
 
 /**
@@ -84,13 +90,15 @@ declare module './queryable' {
     'document': Document;
 
     // Document specializations.
-    'html-document': Document;
-    'js-document': Document;
-    'json-document': Document;
-    'css-document': Document;
+    'html-document': Document<ParsedHtmlDocument>;
+    'js-document': Document<JavaScriptDocument>;
+    'json-document': Document<ParsedJsonDocument>;
+    'css-document': Document<ParsedCssDocument>;
+    'typescript-document': Document<ParsedTypeScriptDocument>;
   }
 }
-export class Document implements Feature, Queryable {
+export class Document<ParsedType extends ParsedDocument = ParsedDocument>
+    implements Feature, Queryable {
   readonly kinds: ImmutableSet<string> = new Set(['document']);
   readonly identifiers: ImmutableSet<string> = new Set();
 
@@ -138,7 +146,7 @@ export class Document implements Feature, Queryable {
     this.warnings = Array.from(base.warnings);
   }
 
-  get url(): string {
+  get url(): ResolvedUrl {
     return this._scannedDocument.url;
   }
 
@@ -154,8 +162,8 @@ export class Document implements Feature, Queryable {
     return this._scannedDocument.astNode;
   }
 
-  get parsedDocument(): ParsedDocument {
-    return this._scannedDocument.document;
+  get parsedDocument(): ParsedType {
+    return this._scannedDocument.document as ParsedType;
   }
 
   get resolved(): boolean {
@@ -378,14 +386,9 @@ export class Document implements Feature, Queryable {
       } else {
         let subResult = localFeature.toString();
         if (subResult === '[object Object]') {
-          subResult = `<${
-                          localFeature.constructor.name
-                        } kinds="${
-                                   Array.from(localFeature.kinds).join(', ')
-                                 }" ids="${
-                                           Array.from(localFeature.identifiers)
-                                               .join(',')
-                                         }">}`;
+          subResult = `<${localFeature.constructor.name} kinds="${
+              Array.from(localFeature.kinds).join(', ')}" ids="${
+              Array.from(localFeature.identifiers).join(',')}">}`;
         }
         result.push(`  ${subResult}`);
       }

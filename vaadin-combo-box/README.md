@@ -18,44 +18,51 @@
   <template>
     <script src="../webcomponentsjs/webcomponents-lite.js"></script>
     <link rel="import" href="../iron-ajax/iron-ajax.html">
-    <link rel="import" href="../paper-item/all-imports.html">
     <link rel="import" href="vaadin-combo-box.html">
+    <custom-style>
+      <style>
+        vaadin-combo-box {
+          width: 300px;
+        }
+      </style>
+    </custom-style>
     <next-code-block></next-code-block>
   </template>
 </custom-element-demo>
 ```
 -->
 ```html
-<div>
-  <style is="custom-style">
-    paper-icon-item {
-      margin: -13px -16px;
-    }
-    paper-icon-item img {
-      border-radius: 50%;
-    }
-  </style>
-  <template is="dom-bind">
-    <iron-ajax url="https://randomuser.me/api?results=100&inc=name,email,picture" last-response="{{response}}" auto></iron-ajax>
-
-    <vaadin-combo-box items="[[response.results]]" item-value-path="email" item-label-path="email">
-      <template>
-        <paper-icon-item>
-          <img src="[[item.picture.thumbnail]]" item-icon>
-          <paper-item-body two-line>
-            <div>[[item.name.first]] [[item.name.last]]</div>
-            <div secondary>[[item.email]]</div>
-          </paper-item-body>
-        </paper-icon-item>
-      </template>
-    </vaadin-combo-box>
+<dom-bind>
+  <template>
+    <iron-ajax url="https://randomuser.me/api?results=100&inc=name,email" last-response="{{response}}" auto></iron-ajax>
+    <vaadin-combo-box label="User" placeholder="Please select" items="[[response.results]]" item-value-path="email" item-label-path="email"></vaadin-combo-box>
   </template>
-</div>
-
+</dom-bind>
 ```
 
-[<img src="https://raw.githubusercontent.com/vaadin/vaadin-combo-box/master/docs/img/vaadin-combo-box-item-template-material.png" width="311" alt="Screenshot of vaadin-combo-box" />](https://vaadin.com/elements/-/element/vaadin-combo-box)
+[<img src="https://raw.githubusercontent.com/vaadin/vaadin-combo-box/master/screenshot.png" width="208" alt="Screenshot of vaadin-combo-box" />](https://vaadin.com/elements/vaadin-combo-box)
 
+## Getting Started
+
+Vaadin Elements use the Valo theme by default.
+
+## The file structure for Vaadin Elements
+
+- `src/vaadin-combo-box.html`
+- `src/vaadin-combo-box-light.html`
+
+  Unstyled elements.
+
+- `theme/valo/vaadin-combo-box.html`
+- `theme/valo/vaadin-combo-box-light.html`
+
+  Elements with Valo theme.
+
+- `vaadin-combo-box.html`
+- `vaadin-combo-box-light.html`
+
+  Alias for theme/valo/vaadin-combo-box.html
+  theme/valo/vaadin-combo-box-light.html
 
 ## Running demos and tests in browser
 
@@ -94,3 +101,5 @@ We are using [ESLint](http://eslint.org/) for linting JavaScript code. You can c
 ## License
 
 Apache License 2.0
+
+Vaadin collects development time usage statistics to improve this product. For details and to opt-out, see https://github.com/vaadin/vaadin-usage-statistics.

@@ -12,8 +12,9 @@
  * http://polymer.github.io/PATENTS.txt
  */
 
+import * as babel from 'babel-types';
 import * as dom5 from 'dom5';
-import * as estree from 'estree';
+import * as parse5 from 'parse5';
 
 import {getOrInferPrivacy} from '../javascript/esutil';
 import * as jsdoc from '../javascript/jsdoc';
@@ -30,16 +31,22 @@ export interface BasePolymerProperty {
   published?: boolean;
   notify?: boolean;
   observer?: string;
-  observerNode?: estree.Expression|estree.Pattern;
+  observerNode?: babel.Expression|babel.Pattern;
   observerExpression?: JavascriptDatabindingExpression;
   reflectToAttribute?: boolean;
   computedExpression?: JavascriptDatabindingExpression;
+
   /**
    * True if the property is part of Polymer's element configuration syntax.
    *
    * e.g. 'properties', 'is', 'extends', etc
    */
   isConfiguration?: boolean;
+
+  /**
+   * Constructor used when deserializing this property from an attribute.
+   */
+  attributeType?: string;
 }
 
 export interface ScannedPolymerProperty extends ScannedProperty,
@@ -121,7 +128,7 @@ export class LocalId {
 }
 
 export interface Observer {
-  javascriptNode: estree.Expression|estree.SpreadElement;
+  javascriptNode: babel.Expression|babel.SpreadElement;
   expression: LiteralValue;
   parsedExpression: JavascriptDatabindingExpression|undefined;
 }
@@ -202,6 +209,11 @@ export function addMethod(
   target.methods.set(method.name, method);
 }
 
+export function addStaticMethod(
+    target: ScannedPolymerExtension, method: ScannedMethod) {
+  target.staticMethods.set(method.name, method);
+}
+
 /**
  * The metadata for a single polymer element
  */
@@ -209,6 +221,7 @@ export class ScannedPolymerElement extends ScannedElement implements
     ScannedPolymerExtension {
   properties = new Map<string, ScannedPolymerProperty>();
   methods = new Map<string, ScannedMethod>();
+  staticMethods = new Map<string, ScannedMethod>();
   observers: Observer[] = [];
   listeners: {event: string, handler: string}[] = [];
   behaviorAssignments: ScannedBehaviorAssignment[] = [];
@@ -241,6 +254,9 @@ export class ScannedPolymerElement extends ScannedElement implements
     if (options.methods) {
       options.methods.forEach((m) => this.addMethod(m));
     }
+    if (options.staticMethods) {
+      options.staticMethods.forEach((m) => this.addStaticMethod(m));
+    }
     const summaryTag = jsdoc.getTag(this.jsdoc, 'summary');
     this.summary =
         (summaryTag !== undefined && summaryTag.description != null) ?
@@ -256,6 +272,10 @@ export class ScannedPolymerElement extends ScannedElement implements
     addMethod(this, method);
   }
 
+  addStaticMethod(method: ScannedMethod) {
+    addStaticMethod(this, method);
+  }
+
   resolve(document: Document): PolymerElement {
     return new PolymerElement(this, document);
   }
@@ -265,7 +285,7 @@ export interface PolymerExtension extends ElementBase {
   properties: Map<string, PolymerProperty>;
 
   observers: ImmutableArray < {
-    javascriptNode: estree.Expression|estree.SpreadElement,
+    javascriptNode: babel.Expression|babel.SpreadElement,
         expression: LiteralValue,
         parsedExpression: JavascriptDatabindingExpression|undefined;
   }
@@ -328,6 +348,14 @@ export class PolymerElement extends Element implements PolymerExtension {
               (domModuleJsdoc.description + '\n\n' + this.description).trim();
         }
       }
+      const template =
+          dom5.query(domModule.node, dom5.predicates.hasTagName('template'));
+      if (template) {
+        this.template = {
+          kind: 'polymer-databinding',
+          contents: parse5.treeAdapters.default.getTemplateContent(template)
+        };
+      }
     }
 
     if (scannedElement.pseudo) {
@@ -336,16 +364,14 @@ export class PolymerElement extends Element implements PolymerExtension {
   }
 
   emitPropertyMetadata(property: PolymerProperty) {
-    const polymerMetadata:
-        {notify?: boolean, observer?: string, readOnly?: boolean} = {};
-    const polymerMetadataFields: Array<keyof typeof polymerMetadata> =
-        ['notify', 'observer', 'readOnly'];
-    for (const field of polymerMetadataFields) {
-      if (field in property) {
-        polymerMetadata[field] = property[field];
+    return {
+      polymer: {
+        notify: property.notify,
+        observer: property.observer,
+        readOnly: property.readOnly,
+        attributeType: property.attributeType,
       }
-    }
-    return {polymer: polymerMetadata};
+    };
   }
 
   protected _getSuperclassAndMixins(

@@ -18,27 +18,16 @@ import * as path from 'path';
 
 import {Analyzer} from '../../core/analyzer';
 import {ClassScanner} from '../../javascript/class-scanner';
-import {Visitor} from '../../javascript/estree-visitor';
-import {JavaScriptParser} from '../../javascript/javascript-parser';
 import {PolymerElementMixin, ScannedPolymerElementMixin} from '../../polymer/polymer-element-mixin';
-
-import {FSUrlLoader} from '../../url-loader/fs-url-loader';
-import {CodeUnderliner} from '../test-utils';
+import {CodeUnderliner, fixtureDir, runScanner} from '../test-utils';
 
 suite('Polymer2MixinScanner with old jsdoc annotations', () => {
-  const testFilesDir = path.resolve(__dirname, '../static/polymer2-old-jsdoc/');
-  const urlLoader = new FSUrlLoader(testFilesDir);
-  const underliner = new CodeUnderliner(urlLoader);
-  const analyzer = new Analyzer({urlLoader});
+  const testFilesDir = path.resolve(fixtureDir, 'polymer2-old-jsdoc/');
+  const analyzer = Analyzer.createForDirectory(testFilesDir);
+  const underliner = new CodeUnderliner(analyzer);
 
   async function getScannedMixins(filename: string) {
-    const file = await urlLoader.load(filename);
-    const parser = new JavaScriptParser();
-    const document = parser.parse(file, filename);
-    const scanner = new ClassScanner();
-    const visit = (visitor: Visitor) =>
-        Promise.resolve(document.visit([visitor]));
-    const {features} = await scanner.scan(document, visit);
+    const {features} = await runScanner(analyzer, new ClassScanner(), filename);
     return <ScannedPolymerElementMixin[]>features.filter(
         (e) => e instanceof ScannedPolymerElementMixin);
   };
@@ -87,7 +76,7 @@ suite('Polymer2MixinScanner with old jsdoc annotations', () => {
     };
   }
 
-  test('finds mixin function declarations', async() => {
+  test('finds mixin function declarations', async () => {
     const mixins = await getScannedMixins('test-mixin-1.js');
     const mixinData = await Promise.all(mixins.map(getTestProps));
     assert.deepEqual(mixinData, [{
@@ -131,7 +120,7 @@ function TestMixin(superclass) {
 ~`);
   });
 
-  test('finds mixin arrow function expressions', async() => {
+  test('finds mixin arrow function expressions', async () => {
     const mixins = await getScannedMixins('test-mixin-2.js');
     const mixinData = await Promise.all(mixins.map(getTestProps));
     assert.deepEqual(mixinData, [{
@@ -171,7 +160,7 @@ const TestMixin = (superclass) => class extends superclass {
 ~`);
   });
 
-  test('finds mixin function expressions', async() => {
+  test('finds mixin function expressions', async () => {
     const mixins = await getScannedMixins('test-mixin-3.js');
     const mixinData = await Promise.all(mixins.map(getTestProps));
     assert.deepEqual(mixinData, [{
@@ -217,7 +206,7 @@ const TestMixin = function(superclass) {
 
   test(
       'finds mixin variable declaration with only name, does not use trailing function',
-      async() => {
+      async () => {
         const mixins = await getScannedMixins('test-mixin-4.js');
         const mixinData = await Promise.all(mixins.map(getTestProps));
         assert.deepEqual(mixinData, [{
@@ -236,13 +225,13 @@ let TestMixin;
 ~~~~~~~~~~~~~~`);
       });
 
-  test('what to do on a class marked @mixinFunction?', async() => {
+  test('what to do on a class marked @mixinFunction?', async () => {
     const mixins = await getScannedMixins('test-mixin-5.js');
     const mixinData = mixins.map(getTestProps);
     assert.deepEqual(mixinData, []);
   });
 
-  test('finds mixin function declaration with only name', async() => {
+  test('finds mixin function declaration with only name', async () => {
     const mixins = await getScannedMixins('test-mixin-6.js');
     const mixinData = await Promise.all(mixins.map(getTestProps));
     assert.deepEqual(mixinData, [{
@@ -262,7 +251,7 @@ function TestMixin() {
 ~`);
   });
 
-  test('finds mixin assigned to a namespace', async() => {
+  test('finds mixin assigned to a namespace', async () => {
     const mixins = await getScannedMixins('test-mixin-7.js');
     const mixinData = await Promise.all(mixins.map(getTestProps));
     assert.deepEqual(mixinData, [{
@@ -316,7 +305,7 @@ Polymer.TestMixin = Polymer.woohoo(function TestMixin(base) {
 
   test(
       'properly analyzes nested mixin assignments with memberof tags',
-      async() => {
+      async () => {
         const mixins = await getScannedMixins('test-mixin-8.js');
         const mixinData = await Promise.all(mixins.map(getTestProps));
         assert.deepEqual(mixinData, [{
@@ -332,71 +321,72 @@ Polymer.TestMixin = Polymer.woohoo(function TestMixin(base) {
                            methods: [],
                            underlinedWarnings: [],
                          }]);
-
       });
 
-  test('properly analyzes mixin instance and class methods', async() => {
+  test('properly analyzes mixin instance and class methods', async () => {
     const mixins = await getScannedMixins('test-mixin-9.js');
     const mixinData = await Promise.all(mixins.map(getTestProps));
-    assert.deepEqual(mixinData, [
-      {
-        name: 'TestMixin',
-        description: 'A mixin description',
-        summary: 'A mixin summary',
-        properties: [{
-          name: 'foo',
-        }],
-        attributes: [{
-          name: 'foo',
-        }],
-        methods: [
-          {name: 'customInstanceFunction', params: [], return: undefined},
-          {
-            name: 'customInstanceFunctionWithJSDoc',
-            params: [], return: {
-              desc: 'The number 5, always.',
-              type: 'Number',
-            },
-          },
-          {
-            name: 'customInstanceFunctionWithParams',
-            params: [{name: 'a'}, {name: 'b'}, {name: 'c'}], return: undefined,
-          },
-          {
-            name: 'customInstanceFunctionWithParamsAndJSDoc',
-            params: [
-              {
-                name: 'a',
-                type: 'Number',
-                description: 'The first argument',
-              },
-              {
-                name: 'b',
+    assert.deepEqual(
+        mixinData, [{
+          name: 'TestMixin',
+          description: 'A mixin description',
+          summary: 'A mixin summary',
+          properties: [
+            { name: 'customInstanceGetter' },
+            { name: 'foo' }
+          ],
+          attributes: [{
+            name: 'foo',
+          }],
+          methods: [
+            {name: 'customInstanceFunction', params: [], return: undefined},
+            {
+              name: 'customInstanceFunctionWithJSDoc',
+              params: [],
+              return: {
+                desc: 'The number 5, always.',
                 type: 'Number',
               },
-              {
-                name: 'c',
-                type: 'Number',
-                description: 'The third argument',
-              }
-            ],
-            return: {
-              desc: 'The number 7, always.',
-              type: 'Number',
             },
-          },
-          {
-            name: 'customInstanceFunctionWithParamsAndPrivateJSDoc',
-            params: [], return: undefined,
-          },
-        ],
-        underlinedWarnings: [],
-      }
-    ]);
-
+            {
+              name: 'customInstanceFunctionWithParams',
+              params: [{name: 'a'}, {name: 'b'}, {name: 'c'}],
+              return: undefined,
+            },
+            {
+              name: 'customInstanceFunctionWithParamsAndJSDoc',
+              params: [
+                {
+                  name: 'a',
+                  type: 'Number',
+                  description: 'The first argument',
+                },
+                {
+                  name: 'b',
+                  type: 'Number',
+                },
+                {
+                  name: 'c',
+                  type: 'Number',
+                  description: 'The third argument',
+                }
+              ],
+              return: {
+                desc: 'The number 7, always.',
+                type: 'Number',
+              },
+            },
+            {
+              name: 'customInstanceFunctionWithParamsAndPrivateJSDoc',
+              params: [],
+              return: undefined,
+            },
+          ],
+          underlinedWarnings: [],
+        }]);
   });
 
-  test('applies mixins to mixins', async() => {
+  test('applies mixins to mixins', async () => {
     const mixins = await getMixins('test-mixin-10.js');
     const mixinData = await Promise.all(mixins.map(getTestProps));
     assert.deepEqual(mixinData, [

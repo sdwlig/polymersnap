@@ -20,9 +20,12 @@ import './html/undefined-elements';
 
 import './polymer/behaviors-spelling';
 import './polymer/call-super-in-callbacks';
-import './polymer/content-to-slot';
+import './polymer/content-to-slot-declarations';
+import './polymer/content-to-slot-usages';
 import './polymer/databinding-calls-must-be-functions';
 import './polymer/databind-with-unknown-property';
 import './polymer/element-before-dom-module';
 import './polymer/set-unknown-attribute';
 import './polymer/unbalanced-delimiters';
+
+import './polymer/elements/rules';

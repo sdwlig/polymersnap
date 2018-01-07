@@ -15,42 +15,29 @@
 import {assert} from 'chai';
 
 import {RedirectResolver} from '../../url-loader/redirect-resolver';
+import {packageRelativeUrl, resolvedUrl} from '../test-utils';
 
 
 suite('RedirectResolver', function() {
-
-  suite('canResolve', () => {
-
-    test('canResolve is true if the prefix matches with protocol', () => {
-      const resolver = new RedirectResolver('proto://site/', 'some/path');
-      assert.isTrue(resolver.canResolve('proto://site/something.html'));
-    });
-
-    test('canResolve is true if the prefix matches without protocol', () => {
-      const resolver = new RedirectResolver('/site/', 'some/path');
-      assert.isTrue(resolver.canResolve('/site/something.html'));
-    });
-
-    test('canResolve is false if the prefix doesn\'t match', () => {
-      const resolver = new RedirectResolver('proto://site/', 'some/path');
-      assert.isFalse(resolver.canResolve('/site/something.html'));
-      assert.isFalse(resolver.canResolve('protzo://site/something.html'));
-    });
-
-  });
-
   suite('resolve', () => {
     test('if prefix matches, url is rewritten', () => {
-      const resolver = new RedirectResolver('proto://site/', 'some/path/');
+      let resolver =
+          new RedirectResolver(resolvedUrl``, 'proto://site/', 'some/path/');
       assert.equal(
-          resolver.resolve('proto://site/something.html'),
-          'some/path/something.html');
+          resolver.resolve(packageRelativeUrl`proto://site/something.html`),
+          resolvedUrl`some/path/something.html`);
+      resolver = new RedirectResolver(resolvedUrl``, '/site/', 'some/path/');
+      assert.equal(
+          resolver.resolve(packageRelativeUrl`/site/something.html`),
+          resolvedUrl`some/path/something.html`);
     });
-    test('if prefix doesn\'t match, resolve throws', () => {
-      const resolver = new RedirectResolver('proto://site/', 'some/path/');
-      assert.throws(
-          () => resolver.resolve('protoz://site/something.html'),
-          /RedirectResolver/);
+
+    test(`if prefix doesn't match, returns undefined`, () => {
+      const resolver =
+          new RedirectResolver(resolvedUrl``, 'proto://site/', 'some/path/');
+      assert.equal(
+          resolver.resolve(packageRelativeUrl`protoz://site/something.html`),
+          undefined);
     });
   });
 });

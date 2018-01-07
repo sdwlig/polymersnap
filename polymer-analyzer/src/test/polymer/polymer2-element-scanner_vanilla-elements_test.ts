@@ -15,18 +15,15 @@
 
 import * as chai from 'chai';
 import {assert} from 'chai';
-import * as fs from 'fs';
-import * as path from 'path';
 
+import {Analyzer} from '../../core/analyzer';
 import {ClassScanner} from '../../javascript/class-scanner';
-import {Visitor} from '../../javascript/estree-visitor';
-import {JavaScriptDocument} from '../../javascript/javascript-document';
-import {JavaScriptParser} from '../../javascript/javascript-parser';
 import {ScannedPolymerElement} from '../../polymer/polymer-element';
+import {fixtureDir, runScanner} from '../test-utils';
 
 
 //
-// NOTE: THis test was copied from
+// NOTE: This test was copied from
 // /src/test/vanilla-custom-elements/element-scanner_test.js
 // to ensure that Polymer2ElementScanner can scan vanilla elements while we
 // disable the vanilla element scanner for a short time.
@@ -37,24 +34,16 @@ import {ScannedPolymerElement} from '../../polymer/polymer-element';
 chai.use(require('chai-subset'));
 
 suite('Polymer2ElementScanner - Vanilla Element Scanning', () => {
-
   const elements = new Map<string|undefined, ScannedPolymerElement>();
-  let document: JavaScriptDocument;
   let elementsList: ScannedPolymerElement[];
 
-  suiteSetup(async() => {
-    const parser = new JavaScriptParser();
-    const file = fs.readFileSync(
-        path.resolve(__dirname, '../static/vanilla-elements.js'), 'utf8');
-    document = parser.parse(file, '/static/vanilla-elements.js');
-    const scanner = new ClassScanner();
-    const visit = (visitor: Visitor) =>
-        Promise.resolve(document.visit([visitor]));
+  suiteSetup(async () => {
+    const analyzer = Analyzer.createForDirectory(fixtureDir);
+    const {features} =
+        await runScanner(analyzer, new ClassScanner(), 'vanilla-elements.js');
 
-    const {features} = await scanner.scan(document, visit);
-
-    elementsList = features.filter(
-        (e) => e instanceof ScannedPolymerElement) as ScannedPolymerElement[];
+    elementsList = features.filter((e) => e instanceof ScannedPolymerElement) as
+        ScannedPolymerElement[];
     for (const element of elementsList) {
       elements.set(element.tagName, element);
     }
@@ -96,39 +85,27 @@ suite('Polymer2ElementScanner - Vanilla Element Scanning', () => {
         description: 'When given the element is totally inactive',
         name: 'disabled',
         type: 'boolean',
-        sourceRange: {
-          file: '/static/vanilla-elements.js',
-          start: {column: 6, line: 25},
-          end: {column: 16, line: 25}
-        }
+        sourceRange:
+            {start: {column: 6, line: 25}, end: {column: 16, line: 25}}
       },
       {
         description: 'When given the element is expanded',
         name: 'open',
         type: 'boolean',
-        sourceRange: {
-          file: '/static/vanilla-elements.js',
-          start: {column: 6, line: 27},
-          end: {column: 12, line: 27}
-        }
+        sourceRange:
+            {start: {column: 6, line: 27}, end: {column: 12, line: 27}}
       },
       {
         description: '',
         name: 'foo',
-        sourceRange: {
-          file: '/static/vanilla-elements.js',
-          start: {column: 14, line: 27},
-          end: {column: 19, line: 27}
-        },
+        sourceRange:
+            {start: {column: 14, line: 27}, end: {column: 19, line: 27}},
       },
       {
         description: '',
         name: 'bar',
-        sourceRange: {
-          file: '/static/vanilla-elements.js',
-          start: {column: 21, line: 27},
-          end: {column: 26, line: 27}
-        },
+        sourceRange:
+            {start: {column: 21, line: 27}, end: {column: 26, line: 27}},
       }
     ]);
   });

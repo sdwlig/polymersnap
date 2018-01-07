@@ -13,6 +13,7 @@
  */
 
 import {correctSourceRange, LocationOffset, SourcePosition, SourceRange, uncorrectSourceRange} from '../model/source-range';
+import {ResolvedUrl} from '../model/url';
 
 /**
  * A parsed Document.
@@ -22,8 +23,8 @@ import {correctSourceRange, LocationOffset, SourcePosition, SourceRange, uncorre
  */
 export abstract class ParsedDocument<AstNode = any, Visitor = any> {
   abstract type: string;
-  url: string;
-  baseUrl: string;
+  url: ResolvedUrl;
+  baseUrl: ResolvedUrl;
   contents: string;
   ast: AstNode;
   isInline: boolean;
@@ -47,7 +48,7 @@ export abstract class ParsedDocument<AstNode = any, Visitor = any> {
 
   constructor(from: Options<AstNode>) {
     this.url = from.url;
-    this.baseUrl = from.baseUrl || this.url;
+    this.baseUrl = from.baseUrl === undefined ? this.url : from.baseUrl;
     this.contents = from.contents;
     this.ast = from.ast;
     this._locationOffset = from.locationOffset;
@@ -153,8 +154,8 @@ export abstract class ParsedDocument<AstNode = any, Visitor = any> {
 }
 
 export interface Options<A> {
-  url: string;
-  baseUrl?: string;
+  url: ResolvedUrl;
+  baseUrl?: ResolvedUrl;
   contents: string;
   ast: A;
   locationOffset: LocationOffset|undefined;
@@ -171,6 +172,34 @@ export interface StringifyOptions {
    * whose stringified contents should be used instead of what is in `ast`.
    */
   inlineDocuments?: ParsedDocument[];
+}
+
+/**
+ * Used solely for constructing warnings about unparsable or unloadable
+ * documents.
+ */
+export class UnparsableParsedDocument extends ParsedDocument {
+  type: string = 'unparsable';
+  constructor(url: ResolvedUrl, contents: string) {
+    super({
+      ast: null,
+      url,
+      baseUrl: url,
+      astNode: null,
+      contents: contents,
+      isInline: false,
+      locationOffset: undefined
+    });
+  }
+  visit(_visitors: any[]): void {
+    return;
+  }
+  protected _sourceRangeForNode(_node: any): undefined {
+    return undefined;
+  }
+  stringify(): string {
+    return `<FakeParsedDocument url="${this.url}">`;
+  }
 }
 
 /**

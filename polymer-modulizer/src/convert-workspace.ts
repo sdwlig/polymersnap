@@ -12,129 +12,118 @@
  * http://polymer.github.io/PATENTS.txt
  */
 
-import {fs} from 'mz';
 import * as path from 'path';
-import {Analysis, Analyzer, FSUrlLoader, InMemoryOverlayUrlLoader, PackageUrlResolver} from 'polymer-analyzer';
+import {Analyzer, FSUrlLoader, InMemoryOverlayUrlLoader, PackageUrlResolver} from 'polymer-analyzer';
+import {run, WorkspaceRepo} from 'polymer-workspaces';
 
-import {BaseConverterOptions} from './base-converter';
-import {dependencyMap, generatePackageJson, readJson, writeJson} from './manifest-converter';
+import {createDefaultConversionSettings, PartialConversionSettings} from './conversion-settings';
+import {generatePackageJson, readJson, writeJson} from './manifest-converter';
+import {ProjectConverter} from './project-converter';
 import {polymerFileOverrides} from './special-casing';
-import {WorkspaceConverter} from './workspace-converter';
+import {lookupNpmPackageName, WorkspaceUrlHandler} from './urls/workspace-url-handler';
+import {exec, logRepoError, writeFileResults} from './util';
 
-import mkdirpCallback = require('mkdirp');
-
-
-const mkdirp = (dir: string) =>
-    new Promise((resolve, reject) => mkdirpCallback(dir, (e, made) => {
-                  return e == null ? resolve(made) : reject(e);
-                }));
-
-interface ConvertWorkspaceOptions extends BaseConverterOptions {
+/**
+ * Configuration options required for workspace conversions. Contains
+ * information about which repos to convert and what new version to set
+ * each npm package at.
+ */
+export interface WorkspaceConversionSettings extends PartialConversionSettings {
   packageVersion: string;
-  inDir: string;
+  workspaceDir: string;
+  reposToConvert: WorkspaceRepo[];
 }
 
-export function configureAnalyzer(options: ConvertWorkspaceOptions) {
-  const inDir = options.inDir || process.cwd();
+export const GIT_STAGING_BRANCH_NAME = 'polymer-modulizer-staging';
 
-  const urlLoader = new InMemoryOverlayUrlLoader(new FSUrlLoader(inDir));
+/**
+ * For a given repo, generate a new package.json and write it to disk.
+ */
+function writePackageJson(repo: WorkspaceRepo, packageVersion: string) {
+  const bowerPackageName = path.basename(repo.dir);
+  const bowerJsonPath = path.join(repo.dir, 'bower.json');
+  const bowerJson = readJson(bowerJsonPath);
+  const npmPackageName =
+      lookupNpmPackageName(bowerJsonPath) || bowerPackageName;
+  const packageJson =
+      generatePackageJson(bowerJson, npmPackageName, packageVersion);
+  writeJson(packageJson, repo.dir, 'package.json');
+}
+
+/**
+ * Configure a basic analyzer instance for the workspace.
+ */
+function configureAnalyzer(options: WorkspaceConversionSettings) {
+  const workspaceDir = options.workspaceDir;
+  const urlLoader = new InMemoryOverlayUrlLoader(new FSUrlLoader(workspaceDir));
   for (const [url, contents] of polymerFileOverrides) {
     urlLoader.urlContentsMap.set(`polymer/${url}`, contents);
   }
-
   return new Analyzer({
     urlLoader,
     urlResolver: new PackageUrlResolver(),
   });
 }
 
-export function configureConverter(
-    analysis: Analysis, options: ConvertWorkspaceOptions) {
-  return new WorkspaceConverter(analysis, {
-    namespaces: options.namespaces,
-    excludes:
-        [...(options.excludes || []), 'neon-animation/web-animations.html'],
-    referenceExcludes: options.referenceExcludes ||
-        [
-          'Polymer.DomModule',
-          'Polymer.Settings',
-          'Polymer.log',
-          'Polymer.rootPath',
-          'Polymer.sanitizeDOMValue',
-          'Polymer.Collection',
-        ],
-  });
-}
+/**
+ * The results of a conversion, as a map of converted package npm names -> their
+ * full file path location on disk.
+ */
+export type ConversionResultsMap = Map<string, string>;
 
-export async function convertWorkspace(options: ConvertWorkspaceOptions) {
+/**
+ * Convert a set of workspace repos to npm packages and JavaScript modules.
+ * Returns a map of all packages converted, keyed by npm package name.
+ */
+export default async function convert(options: WorkspaceConversionSettings):
+    Promise<ConversionResultsMap> {
   const analyzer = configureAnalyzer(options);
   const analysis = await analyzer.analyzePackage();
-  const converter = configureConverter(analysis, options);
-  const results = await converter.convert();
+  const htmlDocuments = [...analysis.getFeatures({kind: 'html-document'})];
+  const conversionSettings = createDefaultConversionSettings(analysis, options);
+  const urlHandler = new WorkspaceUrlHandler(options.workspaceDir);
+  const converter = new ProjectConverter(urlHandler, conversionSettings);
+  const convertedPackageResults: ConversionResultsMap = new Map();
 
-  for (const [outUrl, newSource] of results) {
-    const outPath = path.join(options.inDir, outUrl);
-    if (newSource === undefined) {
-      await fs.unlink(outPath);
-    } else {
-      await fs.writeFile(outPath, newSource);
+  // For each repo, convert the relevant HTML documents:
+  for (const repo of options.reposToConvert) {
+    const repoDirName = path.basename(repo.dir);
+    const bowerConfigPath = path.join(repo.dir, 'bower.json');
+    const npmPackageName = lookupNpmPackageName(bowerConfigPath);
+    if (!npmPackageName) {
+      continue;
     }
-  }
-
-  for (const repo of await fs.readdir(options.inDir)) {
-    await writePackageJson(options, repo);
-    await writeNpmSymlink(options, repo);
-  }
-}
-
-async function writeNpmSymlink(options: ConvertWorkspaceOptions, repo: string) {
-  const repoPath = path.join(options.inDir, repo);
-  const packageJsonPath = path.join(repoPath, 'package.json');
-  if (!await fs.exists(packageJsonPath)) {
-    return;
-  }
-  const packageJson = readJson(packageJsonPath);
-  let packageName = packageJson['name'] as string;
-  let parentName = path.join(options.inDir, 'node_modules');
-  if (packageName.startsWith('@')) {
-    const slashIndex = packageName.indexOf('/');
-    const scopeName = packageName.substring(0, slashIndex);
-    parentName = path.join(parentName, scopeName);
-    packageName = packageName.substring(slashIndex + 1);
-  }
-  try {
-    await mkdirp(parentName);
-    const linkName = path.join(parentName, packageName);
-    await fs.symlink(path.resolve(repoPath), path.resolve(linkName));
-  } catch (e) {
-    console.error(e);
-  }
-}
-
-async function writePackageJson(
-    options: ConvertWorkspaceOptions, repo: string) {
-  const bowerPath = path.join(options.inDir, repo, 'bower.json');
-  const bowerExists = await fs.exists(bowerPath);
-  if (!bowerExists) {
-    return;
-  }
-  try {
-    const bowerJson = readJson(bowerPath);
-    // TODO(https://github.com/Polymer/polymer-modulizer/issues/122):
-    // unhardcode
-    const bowerName = bowerJson.name;
-
-    let depMapping: {npm: string}|undefined = dependencyMap[bowerName];
-    if (!depMapping) {
-      console.warn(`"${bowerName}" npm mapping not found`);
-      depMapping = {npm: bowerName};
+    for (const document of htmlDocuments) {
+      if (!document.url.startsWith(repoDirName) ||
+          conversionSettings.excludes.has(document.url)) {
+        continue;
+      }
+      converter.convertDocument(document);
     }
-
-    const packageJson =
-        generatePackageJson(bowerJson, depMapping.npm, options.packageVersion);
-    writeJson(packageJson, options.inDir, repo, 'package.json');
-  } catch (e) {
-    console.log('error in bower.json -> package.json conversion');
-    console.error(e);
+    convertedPackageResults.set(npmPackageName, repo.dir);
   }
+
+  // Process & write each conversion result:
+  await writeFileResults(options.workspaceDir, converter.getResults());
+
+  // Generate a new package.json for each repo:
+  const packageJsonResults = await run(options.reposToConvert, async (repo) => {
+    return writePackageJson(repo, options.packageVersion);
+  });
+  packageJsonResults.failures.forEach(logRepoError);
+
+  // Commit all changes to a staging branch for easy state resetting.
+  // Useful when performing actions that modify the repo, like installing deps.
+  const commitResults = await run(options.reposToConvert, async (repo) => {
+    await repo.git.createBranch(GIT_STAGING_BRANCH_NAME);
+    await exec(repo.dir, 'git', ['add', '-A']);
+    // TODO(fks): Add node_modules to .gitignore, if not found
+    // https://github.com/Polymer/polymer-modulizer/issues/250
+    await exec(repo.dir, 'git', ['reset', '--', 'node_modules/']);
+    await repo.git.commit('auto-converted by polymer-modulizer');
+  });
+  commitResults.failures.forEach(logRepoError);
+
+  // Return a map of all packages converted, keyed by npm package name.
+  return convertedPackageResults;
 }

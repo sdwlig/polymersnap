@@ -18,10 +18,9 @@ import {ParsedHtmlDocument, Severity, Warning} from 'polymer-analyzer';
 
 import {HtmlRule} from '../html/rule';
 import {registry} from '../registry';
+import {stripIndentation} from '../util';
 
 import * as matchers from './matchers';
-
-import stripIndent = require('strip-indent');
 
 /**
  * Unbalanced binding expression delimiters occurs when a value such as
@@ -30,11 +29,12 @@ import stripIndent = require('strip-indent');
  */
 class UnbalancedDelimiters extends HtmlRule {
   code = 'unbalanced-polymer-delimiters';
-  description = stripIndent(`
+  description = stripIndentation(`
       Matches unbalanced delimiters around Polymer databinding expressions.
 
       For example, {{foo} is missing a } at the end, it should instead be
-      {{foo}}.`);
+      {{foo}}.
+  `);
 
   public async checkDocument(parsedHtml: ParsedHtmlDocument):
       Promise<Warning[]> {
@@ -98,13 +98,13 @@ class UnbalancedDelimiters extends HtmlRule {
 
   private _getMessageForBadBindingExpression(text: string): string {
     const delimitersOnly = text.replace(/[^\[\]{}]/g, '');
-    const suggestion: string = {
+    const suggestions: {[delimitors: string]: string} = {
       '{{}': ' are you missing a closing \'}\'?',
       '[[]': ' are you missing a closing \']\'?',
       '{}}': ' are you missing an opening \'{\'?',
       '[]]': ' are you missing an opening \'[\'?'
-    }[delimitersOnly] ||
-        '';
+    };
+    const suggestion: string = suggestions[delimitersOnly] || '';
     return 'Invalid polymer expression delimiters.  You put \'' +
         delimitersOnly + '\'' + suggestion;
   }

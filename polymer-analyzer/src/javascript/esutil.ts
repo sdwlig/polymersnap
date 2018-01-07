@@ -12,42 +12,43 @@
  * http://polymer.github.io/PATENTS.txt
  */
 
+import generate from 'babel-generator';
+import * as babel from 'babel-types';
 import * as doctrine from 'doctrine';
-import * as escodegen from 'escodegen';
 
-import * as estraverse from 'estraverse';
-import * as estree from 'estree';
-
-import {ScannedMethod} from '../index';
+import {MethodParam, ScannedMethod} from '../index';
+import {Result} from '../model/analysis';
 import {ImmutableSet} from '../model/immutable';
 import {Privacy} from '../model/model';
-import {ScannedEvent, Severity, SourceRange, Warning, WarningCarryingException} from '../model/model';
+import {ScannedEvent, Severity, SourceRange, Warning} from '../model/model';
 import {ParsedDocument} from '../parser/document';
 import * as docs from '../polymer/docs';
 import {annotateEvent} from '../polymer/docs';
 
+import * as astValue from './ast-value';
+import * as estraverse from './estraverse-shim';
 import {JavaScriptDocument} from './javascript-document';
 import * as jsdoc from './jsdoc';
 
 /**
- * Returns whether an Espree node matches a particular object path.
+ * Returns whether a Babel node matches a particular object path.
  *
  * e.g. you have a MemberExpression node, and want to see whether it represents
  * `Foo.Bar.Baz`:
  *    matchesCallExpressio
     (node, ['Foo', 'Bar', 'Baz'])
  *
- * @param {ESTree.Node} expression The Espree node to match against.
+ * @param {babel.Node} expression The Babel node to match against.
  * @param {Array<string>} path The path to look for.
  */
 export function matchesCallExpression(
-    expression: estree.MemberExpression, path: string[]): boolean {
+    expression: babel.MemberExpression, path: string[]): boolean {
   if (!expression.property || !expression.object) {
     return false;
   }
   console.assert(path.length >= 2);
 
-  if (expression.property.type !== 'Identifier') {
+  if (!babel.isIdentifier(expression.property)) {
     return false;
   }
   // Unravel backwards, make sure properties match each step of the way.
@@ -55,11 +56,11 @@ export function matchesCallExpression(
     return false;
   }
   // We've got ourselves a final member expression.
-  if (path.length === 2 && expression.object.type === 'Identifier') {
+  if (path.length === 2 && babel.isIdentifier(expression.object)) {
     return expression.object.name === path[0];
   }
   // Nested expressions.
-  if (path.length > 2 && expression.object.type === 'MemberExpression') {
+  if (path.length > 2 && babel.isMemberExpression(expression.object)) {
     return matchesCallExpression(
         expression.object, path.slice(0, path.length - 1));
   }
@@ -71,14 +72,14 @@ export function matchesCallExpression(
  * @param {Node} key The node representing an object key or expression.
  * @return {string} The name of that key.
  */
-export function objectKeyToString(key: estree.Node): string|undefined {
-  if (key.type === 'Identifier') {
+export function objectKeyToString(key: babel.Node): string|undefined {
+  if (babel.isIdentifier(key)) {
     return key.name;
   }
-  if (key.type === 'Literal') {
-    return '' + key.value;
+  if (babel.isLiteral(key)) {
+    return '' + astValue.expressionToValue(key);
   }
-  if (key.type === 'MemberExpression') {
+  if (babel.isMemberExpression(key)) {
     return objectKeyToString(key.object) + '.' +
         objectKeyToString(key.property);
   }
@@ -88,35 +89,60 @@ export function objectKeyToString(key: estree.Node): string|undefined {
 export const CLOSURE_CONSTRUCTOR_MAP = new Map(
     [['Boolean', 'boolean'], ['Number', 'number'], ['String', 'string']]);
 
+const VALID_EXPRESSION_TYPES = new Map([
+  ['ArrayExpression', 'Array'],
+  ['BlockStatement', 'Function'],
+  ['BooleanLiteral', 'boolean'],
+  ['FunctionExpression', 'Function'],
+  ['NullLiteral', 'null'],
+  ['NumericLiteral', 'number'],
+  ['ObjectExpression', 'Object'],
+  ['RegExpLiteral', 'RegExp'],
+  ['StringLiteral', 'string'],
+  ['TemplateLiteral', 'string'],
+]);
+
 /**
  * AST expression -> Closure type.
  *
  * Accepts literal values, and native constructors.
  *
- * @param {Node} node An Espree expression node.
+ * @param {Node} node A Babel expression node.
  * @return {string} The type of that expression, in Closure terms.
  */
-export function closureType(
-    node: estree.Node, sourceRange: SourceRange, document: ParsedDocument):
-    string {
-  if (node.type.match(/Expression$/)) {
-    return node.type.substr(0, node.type.length - 10);
-  } else if (node.type === 'Literal') {
-    return typeof node.value;
-  } else if (node.type === 'Identifier') {
-    return CLOSURE_CONSTRUCTOR_MAP.get(node.name) || node.name;
-  } else {
-    throw new WarningCarryingException(new Warning({
-      code: 'no-closure-type',
-      message: `Unable to determine closure type for expression of type ` +
-          `${node.type}`,
-      severity: Severity.WARNING, sourceRange,
-      parsedDocument: document,
-    }));
+export function getClosureType(
+    node: babel.Node,
+    parsedJsdoc: doctrine.Annotation|undefined,
+    sourceRange: SourceRange,
+    document: ParsedDocument): Result<string, Warning> {
+  if (parsedJsdoc) {
+    const typeTag = jsdoc.getTag(parsedJsdoc, 'type');
+    if (typeTag) {
+      return {successful: true, value: doctrine.type.stringify(typeTag.type!)};
+    }
   }
+  const type = VALID_EXPRESSION_TYPES.get(node.type);
+  if (type) {
+    return {successful: true, value: type};
+  }
+  if (babel.isIdentifier(node)) {
+    return {
+      successful: true,
+      value: CLOSURE_CONSTRUCTOR_MAP.get(node.name) || node.name
+    };
+  }
+  const warning = new Warning({
+    code: 'no-closure-type',
+    message: `Unable to determine closure type for expression of type ` +
+        `${node.type}`,
+    severity: Severity.WARNING,
+    sourceRange,
+    parsedDocument: document,
+  });
+  return {successful: false, error: warning};
 }
 
-export function getAttachedComment(node: estree.Node): string|undefined {
+export function getAttachedComment(node: babel.Node): string|undefined {
   const comments = getLeadingComments(node) || [];
   return comments && comments[comments.length - 1];
 }
@@ -124,10 +150,10 @@ export function getAttachedComment(node: estree.Node): string|undefined {
 /**
  * Returns all comments from a tree defined with @event.
  */
-export function getEventComments(node: estree.Node): Map<string, ScannedEvent> {
+export function getEventComments(node: babel.Node): Map<string, ScannedEvent> {
   const eventComments = new Set<string>();
   estraverse.traverse(node, {
-    enter: (node: estree.Node) => {
+    enter(node: babel.Node) {
       (node.leadingComments || [])
           .concat(node.trailingComments || [])
           .map((commentAST) => commentAST.value)
@@ -144,16 +170,16 @@ export function getEventComments(node: estree.Node): Map<string, ScannedEvent> {
   return new Map(events.map((e) => [e.name, e] as [string, ScannedEvent]));
 }
 
-function getLeadingComments(node: estree.Node): string[]|undefined {
+function getLeadingComments(node: babel.Node): string[]|undefined {
   if (!node) {
     return;
   }
   const comments = [];
   for (const comment of node.leadingComments || []) {
-    // Espree says any comment that immediately precedes a node is "leading",
-    // but we want to be stricter and require them to be touching. If we don't
-    // have locations for some reason, err on the side of including the
-    // comment.
+    // Espree says any comment that immediately precedes a node is
+    // "leading", but we want to be stricter and require them to be
+    // touching. If we don't have locations for some reason, err on the
+    // side of including the comment.
     if (!node.loc || !comment.loc ||
         node.loc.start.line - comment.loc.end.line < 2) {
       comments.push(comment.value);
@@ -163,26 +189,21 @@ function getLeadingComments(node: estree.Node): string[]|undefined {
 }
 
 export function getPropertyValue(
-    node: estree.ObjectExpression, name: string): estree.Node|undefined {
+    node: babel.ObjectExpression, name: string): babel.Node|undefined {
   const properties = node.properties;
   for (const property of properties) {
-    if (objectKeyToString(property.key) === name) {
+    if (!babel.isSpreadProperty(property) &&
+        objectKeyToString(property.key) === name) {
       return property.value;
     }
   }
 }
 
-export function isFunctionType(node: estree.Node): node is estree.Function {
-  return node.type === 'ArrowFunctionExpression' ||
-      node.type === 'FunctionExpression' || node.type === 'FunctionDeclaration';
-}
-
-
 /**
  * Create a ScannedMethod object from an estree Property AST node.
  */
 export function toScannedMethod(
-    node: estree.Property|estree.MethodDefinition,
+    node: babel.ObjectProperty|babel.ObjectMethod|babel.ClassMethod,
     sourceRange: SourceRange,
     document: ParsedDocument): ScannedMethod {
   const parsedJsdoc = jsdoc.parseJsdoc(getAttachedComment(node) || '');
@@ -200,11 +221,12 @@ export function toScannedMethod(
       parsedDocument: document
     }));
   }
-  let type = closureType(node.value, sourceRange, document);
-  const typeTag = jsdoc.getTag(parsedJsdoc, 'type');
-  if (typeTag) {
-    type = doctrine.type.stringify(typeTag.type!) || type;
-  }
+
+  const value = babel.isObjectProperty(node) ? node.value : node;
+
+  const result = getClosureType(value, parsedJsdoc, sourceRange, document);
+  const type = result.successful === true ? result.value : 'Function';
+
   const name = maybeName || '';
   const scannedMethod: ScannedMethod = {
     name,
@@ -217,49 +239,99 @@ export function toScannedMethod(
     privacy: getOrInferPrivacy(name, parsedJsdoc)
   };
 
-  const value = node.value;
-  if (value.type === 'FunctionExpression' ||
-      value.type === 'ArrowFunctionExpression') {
-    const paramTags = new Map<string, doctrine.Tag>();
+  if (value && babel.isFunction(value)) {
     if (scannedMethod.jsdoc) {
-      for (const tag of (scannedMethod.jsdoc.tags || [])) {
-        if (tag.title === 'param' && tag.name) {
-          paramTags.set(tag.name, tag);
-
-        } else if (tag.title === 'return' || tag.title === 'returns') {
-          scannedMethod.return = {};
-          if (tag.type) {
-            scannedMethod.return.type = doctrine.type.stringify(tag.type!);
-          }
-          if (tag.description) {
-            scannedMethod.return.desc = tag.description;
-          }
-        }
+      const ret = getReturnFromAnnotation(scannedMethod.jsdoc);
+      if (ret) {
+        scannedMethod.return = ret;
       }
     }
 
-    scannedMethod.params = (value.params || []).map((nodeParam) => {
-      let type = undefined;
-      let description = undefined;
-      // With ES6 we can have a lot of param patterns. Best to leave the
-      // formatting to escodegen.
-      const name = escodegen.generate(nodeParam);
-      const tag = paramTags.get(name);
-      if (tag) {
-        if (tag.type) {
-          type = doctrine.type.stringify(tag.type);
-        }
-        if (tag.description) {
-          description = tag.description;
-        }
-      }
-      return {name, type, description};
-    });
+    scannedMethod.params =
+        (value.params ||
+         []).map((nodeParam) => toMethodParam(nodeParam, scannedMethod.jsdoc));
   }
 
   return scannedMethod;
 }
 
+export function getReturnFromAnnotation(jsdocAnn: jsdoc.Annotation):
+    {type?: string, desc?: string}|undefined {
+  const tag =
+      jsdoc.getTag(jsdocAnn, 'return') || jsdoc.getTag(jsdocAnn, 'returns');
+
+  if (!tag || (!tag.type && !tag.description)) {
+    return undefined;
+  }
+
+  const type: {type?: string, desc?: string} = {};
+
+  if (tag && (tag.type || tag.description)) {
+    if (tag.type) {
+      type.type = doctrine.type.stringify(tag.type);
+    }
+    if (tag.description) {
+      type.desc = tag.description;
+    }
+  }
+
+  return type;
+}
+
+export function toMethodParam(
+    nodeParam: babel.LVal, jsdocAnn?: jsdoc.Annotation): MethodParam {
+  const paramTags = new Map<string, doctrine.Tag>();
+  let name;
+  let defaultValue;
+  let rest;
+
+  if (jsdocAnn) {
+    for (const tag of (jsdocAnn.tags || [])) {
+      if (tag.title === 'param' && tag.name) {
+        paramTags.set(tag.name, tag);
+      }
+    }
+  }
+
+  if (babel.isIdentifier(nodeParam)) {
+    // Basic parameter: method(param)
+    name = nodeParam.name;
+
+  } else if (
+      babel.isRestElement(nodeParam) &&
+      babel.isIdentifier(nodeParam.argument)) {
+    // Rest parameter: method(...param)
+    name = nodeParam.argument.name;
+    rest = true;
+
+  } else if (
+      babel.isAssignmentPattern(nodeParam) &&
+      babel.isIdentifier(nodeParam.left) && babel.isLiteral(nodeParam.right)) {
+    // Parameter with a default: method(param = "default")
+    name = nodeParam.left.name;
+    defaultValue = generate(nodeParam.right).code;
+
+  } else {
+    // Some AST pattern we don't recognize. Hope the code generator does
+    // something reasonable.
+    name = generate(nodeParam).code;
+  }
+
+  let type;
+  let description;
+  const tag = paramTags.get(name);
+  if (tag) {
+    if (tag.type) {
+      type = doctrine.type.stringify(tag.type);
+    }
+    if (tag.description) {
+      description = tag.description;
+    }
+  }
+
+  const param: MethodParam = {name, type, defaultValue, rest, description};
+  return param;
+}
 
 export function getOrInferPrivacy(
     name: string,
@@ -284,8 +356,8 @@ export function getOrInferPrivacy(
 }
 
 /**
- * Properties on element prototypes that are part of the custom elment lifecycle
- * or Polymer configuration syntax.
+ * Properties on element prototypes that are part of the custom elment
+ * lifecycle or Polymer configuration syntax.
  *
  * TODO(rictic): only treat the Polymer ones as private when dealing with
  *   Polymer.
@@ -313,7 +385,7 @@ export const configurationProperties: ImmutableSet<string> = new Set([
 /**
  * Scan any methods on the given node, if it's a class expression/declaration.
  */
-export function getMethods(node: estree.Node, document: JavaScriptDocument):
+export function getMethods(node: babel.Node, document: JavaScriptDocument):
     Map<string, ScannedMethod> {
   const methods = new Map<string, ScannedMethod>();
   for (const statement of _getMethods(node)) {
@@ -332,7 +404,7 @@ export function getMethods(node: estree.Node, document: JavaScriptDocument):
  * expression/declaration.
  */
 export function getStaticMethods(
-    node: estree.Node,
+    node: babel.Node,
     document: JavaScriptDocument): Map<string, ScannedMethod> {
   const methods = new Map<string, ScannedMethod>();
   for (const method of _getMethods(node)) {
@@ -346,12 +418,12 @@ export function getStaticMethods(
   return methods;
 }
 
-function* _getMethods(node: estree.Node) {
-  if (node.type !== 'ClassDeclaration' && node.type !== 'ClassExpression') {
+function* _getMethods(node: babel.Node) {
+  if (!babel.isClassDeclaration(node) && !babel.isClassExpression(node)) {
     return;
   }
   for (const statement of node.body.body) {
-    if (statement.type === 'MethodDefinition' && statement.kind === 'method') {
+    if (babel.isClassMethod(statement) && statement.kind === 'method') {
       yield statement;
     }
   }

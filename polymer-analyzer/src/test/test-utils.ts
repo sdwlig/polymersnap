@@ -12,9 +12,12 @@
  * http://polymer.github.io/PATENTS.txt
  */
 
+import * as path from 'path';
 import {Analyzer} from '../core/analyzer';
-import {Document, ParsedDocument} from '../index';
-import {SourceRange, Warning} from '../model/model';
+import {FileRelativeUrl, PackageRelativeUrl, ParsedDocument, ResolvedUrl, ScannedFeature, UrlResolver} from '../index';
+import {makeParseLoader, SourceRange, Warning} from '../model/model';
+import {scan} from '../scanning/scan';
+import {Scanner} from '../scanning/scanner';
 import {InMemoryOverlayUrlLoader} from '../url-loader/overlay-loader';
 import {UrlLoader} from '../url-loader/url-loader';
 import {underlineCode} from '../warning/code-printer';
@@ -38,7 +41,7 @@ export async function invertPromise(promise: Promise<any>): Promise<any> {
   throw new UnexpectedResolutionError('Inverted Promise resolved', value);
 }
 
-export type Reference = Warning | SourceRange | undefined;
+export type Reference = Warning|SourceRange|undefined;
 
 /**
  * Used for asserting that warnings or source ranges correspond to the right
@@ -48,22 +51,25 @@ export type Reference = Warning | SourceRange | undefined;
  */
 export class CodeUnderliner {
   private _parsedDocumentGetter: (url: string) => Promise<ParsedDocument>;
-  constructor(urlLoader: UrlLoader) {
-    const analyzer = new Analyzer({urlLoader});
-    this._parsedDocumentGetter = async(url: string) => {
-      const analysis = await analyzer.analyze([url]);
-      const result = analysis.getDocument(url);
-      if (!(result instanceof Document)) {
-        throw new Error(`Unable to parse ${url}`);
-      }
-      return result.parsedDocument;
-    };
+  constructor(urlLoader: UrlLoader, urlResolver?: UrlResolver) {
+    const analyzer = new Analyzer({urlLoader, urlResolver});
+    this._parsedDocumentGetter = makeParseLoader(analyzer);
   }
 
-  static withMapping(url: string, contents: string) {
+  static withMapping(url: ResolvedUrl, contents: string) {
     const urlLoader = new InMemoryOverlayUrlLoader();
     urlLoader.urlContentsMap.set(url, contents);
-    return new CodeUnderliner(urlLoader);
+    return new CodeUnderliner(urlLoader, new class extends UrlResolver {
+      resolve(
+          firstUrl: ResolvedUrl|PackageRelativeUrl,
+          secondUrl?: FileRelativeUrl) {
+        return this.brandAsResolved(secondUrl || firstUrl);
+      }
+
+      relative(): FileRelativeUrl {
+        throw new Error('does not do relative');
+      }
+    }());
   }
 
   /**
@@ -74,9 +80,11 @@ export class CodeUnderliner {
    * writing tests simple and legible.
    */
   async underline(reference: Reference): Promise<string>;
-  async underline(references: Reference[]): Promise<string[]>;
-  async underline(reference: Reference|Reference[]): Promise<string|string[]> {
-    if (Array.isArray(reference)) {
+  async underline(references: ReadonlyArray<Reference>):
+      Promise<ReadonlyArray<string>>;
+  async underline(reference: Reference|ReadonlyArray<Reference>):
+      Promise<string|ReadonlyArray<string>> {
+    if (isReadonlyArray(reference)) {
       return Promise.all(reference.map((ref) => this.underline(ref)));
     }
 
@@ -92,6 +100,61 @@ export class CodeUnderliner {
   }
 }
 
+function isReadonlyArray(maybeArr: any): maybeArr is ReadonlyArray<any> {
+  return Array.isArray(maybeArr);
+}
+
 function isWarning(wOrS: Warning|SourceRange): wOrS is Warning {
   return 'code' in wOrS;
 }
+
+/**
+ * Run the given scanner on the given package relative url.
+ *
+ * The url must be loadable with the given analyzer.
+ */
+export async function runScanner(
+    analyzer: Analyzer,
+    scanner: Scanner<ParsedDocument, any, any>,
+    url: string): Promise<{features: ScannedFeature[], warnings: Warning[]}> {
+  const context = await analyzer['_analysisComplete'];
+  const resolvedUrl = analyzer.resolveUrl(url)!;
+  const parsedDocument = await context['_parse'](resolvedUrl);
+  return scan(parsedDocument, [scanner]);
+}
+
+/**
+ * Run the given scanner on some file contents as a string.
+ *
+ * Note that the url's file extension is relevant, because it will affect how
+ * the file is parsed.
+ */
+export async function runScannerOnContents(
+    scanner: Scanner<ParsedDocument, any, any>, url: string, contents: string) {
+  const overlayLoader = new InMemoryOverlayUrlLoader();
+  const analyzer = new Analyzer({urlLoader: overlayLoader});
+  overlayLoader.urlContentsMap.set(analyzer.resolveUrl(url)!, contents);
+  const {features, warnings} = await runScanner(analyzer, scanner, url);
+  return {features, warnings, analyzer, urlLoader: overlayLoader};
+}
+
+export const noOpTag =
+    (strings: TemplateStringsArray, ...values: any[]): string => values.reduce(
+        (r: string, v: any, i) => r + String(v) + strings[i + 1], strings[0]);
+
+export function fileRelativeUrl(
+    strings: TemplateStringsArray, ...values: any[]): FileRelativeUrl {
+  return noOpTag(strings, ...values) as FileRelativeUrl;
+}
+
+export function packageRelativeUrl(
+    strings: TemplateStringsArray, ...values: any[]): PackageRelativeUrl {
+  return noOpTag(strings, ...values) as PackageRelativeUrl;
+}
+
+export function resolvedUrl(
+    strings: TemplateStringsArray, ...values: any[]): ResolvedUrl {
+  return noOpTag(strings, ...values) as ResolvedUrl;
+}
+
+export const fixtureDir = path.join(__dirname, '../../src/test/static');

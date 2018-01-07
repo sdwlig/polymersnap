@@ -47,7 +47,8 @@ for (const baseDir of fs.readdirSync(bowerDir)) {
 const fakeFileContents =
     filesToAnalyze.map((fn) => `<link rel="import" href="${fn}">`).join('\n');
 
-inMemoryOverlay.urlContentsMap.set('ephemeral.html', fakeFileContents);
+inMemoryOverlay.urlContentsMap.set(
+    analyzer.resolveUrl('ephemeral.html')!, fakeFileContents);
 
 
 function existsSync(fn: string): boolean {
@@ -106,17 +107,11 @@ async function measure() {
 
   global.gc();
   const afterMoreAnalyses = process.memoryUsage().rss;
-  console.log(
-      `Additional memory used in analyzing all Polymer-owned code: ${
-                                                                     MiB(afterInitialAnalyses -
-                                                                         initialMemUse)
-                                                                   }`);
+  console.log(`Additional memory used in analyzing all Polymer-owned code: ${
+      MiB(afterInitialAnalyses - initialMemUse)}`);
   const leakedMemory = afterMoreAnalyses - afterInitialAnalyses;
-  console.log(
-      `Additional memory used after 100 more incremental analyses: ${
-                                                                     MiB(afterMoreAnalyses -
-                                                                         afterInitialAnalyses)
-                                                                   }`);
+  console.log(`Additional memory used after 100 more incremental analyses: ${
+      MiB(afterMoreAnalyses - afterInitialAnalyses)}`);
 
   // TODO(rictic): looks like we've got a memory leak. Need to track this down.
   // This should be < 10MiB, not < 100 MiB.
@@ -142,11 +137,10 @@ function printMeasurements(measurements: number[]) {
       The total time for this benchmark will also include the initial parse and
       scan and so should be much much longer.
   `);
-  console.log(
-      `${
-         padLeft(
-             'ms to analyze file that imports all polymer team\'s elements', 10)
-       }}`);
+  console.log(`${
+      padLeft(
+          'ms to analyze file that imports all polymer team\'s elements',
+          10)}}`);
   for (const elapsed of measurements) {
     console.log(`${padLeft(elapsed.toFixed(0), 10)}`);
   }

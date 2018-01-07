@@ -16,6 +16,7 @@ import {Document} from './document';
 import {Feature} from './feature';
 import {SourceRange} from './model';
 import {Resolvable} from './resolvable';
+import {FileRelativeUrl, ResolvedUrl} from './url';
 import {Severity, Warning} from './warning';
 
 
@@ -31,7 +32,7 @@ export class ScannedImport implements Resolvable {
   /**
    * URL of the import, relative to the base directory.
    */
-  url: string;
+  url: FileRelativeUrl;
 
   sourceRange: SourceRange|undefined;
 
@@ -54,7 +55,7 @@ export class ScannedImport implements Resolvable {
   lazy: boolean;
 
   constructor(
-      type: string, url: string, sourceRange: SourceRange|undefined,
+      type: string, url: FileRelativeUrl, sourceRange: SourceRange|undefined,
       urlSourceRange: SourceRange|undefined, ast: any|null, lazy: boolean) {
     this.type = type;
     this.url = url;
@@ -65,11 +66,13 @@ export class ScannedImport implements Resolvable {
   }
 
   resolve(document: Document): Import|undefined {
-    if (!document._analysisContext.canResolveUrl(this.url)) {
+    const resolvedUrl = document._analysisContext.resolver.resolve(
+        document.parsedDocument.baseUrl, this.url, this);
+    if (resolvedUrl === undefined) {
       return;
     }
     const importedDocumentOrWarning =
-        document._analysisContext.getDocument(this.url);
+        document._analysisContext.getDocument(resolvedUrl);
     if (!(importedDocumentOrWarning instanceof Document)) {
       const error = this.error ? (this.error.message || this.error) : '';
       document.warnings.push(new Warning({
@@ -82,6 +85,7 @@ export class ScannedImport implements Resolvable {
       return undefined;
     }
     return new Import(
+        resolvedUrl,
         this.url,
         this.type,
         importedDocumentOrWarning,
@@ -109,7 +113,8 @@ declare module './queryable' {
 
 export class Import implements Feature {
   readonly type: 'html-import'|'html-script'|'html-style'|string;
-  readonly url: string;
+  readonly url: ResolvedUrl;
+  readonly originalUrl: FileRelativeUrl;
   readonly document: Document;
   readonly identifiers = new Set();
   readonly kinds = new Set(['import']);
@@ -120,10 +125,12 @@ export class Import implements Feature {
   readonly lazy: boolean;
 
   constructor(
-      url: string, type: string, document: Document,
-      sourceRange: SourceRange|undefined, urlSourceRange: SourceRange|undefined,
-      ast: any, warnings: Warning[], lazy: boolean) {
+      url: ResolvedUrl, originalUrl: FileRelativeUrl, type: string,
+      document: Document, sourceRange: SourceRange|undefined,
+      urlSourceRange: SourceRange|undefined, ast: any, warnings: Warning[],
+      lazy: boolean) {
     this.url = url;
+    this.originalUrl = originalUrl;
     this.type = type;
     this.document = document;
     this.kinds.add(this.type);

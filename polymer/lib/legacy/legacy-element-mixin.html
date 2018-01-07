@@ -369,7 +369,11 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         });
         event.detail = detail;
         let node = options.node || this;
+try {
         node.dispatchEvent(event);
+ } catch (err) {
+   console.error(err);
+ }
         return event;
       }
 

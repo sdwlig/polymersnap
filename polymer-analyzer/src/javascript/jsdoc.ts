@@ -12,10 +12,11 @@
  * http://polymer.github.io/PATENTS.txt
  */
 
+import * as babel from 'babel-types';
 import * as doctrine from 'doctrine';
 import {Annotation, Tag} from 'doctrine';
-import * as estree from 'estree';
 
+import {Demo, FileRelativeUrl} from '../index';
 import {Privacy} from '../model/model';
 import {ScannedReference, Severity, Warning} from '../model/model';
 
@@ -140,42 +141,43 @@ export function getPrivacy(jsdoc: Annotation|undefined): Privacy|undefined {
  */
 export function getMixinApplications(
     document: JavaScriptDocument,
-    node: estree.Node,
+    node: babel.Node,
     docs: Annotation,
     warnings: Warning[]): ScannedReference[] {
   // TODO(justinfagnani): remove @mixes support
   const appliesMixinAnnotations = docs.tags!.filter(
       (tag) => tag.title === 'appliesMixin' || tag.title === 'mixes');
   return appliesMixinAnnotations
-      .map((annotation) => {
-        const mixinId = annotation.name;
-        // TODO(justinfagnani): we need source ranges for jsdoc annotations
-        const sourceRange = document.sourceRangeForNode(node)!;
-        if (mixinId === undefined) {
-          warnings.push(new Warning({
-            code: 'class-mixes-annotation-no-id',
-            message:
-                '@appliesMixin annotation with no identifier. Usage `@appliesMixin MixinName`',
-            severity: Severity.WARNING, sourceRange,
-            parsedDocument: document
-          }));
-          return;
-        }
-        return new ScannedReference(mixinId, sourceRange);
-      })
-      .filter((m) => m !== undefined) as ScannedReference[];
+             .map((annotation) => {
+               const mixinId = annotation.name;
+               // TODO(justinfagnani): we need source ranges for jsdoc
+               // annotations
+               const sourceRange = document.sourceRangeForNode(node)!;
+               if (mixinId === undefined) {
+                 warnings.push(new Warning({
+                   code: 'class-mixes-annotation-no-id',
+                   message:
+                       '@appliesMixin annotation with no identifier. Usage `@appliesMixin MixinName`',
+                   severity: Severity.WARNING,
+                   sourceRange,
+                   parsedDocument: document
+                 }));
+                 return;
+               }
+               return new ScannedReference(mixinId, sourceRange);
+             })
+             .filter((m) => m !== undefined) as ScannedReference[];
 }
 
-export function extractDemos(jsdoc: Annotation|undefined):
-    Array<{desc: string | undefined, path: string}> {
+export function extractDemos(jsdoc: Annotation|undefined): Demo[] {
   if (!jsdoc || !jsdoc.tags) {
     return [];
   }
-  const demos: Array<{desc: string | undefined, path: string}> = [];
-  const demoUrls = new Set<string>();
+  const demos: Demo[] = [];
+  const demoUrls = new Set<FileRelativeUrl>();
   for (const tag of jsdoc.tags.filter(
            (tag) => tag.title === 'demo' && tag.name)) {
-    const demoUrl = tag.name!;
+    const demoUrl = tag.name! as FileRelativeUrl;
     if (demoUrls.has(demoUrl)) {
       continue;
     }

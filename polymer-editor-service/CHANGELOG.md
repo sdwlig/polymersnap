@@ -11,6 +11,84 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
   appropriate.
 -->
 
+<!-- ## Unreleased -->
+
+## 2.1.0 - 2017-12-21
+
+- Autocomplete slot names inside `slot=""` attributes based on the declared
+  slots of the parent element.
+- Autocomplete css custom property names. In use sites, complete to any
+  declaration, in declaration sites complete to any declaration or usage.
+- Make reference count code lenses opt-in, as it currently does not perform
+  well for large projects, because of:
+  https://github.com/Polymer/polymer-analyzer/issues/782
+  - New setting `polymer-ide.referencesCodeLens`, which is false by default.
+    When true, we will send down references code lenses.
+- Added configurable logging for common issues:
+  - Analysis performance, which can cause editors to seem unresponsive or
+    broken.
+  - File synchronization messages, as editors often need a bit of
+    configuration for these to go through right.
+  - New setting `polymer-ide.logToClient`, false by default. When true, it
+    sends logs to the editor for it to log.
+  - New setting `polymer-ide.logToFile`, a string path to a file. When given,
+    logs are appended to this file (in addition to possibly going to the
+    client).
+- Add autocompletion for standard custom element definition.
+- Give ranges when we give hover documentation for elements and attributes.
+  This lets the client indicate to the user exactly which code is being
+  documented.
+- Send down autocompletion documentation as markdown to clients that support it.
+- Greatly improve Windows support. Added Windows integration testing through
+  appveyor.
+
+## 2.0.0 - 2017-12-05
+
+- [BREAKING] Removes our proprietary protocol in favor of the Language Server
+  Protocol. Using the standard protocol lets us support more editors with less
+  code.
+- Notices changes to `polymer.json` immediately. Currently this is useful for
+  changing lint rules without reloading your editor.
+- Supports filtering out warning codes with the `polymer.json` field
+  `lint.ignoreWarnings` which takes an array of warning codes that we should
+  not report. This brings the IDE in line with `polymer lint` on the command
+  line.
+- Supports specifying files to ignore all warnings for with the `polymer.json`
+  field `lint.filesToIgnore` which takes an array of `minimatch` globs. If a
+  file matches any of those globs then we will never report a warning for it.
+- Supports finding all references for elements. Finds references to the element
+  in HTML tags.
+- Supports getting all symbols in the workspace and in the document. At the
+  moment we just expose elements by tagname and Polymer 1.0 core features, as
+  other symbols should be well handled by other language services.
+- Supports finding definitions and all references of CSS Custom Properties.
+  - When finding definitions of the property it will return all places where
+    the property is assigned to.
+  - When finding all references it will find all places where the property
+    is read with `var(--foo)` or `@apply --bar` syntax.
+- Supports filtering autocompletions on the server side if the client does not.
+  Clients without autocompletion filtering support should send over
+  `capabilities.experimental['polymer-ide'].doesNotFilterCompletions` as `true`
+  in their client capabilities.
+- Reports errors in `polymer.json` files, including invalid data, and unknown
+  lint rules.
+- Supports code lenses to display information inline with your code.
+  - At a custom element declaration, displays how many places it's referenced
+    in HTML.
+  - At CSS Custom Property assignments, displays how many places it's read.
+
+## 1.6.0 - 2017-11-21
+- Generate Code Actions for fixable warnings and warnings with edit actions.
+- Update to the latest version of the linter, with many new Polymer 2.0 and hybrid lint passes.
+<img src="https://user-images.githubusercontent.com/1659/32974665-cc51d1e2-cbb4-11e7-9a20-9162323cdab8.gif" alt="Code Actions" width="658" height="474">
+
+- Added a setting `polymer-ide.fixOnSave` that, when true, causes all warnings in the current file to be fixed whenever that file is saved.
+<img src="https://user-images.githubusercontent.com/1659/32983803-946aabaa-cc4f-11e7-90ca-a63e8c437037.gif" width="821" height="588">
+
+- Added support for the command `polymer-ide/applyAllFixes`. This is a zero argument command that calls `workspace/applyEdit` with a `WorkspaceEdit` that applies all non-overlapping fixes for all fixable warnings in the package.
+- Warnings should now immediately be updated in response to any change, whether it happens in the editor or from external tools, like `bower install`.
+- Added `polymer-editor-service` as an npm binary, which speaks the [Language Server Protocol](https://github.com/Microsoft/language-server-protocol) over stdin/stdout. This makes it easier to get started integrated the editor service into a new editor.
+
 ## 1.5.0 - 2017-08-01
 
 - [BREAKING] Dropped support for node v4, added support for node v8. See our [node version support policy](https://www.polymer-project.org/2.0/docs/tools/node-support) for details.

@@ -5,8 +5,38 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/)
 and this project adheres to [Semantic Versioning](http://semver.org/).
 
-## Unreleased
+<!-- ## Unreleased -->
+
+## [3.0.0-pre.1] - 2017-12-21
+- [BREAKING] Return an object with `warnings` and `analysis` properties
+  rather than an array or warnings with an unenumerable `analysis`
+  property.
+- Add an explicit dependency on shady-css-parser. This fixes a bug where
+  it is not always found, despite being a dependency of polymer-analyzer.
+- Add a test for the `content-to-slot-usages` rule's updates to children
+  of `<paper-icon-item>`.
+- Improved compatibility with Windows. Added Windows CI with appveyor.
+
+## [2.3.0] - 2017-11-20
+- Adds the `paper-toolbar-v1-to-v2` rule, which helps upgrade uses of paper-toolbar from v1 to v2 (hybrid) by adding slots to children where appropriate.
+- Improve the wording on the content-to-slot-declaration's unsafe edit action.
+
+## [2.2.1] - 2017-11-16
+- The array of warnings returned by `Linter#lint()` and `Linter#lintPackage()` now also has a non-enumerable `analysis` property, which refers to the immutable `Analysis` used to generate the lint results.
+- Fixed `iron-flex-layout-classes` to handle `class$` attribute.
+
+## [2.2.0] - 2017-11-13
+- Added a concept of edit actions, which are like fixes with caveats. These need explicit user intent to apply because they may change the code's API, or otherwise be unsafe.
 - Support warning about and automatically fixing some simple uses of some 1.0 elements to their 2.0 usage styles.
+  - To add this fixable lint warning for your own elements, simply add the `old-content-selector` attribute to your new `<slot>` element. Set its value to the value that your old `<content>` element had for its `select` attribute.
+    - e.g. if you had `<content select=".some-content">` and migrated to `<slot name="new-content" old-content-selector=".some-content">` then the linter will warn about and add `slot="new-content"` to children of your element that match `.some-content`.
+- Support warning about and automatically fixing/editing element declarations that use `<content>` to use `<slot>` instead.
+  - It automatically adds the `old-content-selector` attribute to migrated `<slot>` elements, so uses can be automatically upgraded as well.
+- Support automatic fixing of the warning where a `<style>` element is a direct child of a dom-module's `<template>`.
+- Support warning about and fixing usage of deprecated `iron-flex-layout/classes/*` files via the new rule `iron-flex-layout-import`
+  - It automatically adds, updates, or deletes the import `iron-flex-layout/iron-flex-layout-classes.html`.
+- Support warning about and fixing usage of iron-flex-layout classes without including the required style modules via the new rule `iron-flex-layout-classes`
+  - It automatically upgrades the element template to include the iron-flex-layout style modules.
 
 ## [2.1.0] - 2017-10-13
 - Warn for old-style @apply without parentheses, and var() with a fallback value of a bare css variable.

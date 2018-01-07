@@ -12,9 +12,10 @@
  * http://polymer.github.io/PATENTS.txt
  */
 
-import * as capabilities from 'browser-capabilities';
 import {assert} from 'chai';
+import * as express from 'express';
 import * as http from 'http';
+import * as httpErrors from 'http-errors';
 import * as path from 'path';
 
 import * as prpl from '../prpl';
@@ -27,7 +28,7 @@ suite('prpl server', function() {
   let host: string;
   let port: number;
 
-  const startServer = (root: string, config?: prpl.Config): Promise<void> => {
+  function startServer(root: string, config?: prpl.Config): Promise<void> {
     const handler = prpl.makeHandler(root, config);
     server = http.createServer(
         (request: http.IncomingMessage, response: http.ServerResponse) => {
@@ -47,25 +48,33 @@ suite('prpl server', function() {
         resolve();
       });
     });
+  }
+
+  type GetResponse = {
+    code: number|undefined; data: string; headers: http.IncomingHttpHeaders;
   };
 
-  const get =
-      (path: string, ua?: string, headers?: {[key: string]: string}): Promise<{
-        code: number | undefined,
-        data: string,
-        headers: {[key: string]: string}
-      }> => {
-        return new Promise((resolve) => {
-          const getHeaders = Object.assign({'user-agent': ua || ''}, headers);
-          http.get({host, port, path, headers: getHeaders}, (response) => {
-            const code = response.statusCode;
-            const headers = response.headers;
-            let data = '';
-            response.on('data', (chunk) => data += chunk);
-            response.on('end', () => resolve({code, data, headers}));
-          });
-        });
-      };
+  function get(path: string, ua?: string, headers?: http.OutgoingHttpHeaders):
+      Promise<GetResponse> {
+    return new Promise((resolve) => {
+      const getHeaders = Object.assign({'user-agent': ua || ''}, headers);
+      http.get({host, port, path, headers: getHeaders}, (response) => {
+        const code = response.statusCode;
+        const headers = response.headers;
+        let data = '';
+        response.on('data', (chunk) => data += chunk);
+        response.on('end', () => resolve({code, data, headers}));
+      });
+    });
+  }
+
+  function checkPlainTextError(
+      expectCode: number, expectData: string, res: GetResponse) {
+    assert.equal(res.code, expectCode);
+    assert.equal(res.data, expectData);
+    assert.equal(res.headers['content-type'], 'text/plain');
+    assert.equal(res.headers['content-length'], String(expectData.length));
+  }
 
   suite('configured with multiple builds', () => {
     suiteSetup(async () => {
@@ -76,7 +85,7 @@ suite('prpl server', function() {
           },
           {
             name: 'es2015',
-            browserCapabilities: ['es2015' as capabilities.BrowserCapability],
+            browserCapabilities: ['es2015'],
           },
         ],
       });
@@ -106,23 +115,18 @@ suite('prpl server', function() {
       });
 
       test('serves a 404 for missing file with extension', async () => {
-        const {code} = await get('/foo.png');
-        assert.equal(code, 404);
+        checkPlainTextError(404, 'Not Found', await get('/foo.png'));
       });
 
       test('forbids traversal outside root', async () => {
-        const {code, data} = await get('/../secrets');
-        assert.equal(code, 403);
-        assert.equal(data, 'Forbidden');
+        checkPlainTextError(403, 'Forbidden', await get('/../secrets'));
       });
 
       test('forbids traversal outside root with matching prefix', async () => {
         // Edge case where the resolved request path naively matches the root
         // directory by prefix even though it's actually a sibling, not a child
         // ("/static-secrets" begins with "/static").
-        const {code, data} = await get('/../static-secrets');
-        assert.equal(code, 403);
-        assert.equal(data, 'Forbidden');
+        checkPlainTextError(403, 'Forbidden', await get('/../static-secrets'));
       });
     });
 
@@ -146,8 +150,7 @@ suite('prpl server', function() {
       });
 
       test('serves a 404 for missing file with extension', async () => {
-        const {code} = await get('/foo.png', chrome);
-        assert.equal(code, 404);
+        checkPlainTextError(404, 'Not Found', await get('/foo.png'));
       });
 
       test('sets push headers for fragment', async () => {
@@ -180,6 +183,14 @@ suite('prpl server', function() {
         assert.equal(headers['service-worker-allowed'], '/');
       });
 
+      test('automatically unregister missing service workers', async () => {
+        const {code, data, headers} = await get('/service-worker.js', chrome);
+        assert.equal(code, 200);
+        assert.equal(headers['content-type'], 'application/javascript');
+        assert.equal(headers['service-worker-allowed'], '/');
+        assert.include(data, 'registration.unregister');
+      });
+
       test('sets default cache header on static file', async () => {
         const {headers} = await get('/es2015/fragment.html', chrome);
         assert.equal(headers['cache-control'], 'max-age=60');
@@ -204,7 +215,7 @@ suite('prpl server', function() {
       test('respects etag request header', async () => {
         const {headers} = await get('/es2015/fragment.html', chrome);
         const {code, data} = await get('/es2015/fragment.html', chrome, {
-          'If-None-Match': headers['etag'],
+          'If-None-Match': headers['etag'] as string,
         });
         assert.equal(code, 304);
         assert.equal(data, '');
@@ -218,7 +229,7 @@ suite('prpl server', function() {
         builds: [
           {
             name: 'es2015',
-            browserCapabilities: ['es2015' as capabilities.BrowserCapability],
+            browserCapabilities: ['es2015'],
           },
         ],
       });
@@ -229,9 +240,31 @@ suite('prpl server', function() {
     });
 
     test('serves 500 error to unsupported browser', async () => {
-      const {code, data} = await get('/');
-      assert.equal(code, 500);
-      assert.include(data, 'not supported');
+      checkPlainTextError(
+          500, 'This browser is not supported.', await get('/'));
+    });
+  });
+
+  suite('configured with unregisterMissingServiceWorkers disabled', () => {
+    suiteSetup(async () => {
+      await startServer(path.join('src', 'test', 'static'), {
+        builds: [
+          {
+            name: 'es2015',
+            browserCapabilities: ['es2015'],
+          },
+        ],
+        unregisterMissingServiceWorkers: false,
+      });
+    });
+
+    suiteTeardown((done) => {
+      server.close(done);
+    });
+
+    test('sends 404 for missing service worker', async () => {
+      const {code} = await get('/service-worker.js', chrome);
+      assert.equal(code, 404);
     });
   });
 
@@ -260,6 +293,57 @@ suite('prpl server', function() {
       const {headers} = await get('/', chrome);
       assert.equal(
           headers['link'], '</fragment.html>; rel=preload; as=document');
+    });
+  });
+
+  suite('configured with express error forwarding', () => {
+    suiteSetup((done) => {
+      const app = express();
+
+      app.use(prpl.makeHandler(path.join('src', 'test', 'static'), {
+        forwardErrors: true,
+        builds: [
+          {
+            name: 'es2015',
+            browserCapabilities: ['es2015'],
+          },
+        ]
+      }));
+
+      app.use(
+          (error: httpErrors.HttpError,
+           _request: any,
+           response: any,
+           _next: express.NextFunction) => {
+            response.statusCode = error.status;
+            response.setHeader('Content-Type', 'text/plain');
+            response.end(`custom ${error.status}: ${error.message}`);
+          });
+
+      server = app.listen(/* random */ 0, '127.0.0.1', () => {
+        host = server.address().address;
+        port = server.address().port;
+        done();
+      });
+    });
+
+    suiteTeardown((done) => {
+      server.close(done);
+    });
+
+    test('forwards error for 404 not found', async () => {
+      checkPlainTextError(
+          404, 'custom 404: Not Found', await get('/fragment/error.html'));
+    });
+
+    test('forwards error for directory traversal 403', async () => {
+      checkPlainTextError(
+          403, 'custom 403: Forbidden', await get('/../secrets'));
+    });
+
+    test('forwards error for unsupported browser 500', async () => {
+      checkPlainTextError(
+          500, 'custom 500: This browser is not supported.', await get('/'));
     });
   });
 });

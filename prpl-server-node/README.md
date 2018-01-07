@@ -10,21 +10,21 @@ An HTTP server for Node designed to serve [PRPL](https://developers.google.com/w
 
 ### As a binary
 ```sh
-$ yarn global add prpl-server
+$ npm install -g prpl-server
 $ prpl-server --root . --config polymer.json
 ```
 
 ### As a library
 
 ```sh
-$ yarn add prpl-server
+$ npm install --save prpl-server
 ```
 
 ```js
 prpl = require('prpl-server');
 express = require('express');
 
-const app = express()
+const app = express();
 
 app.get('/api/launch', (req, res, next) => res.send('boom'));
 
@@ -95,7 +95,7 @@ For most documents in your application, the solution is to use relative URLs to 
 
 The solution we recommend is to place a [`<base>`](https://developer.mozilla.org/en-US/docs/Web/HTML/Element/base) tag in your entrypoint to anchor its relative URLs to the correct build subdirectory, regardless of the URL the entrypoint was served from. You may then use relative URLs to refer to build-specific resources from your entrypoint, as though you were in your build subdirectory. Put `<base href="/">` in your source entrypoint, so that URLs resolve when serving your source directly during development. In your build pipeline, update each entrypoint's base tag to match its build subdirectory (e.g. `<base href="/modern/">`).
 
-If you are using polymer-cli, set `{basePath: true}` on each build configuration to perform this base tag update automatically.
+If you are using polymer-cli, set `{"autoBasePath": true}` in your `polymer.json` to perform this base tag update automatically.
 
 Note that `<base>` tags only affect relative URLs, so to refer to resources outside of the build from your entrypoint, use absolute URLs as you normally would.
 
@@ -132,7 +132,16 @@ Note that Chrome will not allow a service worker to be registered over HTTPS wit
 
 ## Service Workers
 
+### Scope header
 prpl-server sets the [`Service-Worker-Allowed`](https://www.w3.org/TR/service-workers-1/#service-worker-allowed) header to `/` for any request path ending with `service-worker.js`. This allows a service worker served from a build subdirectory to be registered with a scope outside of that directory, e.g. `register('service-worker.js', {scope: '/'})`.
+
+### 404 handling
+
+prpl-server automatically serves a tiny self-unregistering service worker for any request path ending with `service-worker.js` that would otherwise have had a `404 Not Found` response. To disable this behavior, set `unregisterMissingServiceWorkers: false` in your configuration file.
+
+This can be useful when the location of a service worker has changed, as it will prevent clients from getting stuck with an old service worker indefinitely.
+
+This problem arises because when a service worker updates, a `404` is treated as a failed update. It does not cause the service worker to be unregistered. See [w3c/ServiceWorker#204](https://github.com/w3c/ServiceWorker/issues/204) for more discussion of this problem.
 
 ## HTTPS
 
@@ -150,7 +159,7 @@ By default, prpl-server sets the [`Cache-Control`](https://developer.mozilla.org
 
 To change this default for non-entrypoint resources, set the `cacheControl` property in your configuration file, or the `--cache-control` command-line flag, to the desired `Cache-Control` header value. You may want to set `--cache-control=no-cache` during development.
 
-For more advanced caching behavior, use prpl-server as [a library](#as-a-library) and register a middleware that sets the `Cache-Control` header before prpl-server is invoked. If prpl-server sees that the `Cache-Control` header has already been set, it will not modify it. For example, to set year-long caching for images:
+For more advanced caching behavior, [use prpl-server as a library](#as-a-library) with Express and register a middleware that sets the `Cache-Control` header before registering the prpl-server middleware. If prpl-server sees that the `Cache-Control` header has already been set, it will not modify it. For example, to set year-long caching for images:
 
 ```js
 app.get('/images/*', (req, res, next) => {
@@ -162,6 +171,25 @@ app.get('/*', prpl.makeHandler('.', config))
 ```
 
 Choosing the right cache headers for your application can be complex. See [*Caching best practices & max-age gotchas*](https://jakearchibald.com/2016/caching-best-practices/) for one starting point.
+
+## HTTP Errors
+
+By default, if a `404 Not Found` or other HTTP server error occurs, prpl-server will serve a minimal `text/plain` response. To serve custom errors, [use prpl-server as a library](#as-a-library) with Express, set `forwardErrors: true` in your configuration object, and register an [error-handling middleware](http://expressjs.com/en/guide/error-handling.html) after registering the prpl-server handler:
+
+```js
+app.get('/*', prpl.makeHandler('.', {
+  builds: [ ... ],
+  forwardErrors: true
+}));
+
+app.use((err, req, res, next) => {
+  if (err.status === 404) {
+    res.status(404).sendFile('my-custom-404.html', {root: rootDir});
+  } else {
+    next();
+  }
+});
+```
 
 ## Rendering for Bots
 
@@ -179,9 +207,9 @@ Note that you can also use the [Rendertron middleware](https://github.com/Google
 
 2. `cd` to the directory you want to serve (e.g. your app's `build/` directory if you are using polymer-cli).
 
-3. Run `npm init` or `yarn init` and follow the prompts to create your `package.json`.
+3. Run `npm init` and follow the prompts to create your `package.json`.
 
-4. Run `npm install --save prpl-server` or `yarn add prpl-server` to add prpl-server as a dependency.
+4. Run `npm install --save prpl-server` to add prpl-server as a dependency.
 
 5. Edit your `package.json` to add a `start` script. This is the command App Engine runs when your app starts. Configure `prpl-server` to listen on all hosts, and to redirect HTTP connections to HTTPS. You should also specify the version of Node your app requires via the `engines` section.
 

@@ -18,21 +18,34 @@
     "**/.*",
     "node_modules",
     "bower_components",
-    "test",
     "gulpfile.js",
     "package-lock.json",
     "wct.conf.js"
   ],
   "dependencies": {
     "polymer": "^2.0.0",
-    "vaadin-themable-mixin": "^1.1.1"
+    "vaadin-themable-mixin": "^1.1.1",
+    "vaadin-valo-styles": "vaadin/vaadin-valo-styles#^2.0.0"
   },
   "devDependencies": {
     "elements-demo-resources": "^2.0.0",
     "iron-component-page": "^3.0.0",
     "iron-demo-helpers": "^2.0.0",
     "iron-test-helpers": "^2.0.0",
-    "vaadin-button": "^1.0.0",
+    "vaadin-button": "^2.0.0",
+    "iron-form": "^2.0.0",
+    "iron-input": "^2.0.0",
+    "paper-button": "^2.0.0",
+    "paper-input": "^2.0.0",
+    "vaadin-combo-box": "master",
+    "vaadin-context-menu": "master",
+    "vaadin-date-picker": "master",
+    "vaadin-dropdown-menu": "master",
+    "vaadin-item": "master",
+    "vaadin-list-box": "master",
     "web-component-tester": "^6.0.0"
+  },
+  "resolutions": {
+    "vaadin-item": "master"
   }
 }

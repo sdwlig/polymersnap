@@ -18,27 +18,25 @@ import * as fs from 'fs';
 import * as memoryStreams from 'memory-streams';
 import * as path from 'path';
 
-import {Analyzer} from '../../core/analyzer';
 import {JavaScriptParser} from '../../javascript/javascript-parser';
 import {Severity, Warning} from '../../model/model';
-import {FSUrlLoader} from '../../url-loader/fs-url-loader';
+import {PackageUrlResolver} from '../../url-loader/package-url-resolver';
 import {WarningPrinter} from '../../warning/warning-printer';
+import {fixtureDir, resolvedUrl} from '../test-utils';
 
 const parser = new JavaScriptParser();
-const staticTestDir = path.join(__dirname, '../static');
+const url = resolvedUrl`vanilla-elements.js`;
 const vanillaSources =
-    fs.readFileSync(path.join(staticTestDir, 'vanilla-elements.js'), 'utf-8');
-const parsedDocument = parser.parse(vanillaSources, 'vanilla-elements.js');
+    fs.readFileSync(path.join(fixtureDir, 'vanilla-elements.js'), 'utf-8');
+const parsedDocument =
+    parser.parse(vanillaSources, url, new PackageUrlResolver());
 
 const dumbNameWarning = new Warning({
   message: 'This is a dumb name for an element.',
   code: 'dumb-element-name',
   severity: Severity.WARNING,
-  sourceRange: {
-    file: 'vanilla-elements.js',
-    start: {column: 6, line: 0},
-    end: {column: 22, line: 0}
-  },
+  sourceRange:
+      {file: url, start: {column: 6, line: 0}, end: {column: 22, line: 0}},
   parsedDocument
 });
 
@@ -46,24 +44,18 @@ const goodJobWarning = new Warning({
   message: 'Good job with this observedAttributes getter.',
   code: 'cool-observed-attributes',
   severity: Severity.INFO,
-  sourceRange: {
-    file: 'vanilla-elements.js',
-    start: {line: 22, column: 2},
-    end: {line: 29, column: 3}
-  },
+  sourceRange:
+      {file: url, start: {line: 22, column: 2}, end: {line: 29, column: 3}},
   parsedDocument
 });
 
 suite('WarningPrinter', () => {
   let output: NodeJS.WritableStream;
   let printer: WarningPrinter;
-  let analyzer: Analyzer;
   let originalChalkEnabled: boolean;
 
   setup(() => {
     output = new memoryStreams.WritableStream();
-    const urlLoader = new FSUrlLoader(staticTestDir);
-    analyzer = new Analyzer({urlLoader});
     printer = new WarningPrinter(output, {color: false});
     originalChalkEnabled = chalk.enabled;
     (chalk as any).enabled = true;
@@ -73,12 +65,12 @@ suite('WarningPrinter', () => {
     (chalk as any).enabled = originalChalkEnabled;
   });
 
-  test('can handle printing no warnings', async() => {
+  test('can handle printing no warnings', async () => {
     await printer.printWarnings([]);
     assert.deepEqual(output.toString(), '');
   });
 
-  test('can format and print a basic warning', async() => {
+  test('can format and print a basic warning', async () => {
     await printer.printWarnings([dumbNameWarning]);
     const actual = output.toString();
     const expected = `
@@ -86,21 +78,21 @@ suite('WarningPrinter', () => {
 class ClassDeclaration extends HTMLElement {}
       ~~~~~~~~~~~~~~~~
 
-vanilla-elements.js(0,6) warning [dumb-element-name] - This is a dumb name for an element.
+vanilla-elements.js(1,7) warning [dumb-element-name] - This is a dumb name for an element.
 `;
     assert.deepEqual(actual, expected);
   });
 
-  test('can format and print one-line warnings', async() => {
+  test('can format and print one-line warnings', async () => {
     printer = new WarningPrinter(output, {verbosity: 'one-line', color: false});
     await printer.printWarnings([dumbNameWarning]);
     const actual = output.toString();
     const expected =
-        `vanilla-elements.js(0,6) warning [dumb-element-name] - This is a dumb name for an element.\n`;
+        `vanilla-elements.js(1,7) warning [dumb-element-name] - This is a dumb name for an element.\n`;
     assert.deepEqual(actual, expected);
   });
 
-  test('it adds color if configured to do so', async() => {
+  test('it adds color if configured to do so', async () => {
     printer = new WarningPrinter(output, {color: true});
     await printer.printWarnings([dumbNameWarning]);
     const actual = output.toString();
@@ -109,12 +101,12 @@ vanilla-elements.js(0,6) warning [dumb-element-name] - This is a dumb name for a
 class ClassDeclaration extends HTMLElement {}
 \u001b[33m      ~~~~~~~~~~~~~~~~\u001b[39m
 
-vanilla-elements.js(0,6) \u001b[33mwarning\u001b[39m [dumb-element-name] - This is a dumb name for an element.
+vanilla-elements.js(1,7) \u001b[33mwarning\u001b[39m [dumb-element-name] - This is a dumb name for an element.
 `;
     assert.deepEqual(actual, expected);
   });
 
-  test('it can print a multiline range', async() => {
+  test('it can print a multiline range', async () => {
     await printer.printWarnings([goodJobWarning]);
     const actual = output.toString();
     const expected = `
@@ -136,7 +128,7 @@ vanilla-elements.js(0,6) \u001b[33mwarning\u001b[39m [dumb-element-name] - This 
   }
 ~~~
 
-vanilla-elements.js(22,2) info [cool-observed-attributes] - Good job with this observedAttributes getter.
+vanilla-elements.js(23,3) info [cool-observed-attributes] - Good job with this observedAttributes getter.
 `;
     assert.deepEqual(actual, expected);
   });

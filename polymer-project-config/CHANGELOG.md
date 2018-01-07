@@ -8,6 +8,21 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 ## Unreleased
 <!-- Add new, unreleased changes here. -->
 
+## [3.7.0] - 2018-01-01
+* Added new option: `autoBasePath`. This new flag sets `basePath: true` on all builds. See that option for more details.
+* Removed `addPushManifest` from bundled build presets.
+
+## [3.6.0] - 2017-11-28
+* Added a new lint option: `filesToIgnore`. We'll never report warnings for any
+  file that matches any of these globs.
+  * `ignoreWarnings` is a confusing phrasing. Added the `warningsToIgnore`
+    spelling which will be used preferentially. This was better than making the
+    options inconsistent, or spelling the new option `ignoreFiles`.
+* Improved error messages when validation of a polymer.json object fails.
+
+## [3.5.0] - 2017-11-21
+* Added static methods for constructing a ProjectConfig directly from an unvalidated JSON object, in addition to the methods for reading it from disk.
+
 ## [3.4.0] - 2017-06-21
 * Modified the `bundle` property in project build options to support the subset of `polymer-bundler` options which can be serialized in a JSON file.
 
