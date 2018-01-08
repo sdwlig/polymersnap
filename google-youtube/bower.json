@@ -20,15 +20,6 @@
     "web-component"
   ],
   "dependencies": {
-<<<<<<< HEAD
-    "polymer": "Polymer/polymer#^2.0.0-rc.1",
-    "google-apis": "GoogleWebComponents/google-apis#2.0-preview",
-    "iron-localstorage": "PolymerElements/iron-localstorage#2.0-preview"
-  },
-  "devDependencies": {
-    "web-component-tester": "^6.0.0-prerelease.6",
-    "iron-component-page": "PolymerElements/iron-component-page#2.0-preview"
-=======
     "polymer": "Polymer/polymer#1.9 - 2",
     "google-apis": "GoogleWebComponents/google-apis#1 - 2",
     "iron-localstorage": "PolymerElements/iron-localstorage#1 - 2"
@@ -36,7 +27,6 @@
   "devDependencies": {
     "web-component-tester": "^6.0.0",
     "iron-component-page": "PolymerElements/iron-component-page#1 - 2"
->>>>>>> c76b62693fb28ba3f7529946e16c20246c126827
   },
   "variants": {
     "1.x": {

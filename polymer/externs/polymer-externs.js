@@ -1,5 +1,5 @@
 /**
- * @fileoverview Externs for Polymer
+ * @fileoverview Externs for Polymer Pass and external Polymer API
  * @externs
  *
  * @license
@@ -21,7 +21,7 @@
  * computed: (string | undefined),
  * reflectToAttribute: (boolean | undefined),
  * notify: (boolean | undefined),
- * observer: (string | undefined)
+ * observer: (string | function(*,*) | undefined)
  * }}
  */
 let PolymerElementPropertiesMeta;
@@ -58,6 +58,10 @@ PolymerElementConstructor.properties;
 PolymerElementConstructor.observers;
 /** @type {(!HTMLTemplateElement | string | undefined)} */
 PolymerElementConstructor.template;
+
+let PropertiesMixinConstructor = function (){};
+/** @type {(!PolymerElementProperties | undefined)} */
+PropertiesMixinConstructor.properties;
 
 /**
  * @param {!PolymerInit} init
@@ -96,6 +100,7 @@ PolymerTelemetry.dumpRegistrations;;
 /** @type {PolymerTelemetry} */
 Polymer.telemetry;
 
+// nb. This is explicitly 'var', as Closure Compiler checks that this is the case.
 /**
  * @constructor
  * @extends {HTMLElement}
