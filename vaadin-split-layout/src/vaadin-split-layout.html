@@ -67,7 +67,7 @@ This program is available under Apache License Version 2.0, available at https:/
   </template>
 
   <script>
-    {
+    (function() {
       /**
        * `<vaadin-split-layout>` is a Polymer element implementing a split layout for two
        * content elements with a draggable splitter between them.
@@ -227,7 +227,7 @@ This program is available under Apache License Version 2.0, available at https:/
         }
 
         static get version() {
-          return '4.0.0-alpha3';
+          return '4.0.0-alpha5';
         }
 
         static get properties() {
@@ -311,6 +311,8 @@ This program is available under Apache License Version 2.0, available at https:/
           this.notifyResize();
 
           if (event.detail.state === 'end') {
+            this.dispatchEvent(new CustomEvent('splitter-dragend'));
+
             delete this._startSize;
           }
         }
@@ -321,6 +323,12 @@ This program is available under Apache License Version 2.0, available at https:/
          *
          * @event iron-resize
          */
+
+        /**
+         * Fired after dragging the splitter have ended.
+         *
+         * @event splitter-dragend
+         */
       }
 
       customElements.define(SplitLayoutElement.is, SplitLayoutElement);
@@ -330,6 +338,6 @@ This program is available under Apache License Version 2.0, available at https:/
        */
       window.Vaadin = window.Vaadin || {};
       Vaadin.SplitLayoutElement = SplitLayoutElement;
-    }
+    })();
   </script>
 </dom-module>

@@ -51,3 +51,27 @@ call the `iron-form`'s `submit` method.
       document.getElementById('iron-form').submit();
     }
 ```
+
+### Changes in 2.0
+- since type-extensions are not available in 2.0, `<iron-form>` is now a wrapper
+around a native `<form>`
+- related, since elements are now distributed to the `iron-form`, they no longer
+need to implement `IronFormElementBehavior` to register for submission. However
+they are required to have a `name` and a `value` attribute (which the behaviour
+  also added), and if you want to validate them, they _must_ implement a `validate()`
+  method.
+- the `serialize` method has been renamed to `serializeForm` (because Polymer 2.0
+  is already using a `serialize` method, and we can't stomp over it)
+- in `iron-form` 2.x, the `reset` and `submit` methods now accept an `event` as
+input, which will be prevented if it exists.
+- the `disableNativeValidationUi` property has been removed: because `iron-form`
+is no longer a type extension, it can't actually trigger any native UI, so
+this property is essentially always true.
+- the `contentType` property has been removed in favor of the native [`<form enctype>` 
+attribute](https://developer.mozilla.org/en-US/docs/Web/API/HTMLFormElement/enctype);
+you can still use the `application/json` value e.g.
+```html
+<iron-form>
+  <form enctype="application/json"> ... </form>
+</iron-form>
+```

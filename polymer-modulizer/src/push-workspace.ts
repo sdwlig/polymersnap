@@ -14,10 +14,10 @@
 
 import chalk from 'chalk';
 import * as inquirer from 'inquirer';
-import { WorkspaceRepo, startNewBranch, commitChanges, pushChangesToGithub} from 'polymer-workspaces';
+import {commitChanges, pushChangesToGithub, startNewBranch, WorkspaceRepo} from 'polymer-workspaces';
+import {logRepoError} from './util';
 
 export default async function run(reposToConvert: WorkspaceRepo[]) {
-
   console.log(
       chalk.dim('[1/5] ') + chalk.magenta(`Setting up push to GitHub...`));
   const {commitMessage, branchName, forcePush} = (await inquirer.prompt([
@@ -31,7 +31,8 @@ export default async function run(reposToConvert: WorkspaceRepo[]) {
       type: 'confirm',
       name: 'forcePush',
       message: (args) => {
-        return `force push? (WARNING: This will overwrite any existing "${args.branchName}" branch on GitHub`;
+        return `force push? (WARNING: This will overwrite any existing "${
+            args.branchName}" branch on GitHub`;
       },
       default: false,
     },
@@ -69,7 +70,12 @@ export default async function run(reposToConvert: WorkspaceRepo[]) {
   }
 
   console.log(chalk.dim('[4/5] ') + chalk.magenta(`Pushing to GitHub...`));
-  await pushChangesToGithub(reposToConvert, branchName, forcePush);
+  const publishResults =
+      await pushChangesToGithub(reposToConvert, branchName, forcePush);
+  publishResults.successes.forEach((_result, repo) => {
+    console.log(`  - ${chalk.cyan(repo.dir)}: success!`);
+  });
+  publishResults.failures.forEach(logRepoError);
 
   console.log(chalk.dim('[5/5]') + ' 🎉  ' + chalk.magenta(`Push Complete!`));
 }

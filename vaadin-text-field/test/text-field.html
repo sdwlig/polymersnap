@@ -71,6 +71,12 @@
           });
         });
 
+        ['autocapitalize'].forEach(function(prop) {
+          it('should set boolean attribute ' + prop, function() {
+            assertAttrCanBeSet(prop, 'off');
+          });
+        });
+
         ['autocomplete', 'autocorrect', 'readonly', 'required'].forEach(function(prop) {
           it('should set boolean attribute ' + prop, function() {
             assertAttrCanBeSet(prop, true);
@@ -115,6 +121,26 @@
           textField.value = false;
           expect(textField.hasAttribute('has-value')).to.be.true;
         });
+
+        it('setting label updates has-label attribute', function() {
+          textField.label = 'foo';
+          expect(textField.hasAttribute('has-label')).to.be.true;
+        });
+
+        it('setting label to empty string does not update has-label attribute', function() {
+          textField.label = '';
+          expect(textField.hasAttribute('has-label')).to.be.false;
+        });
+
+        it('setting label to null does not update has-label attribute', function() {
+          textField.label = null;
+          expect(textField.hasAttribute('has-label')).to.be.false;
+        });
+
+        it('setting number label updates has-label attribute', function() {
+          textField.label = 0;
+          expect(textField.hasAttribute('has-label')).to.be.true;
+        });
       });
 
       if (!window.ShadyDOM) {
@@ -127,7 +153,26 @@
           });
         });
       }
+    });
 
+    describe('events', function() {
+      let textField, input;
+
+      beforeEach(function() {
+        textField = fixture('default');
+        input = textField.focusElement;
+      });
+
+      it('should dispatch change event on native input change', done => {
+        const changeEvent = new Event('change');
+
+        textField.addEventListener('change', e => {
+          expect(e.detail.sourceEvent).to.equal(changeEvent);
+          done();
+        });
+
+        input.dispatchEvent(changeEvent);
+      });
     });
   </script>
 </body>

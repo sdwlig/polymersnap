@@ -243,6 +243,7 @@ This program is available under Apache License Version 2.0, available at https:/
       }
 
       if (this.opened) {
+        this._openedWithFocusRing = this.hasAttribute('focus-ring') || (this.focusElement && this.focusElement.hasAttribute('focus-ring'));
         // For touch devices, we don't want to popup virtual keyboard on touch devices unless input
         // is explicitly focused by the user.
         if (!this.$.overlay.touchDevice) {
@@ -251,6 +252,8 @@ This program is available under Apache License Version 2.0, available at https:/
             this.focus();
           }
         }
+      } else if (this._openedWithFocusRing && this.hasAttribute('focused')) {
+        this.focusElement.setAttribute('focus-ring', '');
       }
     }
 
@@ -459,6 +462,7 @@ This program is available under Apache License Version 2.0, available at https:/
       // the items synchonously. It is required to have the items rendered
       // before we update the overlay and the list positions and sizes.
       this.$.overlay.ensureItemsRendered();
+      this.$.overlay._selector.toggleScrollListener(true);
 
       // Ensure metrics are up-to-date
       this.$.overlay.updateViewportBoundaries();
@@ -583,17 +587,15 @@ This program is available under Apache License Version 2.0, available at https:/
     }
 
     _selectedItemChanged(selectedItem) {
-      if (!this.filteredItems) {
-        return;
-      }
-
       if (selectedItem === null || selectedItem === undefined) {
-        if (!this.allowCustomValue) {
-          this.value = '';
-        }
+        if (this.filteredItems) {
+          if (!this.allowCustomValue) {
+            this.value = '';
+          }
 
-        this._updateHasValue(this.value !== '');
-        this._inputElementValue = this.value;
+          this._updateHasValue(this.value !== '');
+          this._inputElementValue = this.value;
+        }
       } else {
         const value = this._getItemValue(selectedItem);
         if (this.value !== value) {
@@ -610,7 +612,9 @@ This program is available under Apache License Version 2.0, available at https:/
       }
 
       this.$.overlay._selectedItem = selectedItem;
-      this._focusedIndex = this.filteredItems.indexOf(selectedItem);
+      if (this.filteredItems) {
+        this._focusedIndex = this.filteredItems.indexOf(selectedItem);
+      }
     }
 
     _valueChanged(value, oldVal) {
@@ -641,7 +645,7 @@ This program is available under Apache License Version 2.0, available at https:/
 
     _detectAndDispatchChange() {
       if (this.value !== this._lastCommittedValue) {
-        this.dispatchEvent(new CustomEvent('change', {composed: true, bubbles: true}));
+        this.dispatchEvent(new CustomEvent('change', {bubbles: true}));
         this._lastCommittedValue = this.value;
       }
     }

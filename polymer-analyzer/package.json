@@ -1,6 +1,6 @@
 {
   "name": "polymer-analyzer",
-  "version": "3.0.0-pre.7",
+  "version": "3.0.0-pre.9",
   "description": "Static analysis for Web Components",
   "homepage": "https://github.com/Polymer/polymer-analyzer",
   "bugs": "https://github.com/Polymer/polymer-analyzer/issues",
@@ -60,7 +60,7 @@
     "temp": "^0.8.3",
     "tsc-then": "^1.0.1",
     "tslint": "^4.1.1",
-    "typescript": "^2.6.1",
+    "typescript": "^2.7.1",
     "typescript-json-schema": "^0.19.0"
   },
   "dependencies": {

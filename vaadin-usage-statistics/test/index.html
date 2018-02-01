@@ -221,7 +221,7 @@
         assert.isAbove(newData.elements["bar-element"].lastUsed, initialLastUsed);
       })
       test('flow-detected', function () {
-        window.vaadin = { clients: { foo: { getVersionInfo: function () { return { flow: "1.2.3" }; } } } };
+        window.Vaadin.Flow = { clients: { foo: { getVersionInfo: function () { return { flow: "1.2.3" }; } } } };
         const stats = new UsageStatistics();
         stats.gatherer.gather(stats.storage);
         const data = stats.storage.read();
@@ -229,15 +229,15 @@
         assert.equal(data.frameworks["Flow"].firstUsed, data.frameworks["Flow"].lastUsed);
         assert.closeTo(data.frameworks["Flow"].firstUsed, new Date().getTime(), 10000);
       });
-      test('valo-detected', function () {
+      test('lumo-detected', function () {
         window.Vaadin = window.Vaadin || {};
-        window.Vaadin.Valo = { version: "2.0.0-alpha5" };
+        window.Vaadin.Lumo = { version: "2.0.0-alpha5" };
         const stats = new UsageStatistics();
         stats.gatherer.gather(stats.storage);
         const data = stats.storage.read();
-        assert.equal(data.themes["Valo"].version, "2.0.0-alpha5");
-        assert.equal(data.themes["Valo"].firstUsed, data.themes["Valo"].lastUsed);
-        assert.closeTo(data.themes["Valo"].firstUsed, new Date().getTime(), 10000);
+        assert.equal(data.themes["Lumo"].version, "2.0.0-alpha5");
+        assert.equal(data.themes["Lumo"].firstUsed, data.themes["Lumo"].lastUsed);
+        assert.closeTo(data.themes["Lumo"].firstUsed, new Date().getTime(), 10000);
 
       });
       test('works with corrupted localstorage', function () {
@@ -247,7 +247,7 @@
         stats.gatherer.gather(stats.storage);
 
         data = stats.storage.read();
-        assert.equal(data.elements["bar-element"].lastUsed, stats.now.getTime());
+        assert.equal(data.elements["bar-element"].lastUsed, stats.gatherer.now);
         assert.equal(data.elements["bar-element"].version, "1.2.3");
       });
       test('works with corrupted element data in localstorage', function () {

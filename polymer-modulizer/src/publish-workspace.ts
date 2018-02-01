@@ -14,10 +14,10 @@
 
 import chalk from 'chalk';
 import * as inquirer from 'inquirer';
-import {WorkspaceRepo, publishPackagesToNpm} from 'polymer-workspaces';
+import {publishPackagesToNpm, WorkspaceRepo} from 'polymer-workspaces';
+import {logRepoError} from './util';
 
 export default async function run(reposToConvert: WorkspaceRepo[]) {
-
   console.log(
       chalk.dim('[1/3] ') + chalk.magenta(`Setting up publish to npm...`));
 
@@ -53,7 +53,11 @@ export default async function run(reposToConvert: WorkspaceRepo[]) {
   }
 
   console.log(chalk.dim('[2/3] ') + chalk.magenta(`Publishing to npm...`));
-  await publishPackagesToNpm(reposToConvert, publishTag);
+  const publishResults = await publishPackagesToNpm(reposToConvert, publishTag);
+  publishResults.successes.forEach((_result, repo) => {
+    console.log(`  - ${chalk.cyan(repo.dir)}: success!`);
+  });
+  publishResults.failures.forEach(logRepoError);
 
   console.log(chalk.dim('[3/3]') + ' 🎉  ' + chalk.magenta(`Publish Complete!`));
 }

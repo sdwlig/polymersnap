@@ -38,7 +38,7 @@ declare namespace Polymer {
      *
      * @param props Object whose keys are names of accessors.
      */
-    createProperties(props: object|null): any;
+    createProperties(props: object): void;
 
     /**
      * Returns an attribute name that corresponds to the given property.
@@ -76,6 +76,15 @@ declare namespace Polymer {
      *   protected `_setProperty` function must be used to set the property
      */
     _createPropertyAccessor(property: string, readOnly?: boolean): void;
+
+    /**
+     * Adds the given `property` to a map matching attribute names
+     * to property names, using `attributeNameForProperty`. This map is
+     * used when deserializing attribute values to properties.
+     *
+     * @param property Name of the property
+     */
+    _addPropertyToAttributeMap(property: string): any;
 
     /**
      * Defines a property accessor for the given property.

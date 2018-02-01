@@ -6,7 +6,7 @@ This program is available under Apache License Version 2.0, available at https:/
 
 <link rel="import" href="../../polymer/polymer-element.html">
 <link rel="import" href="../../iron-a11y-announcer/iron-a11y-announcer.html">
-<link rel="import" href="../../vaadin-text-field/vaadin-text-field.html">
+<link rel="import" href="../../vaadin-text-field/src/vaadin-text-field.html">
 <link rel="import" href="../../vaadin-control-state-mixin/vaadin-control-state-mixin.html">
 <link rel="import" href="../../vaadin-themable-mixin/vaadin-themable-mixin.html">
 <link rel="import" href="vaadin-combo-box-mixin.html">
@@ -61,7 +61,7 @@ This program is available under Apache License Version 2.0, available at https:/
         autocomplete="off"
 
         invalid="[[invalid]]"
-        label$="[[label]]"
+        label="[[label]]"
         name="[[name]]"
         placeholder="[[placeholder]]"
         required="[[required]]"
@@ -94,7 +94,7 @@ This program is available under Apache License Version 2.0, available at https:/
 </dom-module>
 
   <script>
-    {
+    (function() {
       /**
        * `<vaadin-combo-box>` is a combo box element combining a dropdown list with an
        * input field for filtering the list of items. If you want to replace the default
@@ -158,7 +158,7 @@ This program is available under Apache License Version 2.0, available at https:/
        * `clear-button` | The clear button
        * `toggle-button` | The toggle button
        *
-       * See [`<vaadin-overlay>` documentation](https://github.com/vaadin/vaadin-overlay/blob/master/vaadin-overlay.html)
+       * See [`<vaadin-overlay>` documentation](https://github.com/vaadin/vaadin-overlay/blob/master/src/vaadin-overlay.html)
        * for `<vaadin-combo-box-overlay>` parts.
        *
        * See [`<vaadin-text-field>` documentation](https://vaadin.com/elements/vaadin-text-field/html-api/elements/Vaadin.TextFieldElement)
@@ -191,7 +191,7 @@ This program is available under Apache License Version 2.0, available at https:/
         }
 
         static get version() {
-          return '4.0.0-alpha4';
+          return '4.0.0-alpha6';
         }
 
         static get properties() {
@@ -329,6 +329,6 @@ This program is available under Apache License Version 2.0, available at https:/
        * @namespace Vaadin
        */
       window.Vaadin.ComboBoxElement = ComboBoxElement;
-    }
+    })();
   </script>
 </dom-module>

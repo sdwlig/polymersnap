@@ -12,6 +12,7 @@
  * http://polymer.github.io/PATENTS.txt
  */
 
+import {AstNodeWithLanguage} from '../model/inline-document';
 import {correctSourceRange, LocationOffset, SourcePosition, SourceRange, uncorrectSourceRange} from '../model/source-range';
 import {ResolvedUrl} from '../model/url';
 
@@ -33,7 +34,7 @@ export abstract class ParsedDocument<AstNode = any, Visitor = any> {
    * If not null, this is an inline document, and astNode is the AST Node of
    * this document inside of the parent. (e.g. the <style> or <script> tag)
    */
-  astNode: any;
+  readonly astNode: AstNodeWithLanguage|undefined;
 
   sourceRange: SourceRange;
 
@@ -74,7 +75,7 @@ export abstract class ParsedDocument<AstNode = any, Visitor = any> {
   sourceRangeForNode(node: AstNode): SourceRange|undefined {
     const baseSource = this._sourceRangeForNode(node);
     return this.relativeToAbsoluteSourceRange(baseSource);
-  };
+  }
 
   protected abstract _sourceRangeForNode(node: AstNode): SourceRange|undefined;
 
@@ -155,11 +156,11 @@ export abstract class ParsedDocument<AstNode = any, Visitor = any> {
 
 export interface Options<A> {
   url: ResolvedUrl;
-  baseUrl?: ResolvedUrl;
+  baseUrl: ResolvedUrl|undefined;
   contents: string;
   ast: A;
   locationOffset: LocationOffset|undefined;
-  astNode: any|null;
+  astNode: AstNodeWithLanguage|undefined;
   isInline: boolean;
 }
 
@@ -185,7 +186,7 @@ export class UnparsableParsedDocument extends ParsedDocument {
       ast: null,
       url,
       baseUrl: url,
-      astNode: null,
+      astNode: undefined,
       contents: contents,
       isInline: false,
       locationOffset: undefined

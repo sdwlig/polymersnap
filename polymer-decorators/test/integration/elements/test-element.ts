@@ -9,8 +9,6 @@
  * rights grant found at http://polymer.github.io/PATENTS.txt
  */
 
-/// <reference path="../bower_components/polymer-decorators/global.d.ts" />
-
 const {customElement, property, query, queryAll, observe, computed, listen} =
     Polymer.decorators;
 
@@ -78,7 +76,7 @@ class TestElement extends Polymer.Element {
     this._setReadOnlyString('initial value')
   }
 
-  @observe(['aNum', 'aString'])
+  @observe('aNum', 'aString')
   private _numStringChanged(newNum: number, newString: string) {
     this.lastMultiChange = [newNum, newString];
   }

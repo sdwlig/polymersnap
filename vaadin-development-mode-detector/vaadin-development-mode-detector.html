@@ -19,7 +19,7 @@ function getHtmlImports(scope, htmlImports) {
     imports.forEach(function(link) {
       if (htmlImports.indexOf(link.href) == -1) {
         htmlImports.push(link.href);
-        this.getHtmlImports(link.import, htmlImports)
+        getHtmlImports(link.import, htmlImports)
       }
     });
   }
@@ -28,13 +28,13 @@ function getHtmlImports(scope, htmlImports) {
 
 function isUnbundled() {
   // If the app is bundled, then polymer.html should be included in some bundle and not in `polymer/polymer.html`
-  const htmlImports = this.getHtmlImports(document, []);
+  const htmlImports = getHtmlImports(document, []);
   return htmlImports.filter(function(href) { return endsWith(href, "polymer/polymer-element.html")}).length > 0;
 }
 function isFlowProductionMode() {
-  if (window.vaadin && window.vaadin.clients) {
-    const productionModeApps = Object.keys(window.vaadin.clients)
-    .map(key => window.vaadin.clients[key])
+  if (window.Vaadin && window.Vaadin.Flow && window.Vaadin.Flow.clients) {
+    const productionModeApps = Object.keys(window.Vaadin.Flow.clients)
+    .map(key => window.Vaadin.Flow.clients[key])
     .filter(client => client.productionMode);
     if (productionModeApps.length > 0) {
       return true;
