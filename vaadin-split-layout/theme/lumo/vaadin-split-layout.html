@@ -6,71 +6,71 @@
 <dom-module id="lumo-split-layout" theme-for="vaadin-split-layout">
   <template>
     <style>
-      :host {
-        --lumo-split-layout-size: var(--lumo-space-s);
-      }
+     :host {
+       --lumo-split-layout-size: var(--lumo-space-s);
+     }
 
-      [part="splitter"] {
-        min-width: var(--lumo-split-layout-size);
-        min-height: var(--lumo-split-layout-size);
-        background-color: var(--lumo-contrast-5pct);
-        transition: 0.1s background-color;
-      }
+     [part="splitter"] {
+       min-width: var(--lumo-splitter-width, var(--lumo-split-layout-size));
+       min-height: var(--lumo-split-layout-size);
+       background-color: var(--lumo-contrast-5pct);
+       transition: 0.1s background-color;
+     }
 
-      [part="handle"] {
-        display: flex;
-        align-items: center;
-        justify-content: center;
-      }
+     [part="handle"] {
+       display: flex;
+       align-items: center;
+       justify-content: center;
+     }
 
-      [part="handle"]::after {
-        content: "";
-        display: block;
-        width: var(--lumo-space-xs);
-        height: var(--lumo-size-s);
-        border-radius: var(--lumo-border-radius);
-        background-color: var(--lumo-contrast-30pct);
-        transition: 0.1s background-color;
-      }
+     [part="handle"]::after {
+       content: "";
+       display: block;
+       width: var(--lumo-space-xs);
+       height: var(--lumo-size-s);
+       border-radius: var(--lumo-border-radius);
+       background-color: var(--lumo-contrast-30pct);
+       transition: 0.1s background-color;
+     }
 
-      :host([orientation="vertical"]) [part="handle"]::after {
-        transform: rotate(90deg);
-      }
+     :host([orientation="vertical"]) [part="handle"]::after {
+       transform: rotate(90deg);
+     }
 
-      /* Hover style */
+     /* Hover style */
 
-      [part="splitter"]:hover [part="handle"]::after {
-        background-color: var(--lumo-contrast-40pct);
-      }
+     [part="splitter"]:hover [part="handle"]::after {
+       background-color: var(--lumo-contrast-40pct);
+     }
 
-      /* Disable hover for touch devices */
-      @media (pointer: coarse) {
-        [part="splitter"]:hover [part="handle"]::after {
-          background-color: var(--lumo-contrast-30pct);
-        }
-      }
+     /* Disable hover for touch devices */
+     @media (pointer: coarse) {
+       [part="splitter"]:hover [part="handle"]::after {
+         background-color: var(--lumo-contrast-30pct);
+       }
+     }
 
-      /* Active style */
+     /* Active style */
 
-      [part="splitter"]:active [part="handle"]::after {
-        background-color: var(--lumo-contrast-50pct);
-      }
+     [part="splitter"]:active [part="handle"]::after {
+       background-color: var(--lumo-contrast-50pct);
+     }
 
-      /* Small style */
+     /* Small style */
 
-      :host([theme~="small"]) {
-        --lumo-split-layout-size: var(--lumo-space-xs);
-      }
+     :host([theme~="small"]) {
+       --lumo-split-layout-size: var(--lumo-space-xs);
+     }
 
-      :host([theme~="small"]) [part="handle"]::after {
-        width: calc(var(--lumo-space-xs) / 2);
-      }
+     :host([theme~="small"]) [part="handle"]::after {
+       width: calc(var(--lumo-space-xs) / 2);
+     }
 
-      /* Subtle style */
+     /* Subtle style */
 
-      :host([theme~="subtle"]) [part="splitter"] {
-        background-color: transparent;
-      }
+     :host([theme~="subtle"]) [part="splitter"] {
+       background-color: transparent;
+     }
     </style>
   </template>
 </dom-module>
