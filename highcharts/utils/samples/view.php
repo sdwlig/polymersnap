@@ -516,7 +516,7 @@ function getResources() {
 			<?php if ($md) { ?>
 			<div class="description" id="description">
 			</div>
-			<script src="https://cdn.rawgit.com/showdownjs/showdown/1.8.5/dist/showdown.min.js"></script>
+			<script src="https://cdn.jsdelivr.net/gh/showdownjs/showdown@1.8.5/dist/showdown.min.js"></script>
 			<script>
 				var converter = new showdown.Converter(),
     				md = `<?php echo str_replace('`', '\`', $md) ?>`,
