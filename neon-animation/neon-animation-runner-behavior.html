@@ -91,7 +91,10 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         activeEntries[i].neonAnimation.complete(activeEntries[i].config);
       }
       for (var i = 0; i < activeEntries.length; i++) {
-        activeEntries[i].animation.cancel();
+        if(undefined !== activeEntries[i].animation){
+          activeEntries[i].animation.cancel();
+        }
+
       }
     },
 
