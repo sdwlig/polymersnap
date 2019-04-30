@@ -91,10 +91,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         activeEntries[i].neonAnimation.complete(activeEntries[i].config);
       }
       for (var i = 0; i < activeEntries.length; i++) {
-        if(undefined !== activeEntries[i].animation){
-          activeEntries[i].animation.cancel();
-        }
-
+        activeEntries[i].animation.cancel();
       }
     },
 
@@ -141,9 +138,11 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       for (var k in this._active) {
         var entries = this._active[k]
 
-        for (var j in entries) {
+        try {
+        for (var j=0; j<entries.length; j++) {
           entries[j].animation.cancel();
         }
+        } catch (err) { console.error(err); }
       }
 
       this._active = {};
