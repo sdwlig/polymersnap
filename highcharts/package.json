@@ -33,7 +33,7 @@
     "browserify": "^12.0.2",
     "closurecompiler": "^1.6.1",
     "colors": "~1.1.2",
-    "eslint": "3.12.2",
+    "eslint": "4.18.2",
     "eslint-plugin-security": "^1.4.0",
     "eslint-plugin-highcharts": "github:highcharts/eslint-plugin-highcharts",
     "fs-extra": "^2.1.2",
