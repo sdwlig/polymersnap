@@ -23,7 +23,7 @@
   "homepage": "http://webcomponents.org",
   "devDependencies": {
     "del": "^2.2.2",
-    "eslint": "^3.4.0",
+    "eslint": "^6.6.0",
     "eslint-plugin-html": "^2.0.0",
     "google-closure-compiler": "^20170124.0.0",
     "gulp": "^3.8.8",
