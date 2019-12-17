@@ -249,7 +249,9 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
           }
         }
         // Set value to object at end of path
-        prop[last] = value;
+try {
+   prop[last] = value;
+ } catch (err) { console.error(err); }
       } else {
         // Simple property set
         prop[path] = value;
