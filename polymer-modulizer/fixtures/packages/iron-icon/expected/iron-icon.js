@@ -1,8 +1,8 @@
-import { html, Base } from '../../@polymer/polymer/polymer.js';
-import '../../@polymer/iron-meta/iron-meta.js';
-import '../../@polymer/iron-flex-layout/iron-flex-layout.js';
-import { Polymer } from '../../@polymer/polymer/lib/legacy/polymer-fn.js';
-import { dom } from '../../@polymer/polymer/lib/legacy/polymer.dom.js';
+import { html, Base } from '/lib/polymer/polymer.js';
+import '/lib/iron-meta/iron-meta.js';
+import '/lib/iron-flex-layout/iron-flex-layout.js';
+import { Polymer } from '/lib/polymer/lib/legacy/polymer-fn.js';
+import { dom } from '/lib/polymer/lib/legacy/polymer.dom.js';
 
 /**
 @license

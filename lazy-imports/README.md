@@ -24,7 +24,7 @@ A promise polyfill is not included by default but is necessary if running with w
 ### Polymer 2.0 – LazyImportsMixin
 
 ```html
-<link rel="import" href="../../polymer/polymer-element.html">
+<link rel="import" href="/lib/polymer/polymer-element.html">
 <link rel="import" href="../lazy-imports-mixin.html">
 
 <dom-module id="upgrade-button">
@@ -51,7 +51,7 @@ A promise polyfill is not included by default but is necessary if running with w
 ### Polymer 1.0 and Polymer 2.0 Hybrid – LazyImportsBehavior
 
 ```html
-<link rel="import" href="../../polymer/polymer.html">
+<link rel="import" href="/lib/polymer/polymer.html">
 <link rel="import" href="../lazy-imports-behavior.html">
 
 <dom-module id="upgrade-button">

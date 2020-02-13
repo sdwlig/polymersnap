@@ -157,7 +157,6 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
          */
         static get template() {
           // get template first from any imperative set in `info._template`
-debugger;
           return info._template ||
             // next look in dom-module associated with this element's is.
             Polymer.DomModule && Polymer.DomModule.import(this.is, 'template') ||

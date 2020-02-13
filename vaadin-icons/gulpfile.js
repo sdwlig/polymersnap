@@ -22,8 +22,8 @@ gulp.task('default', function() {
     .pipe(modify({
       fileModifier: function(file, contents) {
         // Enclose all icons in an iron-iconset-svg
-        return `<link rel="import" href="../iron-icon/iron-icon.html">
-<link rel="import" href="../iron-iconset-svg/iron-iconset-svg.html">
+        return `<link rel="import" href="/lib/iron-icon/iron-icon.html">
+<link rel="import" href="/lib/iron-iconset-svg/iron-iconset-svg.html">
 <iron-iconset-svg name="vaadin-icons" size="16">
 <svg><defs>
 ` + contents + `

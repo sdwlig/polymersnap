@@ -1,8 +1,8 @@
-import '../../@polymer/polymer/polymer.js';
-import '../../@polymer/iron-flex-layout/iron-flex-layout.js';
-import { PaperButtonBehavior, PaperButtonBehaviorImpl } from '../../@polymer/paper-behaviors/paper-button-behavior.js';
-import '../../@polymer/paper-styles/element-styles/paper-material-styles.js';
-import { Polymer } from '../../@polymer/polymer/lib/legacy/polymer-fn.js';
+import '/lib/polymer/polymer.js';
+import '/lib/iron-flex-layout/iron-flex-layout.js';
+import { PaperButtonBehavior, PaperButtonBehaviorImpl } from '/lib/paper-behaviors/paper-button-behavior.js';
+import '/lib/paper-styles/element-styles/paper-material-styles.js';
+import { Polymer } from '/lib/polymer/lib/legacy/polymer-fn.js';
 const $_documentContainer = document.createElement('div');
 $_documentContainer.setAttribute('style', 'display: none;');
 

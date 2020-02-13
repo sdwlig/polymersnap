@@ -68,7 +68,7 @@ suite('import-utils', () => {
 
       test('excluding template elements', () => {
         const html = `
-          <link rel="import" href="../polymer/polymer.html">
+          <link rel="import" href="/lib/polymer/polymer.html">
           <link rel="stylesheet" href="my-element.css">
           <dom-module id="my-element">
           <template>
@@ -110,7 +110,7 @@ suite('import-utils', () => {
 
       test('including template elements (rewriteUrlsInTemplates=true)', () => {
         const html = `
-          <link rel="import" href="../polymer/polymer.html">
+          <link rel="import" href="/lib/polymer/polymer.html">
           <link rel="stylesheet" href="my-element.css">
           <dom-module id="my-element">
           <template>
@@ -169,7 +169,7 @@ suite('import-utils', () => {
     test('Resolve Paths with <base href> having a trailing /', () => {
       const htmlBase = `
         <base href="components/my-element/">
-        <link rel="import" href="../polymer/polymer.html">
+        <link rel="import" href="/lib/polymer/polymer.html">
         <link rel="stylesheet" href="my-element.css">
         <dom-module id="my-element">
         <template>
@@ -202,7 +202,7 @@ suite('import-utils', () => {
     test('Resolve Paths with <base href> with no trailing slash', () => {
       const htmlBase = `
         <base href="components/my-element">
-        <link rel="import" href="../polymer/polymer.html">
+        <link rel="import" href="/lib/polymer/polymer.html">
         <link rel="stylesheet" href="my-element.css">
         <dom-module id="my-element">
         <template>

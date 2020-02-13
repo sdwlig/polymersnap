@@ -16,11 +16,11 @@
 import {assert} from 'chai';
 import * as path from 'path';
 
-import {Analyzer} from '../../core/analyzer';
-import {ClassScanner} from '../../javascript/class-scanner';
-import {PolymerElement} from '../../polymer/polymer-element';
-import {FSUrlLoader} from '../../url-loader/fs-url-loader';
-import {PackageUrlResolver} from '../../url-loader/package-url-resolver';
+import {Analyzer} from '/lib/core/analyzer';
+import {ClassScanner} from '/lib/javascript/class-scanner';
+import {PolymerElement} from '/lib/polymer/polymer-element';
+import {FSUrlLoader} from '/lib/url-loader/fs-url-loader';
+import {PackageUrlResolver} from '/lib/url-loader/package-url-resolver';
 import {fixtureDir} from '../test-utils';
 
 suite('PolymerElement with old jsdoc annotations', () => {
