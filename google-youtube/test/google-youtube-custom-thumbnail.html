@@ -1,0 +1,71 @@
+<!doctype html>
+<!-- Copyright (c) 2014 Google Inc. All rights reserved. -->
+<html>
+  <head>
+    <meta name="viewport" content="width=device-width, minimum-scale=1.0, initial-scale=1.0, user-scalable=yes">
+    <title>google-youtube Basic Tests</title>
+    <script src="../../../@webcomponents/webcomponentsjs/webcomponents-bundle.js"></script>
+    <script src="../../../wct-browser-legacy/browser.js"></script>
+  </head>
+  <body>
+    <test-fixture id="GoogleYoutube">
+      <template>
+        <google-youtube
+          thumbnail="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAIAAAACCAYAAABytg0kAAAAFElEQVQIHWP4z8DwHwyBNJDN8B8AQNEG+t5Ik2kAAAAASUVORK5CYII=">
+        </google-youtube>
+      </template>
+    </test-fixture>
+
+    <script type="module">
+      import '@polymer/polymer/polymer-legacy.js';
+      import '@polymer/test-fixture/test-fixture.js';
+      import '../google-youtube.js';
+      import { Templatizer } from '@polymer/polymer/lib/legacy/templatizer-behavior.js';
+      import { flush as flush$0 } from '@polymer/polymer/lib/legacy/polymer.dom.js';
+
+      // uses the correct dom flush based on version of Polymer
+      var flushDom = function() {
+        if (Templatizer.flush) {
+          Templatizer.flush();
+        } else {
+          flush$0();
+        }
+      };
+
+      suite('thumbnail tests', function() {
+        var googleYouTube;
+        setup(function() {
+          googleYouTube = fixture('GoogleYoutube');
+        });
+
+        test('Thumbnail image present', function() {
+          flushDom();
+          assert.ok(googleYouTube.$$('img'), 'thumbnail <img> is present.');
+        });
+
+        test('Tap handler loads embed', function(done) {
+          var thumbnail;
+
+          googleYouTube.addEventListener('google-youtube-state-change', function(e) {
+            if (!googleYouTube.state || googleYouTube.state === -1) {
+              return;
+            }
+
+            expect(getComputedStyle(thumbnail).display).to.be.eql('none');
+
+            assert.ok(googleYouTube.$$('iframe'), 'YouTube embed <iframe> is present.');
+
+            done();
+          });
+
+          googleYouTube.videoId = 'eORqFaf_QzM';
+
+          flushDom();
+
+          thumbnail = googleYouTube.$$('#thumbnail');
+          googleYouTube._handleThumbnailTap();
+        });
+      });
+    </script>
+  </body>
+</html>

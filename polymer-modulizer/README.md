@@ -27,7 +27,7 @@ polymer-modulizer tries to strike a balance between supporting the general seman
 ### Example
 
 ```html
-<link rel="import" href="../polymer/polymer-element.html">
+<link rel="import" href="/lib/polymer/polymer-element.html">
 
 <dom-module id="my-element">
   <template>

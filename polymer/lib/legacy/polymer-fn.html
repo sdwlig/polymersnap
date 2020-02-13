@@ -41,7 +41,9 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       } else {
         klass = Polymer.Class(info);
       }
-      customElements.define(klass.is, /** @type {!HTMLElement} */(klass));
+      try {
+        customElements.define(klass.is, /** @type {!HTMLElement} */(klass));
+      } catch (err) { console.warn(err); }
       return klass;
     };
 
