@@ -7,6 +7,7 @@ The complete set of contributors may be found at https://polymer.github.io/CONTR
 Code distributed by Google as part of the polymer project is also
 subject to an additional IP rights grant found at https://polymer.github.io/PATENTS.txt
 */
+import {html} from '/lib/lit-element/lit-element.js';
 import '/lib/google-apis/google-youtube-api.js';
 // import '/lib/iron-localstorage/iron-localstorage.js';
 // import { Polymer } from '/lib/polymer/lib/legacy/polymer-fn.js';
