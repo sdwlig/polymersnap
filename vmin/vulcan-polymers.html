@@ -17424,4 +17424,196 @@ This program is available under Apache License Version 2.0, available at https:/
 <g id="youtube"><path d="M6.6 0h-0.9l-0.6 2.3-0.6-2.3h-1c0.2 0.6 0.4 1.1 0.6 1.7 0.3 0.8 0.5 1.5 0.5 1.9v2.4h0.9v-2.4l1.1-3.6zM9 4.5v-1.5c0-0.5-0.1-0.8-0.3-1.1s-0.5-0.4-0.9-0.4c-0.4 0-0.7 0.2-0.9 0.5-0.2 0.2-0.3 0.5-0.3 1v1.6c0 0.5 0.1 0.8 0.3 1 0.2 0.3 0.5 0.4 0.9 0.4s0.7-0.2 0.9-0.5c0.2-0.1 0.3-0.5 0.3-1zM8.2 4.7c0 0.4-0.1 0.6-0.4 0.6s-0.4-0.2-0.4-0.6v-1.9c0-0.4 0.1-0.6 0.4-0.6s0.4 0.2 0.4 0.6v1.9zM12 6v-4.5h-0.8v3.4c-0.2 0.3-0.3 0.4-0.5 0.4-0.1 0-0.2-0.1-0.2-0.2 0 0 0-0.1 0-0.3v-3.3h-0.8v3.5c0 0.3 0 0.5 0.1 0.7 0 0.2 0.2 0.3 0.5 0.3s0.6-0.2 0.9-0.5v0.5h0.8z"></path><path d="M12.4 10.5c-0.3 0-0.4 0.2-0.4 0.6v0.4h0.8v-0.4c0-0.4-0.1-0.6-0.4-0.6z"></path><path d="M9.5 10.5c-0.1 0-0.3 0.1-0.4 0.2v2.7c0.1 0.1 0.3 0.2 0.4 0.2 0.2 0 0.3-0.2 0.3-0.6v-1.9c0-0.4-0.1-0.6-0.3-0.6z"></path><path d="M14.4 8.3c-0.2-0.7-0.8-1.3-1.4-1.3-1.6-0.2-3.3-0.2-5-0.2s-3.3 0-5 0.2c-0.6 0-1.2 0.6-1.4 1.3-0.2 1-0.2 2.1-0.2 3.1s0 2.1 0.2 3.1c0.2 0.7 0.7 1.2 1.4 1.3 1.7 0.2 3.3 0.2 5 0.2s3.3 0 5-0.2c0.7-0.1 1.3-0.6 1.4-1.3 0.2-1 0.2-2.1 0.2-3.1s0-2.1-0.2-3.1zM5.2 9.2h-1v5.1h-0.9v-5.1h-0.9v-0.9h2.8v0.9zM7.6 14.3h-0.8v-0.5c-0.3 0.4-0.6 0.5-0.9 0.5s-0.4-0.1-0.5-0.3c0-0.1-0.1-0.3-0.1-0.7v-3.5h0.8v3.2c0 0.2 0 0.3 0 0.3 0 0.1 0.1 0.2 0.2 0.2 0.2 0 0.3-0.1 0.5-0.4v-3.3h0.8v4.5zM10.6 12.9c0 0.4 0 0.7-0.1 0.9-0.1 0.3-0.3 0.5-0.6 0.5s-0.6-0.2-0.8-0.5v0.4h-0.8v-5.9h0.8v1.9c0.3-0.3 0.5-0.5 0.8-0.5s0.5 0.2 0.6 0.5c0.1 0.2 0.1 0.5 0.1 0.9v1.8zM13.6 12.2h-1.6v0.8c0 0.4 0.1 0.6 0.4 0.6 0.2 0 0.3-0.1 0.4-0.3 0 0 0-0.2 0-0.5h0.8v0.1c0 0.3 0 0.4 0 0.5 0 0.2-0.1 0.3-0.2 0.5-0.2 0.3-0.5 0.5-1 0.5-0.4 0-0.7-0.2-1-0.5-0.2-0.2-0.3-0.6-0.3-1v-1.5c0-0.5 0.1-0.8 0.2-1 0.2-0.3 0.5-0.5 1-0.5 0.4 0 0.7 0.2 0.9 0.5 0.2 0.2 0.2 0.6 0.2 1v0.8z"></path></g>
 </defs></svg>
 </iron-iconset-svg>
+<!--
+Element for loading a specific client Google API with the JavaScript client library.
+
+For loading `gapi.client` libraries
+
+##### Example
+
+    <google-client-loader id="shortener"
+      name="urlshortener"
+      version="v1"></google-client-loader>
+
+    <script>
+      var shortener = document.getElementById('shortener');
+      shortener.addEventListener('google-api-load', function(event) {
+        var request = shortener.api.url.get({
+           shortUrl: 'http://goo.gl/fbsS'
+        });
+        request.execute(function(resp) {
+          console.log(resp);
+        });
+      });
+    </script>
+
+@demo
+-->
+
+<!--
+Dynamically loads Google JavaScript API `gapi`, firing the `js-api-load` event when ready.
+
+Any number of components can use `<google-js-api>` elements, and the library will only be loaded once.
+
+##### Example
+
+    <google-js-api></google-js-api>
+    <script>
+      var api = document.querySelector('google-js-api');
+      api.addEventListener('js-api-load', function(e) {
+        console.log('API loaded', gapi);
+      });
+    </script>
+-->
+<!--
+@license
+Copyright (c) 2015 The Polymer Project Authors. All rights reserved.
+This code may only be used under the BSD style license found at http://polymer.github.io/LICENSE.txt
+The complete set of authors may be found at http://polymer.github.io/AUTHORS.txt
+The complete set of contributors may be found at http://polymer.github.io/CONTRIBUTORS.txt
+Code distributed by Google as part of the polymer project is also
+subject to an additional IP rights grant found at http://polymer.github.io/PATENTS.txt
+--><!--
+  Loads specified jsonp library.
+
+  Example:
+
+      <iron-jsonp-library
+        library-url="https://apis.google.com/js/plusone.js?onload=%%callback%%"
+        notify-event="api-load"
+        library-loaded="{{loaded}}"></iron-jsonp-library>
+
+  Will emit 'api-load' event when loaded, and set 'loaded' to true
+
+  Implemented by  Polymer.IronJsonpLibraryBehavior. Use it
+  to create specific library loader elements.
+
+  @demo
+-->
+<!--
+Dynamically loads the legacy Google JavaScript API Loader (https://developers.google.com/loader/).
+
+Fires `api-load` event when ready.
+-->
+<!--
+Dynamically loads the Google Maps JavaScript API, firing the `api-load` event when ready.
+
+#### Example
+
+    <google-maps-api api-key="abc123" version="3.exp"></google-maps-api>
+    <script>
+      var mapsAPI = document.querySelector('google-maps-api');
+      mapsAPI.addEventListener('api-load', function(e) {
+        // this.api === google.maps
+      });
+    </script>
+
+Any number of components can use `<google-maps-api>` elements, and the library will only be loaded once.
+
+@summary Element wrapper around Google Maps API.
+-->
+<!--
+Dynamically loads the Google+ JavaScript API, firing the `api-load` event when ready.
+
+Any number of components can use `<google-plusone-api>` elements, and the library will only be loaded once.
+-->
+<!--
+Dynamically loads the Google Drive Realtime API, firing the `api-load` event when ready.
+
+Any number of components can use `<google-realtime-api>` elements, and the library will only be loaded once.
+-->
+<!--
+Dynamically loads the Google Youtube Iframe API, firing the `api-load` event when ready.
+
+Any number of components can use `<google-youtube-api>` elements, and the library will only be loaded once.
+
+https://developers.google.com/youtube/iframe_api_reference
+-->
+<!--
+`google-youtube` encapsulates the YouTube player into a web component.
+
+    <google-youtube
+      video-id="..."
+      height="270px"
+      width="480px"
+      rel="0"
+      start="5"
+      autoplay="1">
+    </google-youtube>
+
+`google-youtube` supports all of the [embedded player parameters](https://developers.google.com/youtube/player_parameters). Each can be set as an attribute on `google-youtube`.
+
+The standard set of [YouTube player events](https://developers.google.com/youtube/iframe_api_reference#Events) are exposed, as well as methods for playing, pausing, seeking to a specific time, and loading a new video.
+
+
+Custom property | Description | Default
+----------------|-------------|----------
+`--google-youtube-container`  | Mixin applied to the container div | `{}`
+`--google-youtube-thumbnail`  | Mixin for the video thumbnail      | `{}`
+`--google-youtube-iframe`     | Mixin for the embeded iframe       | `{}`
+
+
+@demo
+-->
+<dom-module id="google-youtube" assetpath="../../../../../../lib/google-youtube-polymer2/">
+  <template>
+    <style>
+      :host {
+        display: block;
+      }
+
+      :host([fluid]) {
+        width: 100%;
+        max-width: 100%;
+        position: relative;
+      }
+
+      :host([fluid]) iframe,
+      :host([fluid]) #thumbnail {
+        vertical-align: bottom;
+        position: absolute;
+        top: 0px;
+        left: 0px;
+        width: 100%;
+        height: 100%;
+      }
+
+      iframe {
+        @apply --google-youtube-iframe;
+      }
+
+      #container {
+        max-width: 100%;
+        max-height: 100%;
+        @apply --google-youtube-container;
+      }
+
+      #thumbnail {
+        width: 100%;
+        height: 100%;
+        cursor: pointer;
+        @apply --google-youtube-thumbnail;
+      }
+    </style>
+    <div id="container" style$="{{_computeContainerStyle(width, height)}}">
+      <template is="dom-if" if="{{thumbnail}}">
+        <img id="thumbnail" src$="{{thumbnail}}" title="YouTube video thumbnail." alt="YouTube video thumbnail." on-tap="_handleThumbnailTap">
+      </template>
+
+      <template is="dom-if" if="{{!thumbnail}}">
+        <template is="dom-if" if="[[shouldLoadApi]]">
+          <google-youtube-api on-api-load="_apiLoad"></google-youtube-api>
+        </template>
+      </template>
+
+      <!-- Use this._playsupportedLocalStorage as the value, since this.playsupported is set to
+           true as soon as initial playback has started, and we don't want that cached. -->
+      <iron-localstorage name="google-youtube-playsupported" value="{{_playsupportedLocalStorage}}" on-iron-localstorage-load="_useExistingPlaySupportedValue" on-iron-localstorage-load-empty="_determinePlaySupported">
+      </iron-localstorage>
+
+      <div id="player"></div>
+    </div>
+  </template>
+  </dom-module>
+
 </div></body></html>
