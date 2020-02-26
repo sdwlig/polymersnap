@@ -11,7 +11,7 @@
       }
 
       [part="splitter"] {
-        min-width: var(--lumo-split-layout-size);
+        min-width: var(--lumo-splitter-width, var(--lumo-split-layout-size));
         min-height: var(--lumo-split-layout-size);
         background-color: var(--lumo-contrast-5pct);
         transition: 0.1s background-color;
@@ -26,7 +26,7 @@
       [part="handle"]::after {
         content: "";
         display: block;
-        width: var(--lumo-space-xs);
+        width: var(--lumo-splitter-handle-width, var(--lumo-space-xs));
         height: var(--lumo-size-s);
         border-radius: var(--lumo-border-radius);
         background-color: var(--lumo-contrast-30pct);
